@@ -1,17 +1,28 @@
 package com.budgetflow.core.api;
 
+import com.budgetflow.core.metadata.RequestExecutionDiagnostics;
 import com.budgetflow.core.policy.DecisionTraceEntry;
 
+import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 
 public record RequestExecutionResult(
     Map<String, TaskResult<?>> taskResults,
-    List<DecisionTraceEntry> decisionTrace
+    List<DecisionTraceEntry> decisionTrace,
+    RequestExecutionDiagnostics diagnostics
 ) {
     public RequestExecutionResult {
         taskResults = Map.copyOf(taskResults);
         decisionTrace = List.copyOf(decisionTrace);
+    }
+
+    public RequestExecutionResult(Map<String, TaskResult<?>> taskResults, List<DecisionTraceEntry> decisionTrace) {
+        this(
+            taskResults,
+            decisionTrace,
+            RequestExecutionDiagnostics.from(taskResults, decisionTrace, Duration.ZERO, Duration.ZERO)
+        );
     }
 
     @SuppressWarnings("unchecked")

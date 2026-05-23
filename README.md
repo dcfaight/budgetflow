@@ -6,6 +6,7 @@ Latency-budget-aware adaptive execution for Spring Boot.
 
 BudgetFlow provides a lightweight baseline for latency-aware orchestration where mandatory, important, and optional tasks can degrade gracefully under time pressure.
 The core executor now supports request-scoped planning so related tasks are evaluated together under one budget with per-task decision tracing.
+Request responses can now include request-level execution diagnostics (budget totals/remaining, degraded status, omitted/fallback/approximate task summaries) plus a concise execution summary string for developer inspection.
 
 ## Modules
 
