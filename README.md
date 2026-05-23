@@ -4,6 +4,24 @@
 
 BudgetFlow is a prototype Java/Spring framework for request-scoped orchestration under latency pressure. It helps APIs stay inside request budgets by classifying work by importance, planning tasks together under a shared budget, and surfacing how execution degraded through decision trace and request-level diagnostics.
 
+## Quickstart first (5 minutes)
+
+If you are new to the repository, start here:
+
+1. **Dependency:** add `budgetflow-spring-boot-starter` to your app.
+2. **Request budget:** annotate entry points with `@LatencyBudget("250ms")`.
+3. **Adaptive request:** build grouped work with `TaskKey` + `AdaptiveRequest`.
+4. **Result:** read typed values from `AdaptiveRequestResult` plus diagnostics/trace.
+
+See the concise guide: [docs/quickstart.md](docs/quickstart.md)
+
+### Minimal adoption flow
+
+```text
+@LatencyBudget -> AdaptiveRequest.builder(...) -> execute(adaptiveExecutor)
+              -> AdaptiveRequestResult (values + diagnostics + decision trace)
+```
+
 ## Why
 
 Most APIs treat all downstream work as equally important.
@@ -182,7 +200,7 @@ The latest formatter now also groups output by scenario, adds a narrative line, 
 **What the scenarios show:**
 - Under a generous budget and low pressure, naive and adaptive produce identical results — no degradation is needed.
 - Under a constrained budget and low pressure, the adaptive executor sheds the optional `insights` task and approximates `offers`, bringing projected work down from 445 ms to 203 ms. The naive executor still attempts all five tasks over budget.
-- Under elevated pressure, the adaptive executor also falls back on `rewards` and omits both optional tasks, projecting 115 ms of work. The naive executor is unaware of pressure and attempts everything.
+- Under elevated pressure, the adaptive executor falls back on `rewards`, approximates `offers`, and omits `insights`, projecting about 123 ms of work. The naive executor is unaware of pressure and attempts everything.
 
 ## Modules
 

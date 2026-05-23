@@ -38,11 +38,11 @@ class DashboardComparisonHarnessTest {
             assertEquals(List.of("offers"), constrainedAdaptive.approximatedTasks());
 
             DashboardBenchmarkSummary elevatedAdaptive = summaryFor(summaries, "constrained_budget_elevated_pressure", "budgetflow_adaptive");
-            assertEquals(3, elevatedAdaptive.totalTasksExecuted());
+            assertEquals(4, elevatedAdaptive.totalTasksExecuted());
             assertTrue(elevatedAdaptive.degraded());
-            assertEquals(List.of("offers", "insights"), elevatedAdaptive.omittedTasks());
+            assertEquals(List.of("insights"), elevatedAdaptive.omittedTasks());
             assertEquals(List.of("rewards"), elevatedAdaptive.fallbackTasks());
-            assertEquals(List.of(), elevatedAdaptive.approximatedTasks());
+            assertEquals(List.of("offers"), elevatedAdaptive.approximatedTasks());
         }
     }
 
@@ -53,12 +53,12 @@ class DashboardComparisonHarnessTest {
             new DashboardBenchmarkSummary(
                 scenario,
                 "budgetflow_adaptive",
-                3,
+                4,
                 List.of("insights"),
                 List.of("rewards"),
                 List.of("offers"),
                 true,
-                java.time.Duration.ofMillis(115),
+                java.time.Duration.ofMillis(123),
                 List.of("offers=approximate_selected_by_policy[pressure=high:downstream,budget=tight,latency_ratio=0.49]")
             )
         ));
@@ -66,7 +66,7 @@ class DashboardComparisonHarnessTest {
         assertTrue(output.contains("BudgetFlow dashboard comparison"));
         assertTrue(output.contains("Scenario: constrained_budget_elevated_pressure — Constrained budget / elevated pressure"));
         assertTrue(output.contains("Strategy | Executed | Degraded | Work | Omitted | Fallback | Approx | Why"));
-        assertTrue(output.contains("budgetflow_adaptive | 3 | true | 430ms/115ms | insights | rewards | offers | offers=approximate_selected_by_policy"));
+        assertTrue(output.contains("budgetflow_adaptive | 4 | true | 430ms/123ms | insights | rewards | offers | offers=approximate_selected_by_policy"));
     }
 
     @Test
@@ -79,9 +79,10 @@ class DashboardComparisonHarnessTest {
             DashboardBenchmarkSummary adaptive = summaryFor(summaries, "generous_budget_elevated_pressure", "budgetflow_adaptive");
             // Mandatory tasks (balance, transactions) always execute
             // Important task (rewards) gets fallback under high pressure
-            // Optional tasks (offers, insights) are omitted under high pressure
+            // Optional tasks prefer degraded execution first, with omission used more selectively
             assertEquals(List.of("rewards"), adaptive.fallbackTasks());
-            assertEquals(List.of("offers", "insights"), adaptive.omittedTasks());
+            assertEquals(List.of("insights"), adaptive.omittedTasks());
+            assertEquals(List.of("offers"), adaptive.approximatedTasks());
             assertTrue(adaptive.degraded());
 
             DashboardBenchmarkSummary naive = summaryFor(summaries, "generous_budget_elevated_pressure", "naive_parallel");

@@ -10,6 +10,10 @@ import java.util.List;
 public class DefaultBudgetPolicyEngine implements BudgetPolicyEngine {
     private static final double HIGH_PRESSURE = 0.85;
     private static final double MODERATE_PRESSURE = 0.60;
+    private static final double IMPORTANT_FALLBACK_LATENCY_RATIO = 0.45;
+    private static final double OPTIONAL_DEGRADE_LATENCY_RATIO = 0.45;
+    private static final double OPTIONAL_OMIT_LATENCY_RATIO = 0.70;
+    private static final double OPTIONAL_EXTREME_OMIT_LATENCY_RATIO = 0.90;
     private static final Duration LOW_BUDGET_THRESHOLD = Duration.ofMillis(200);
     private static final Duration VERY_LOW_BUDGET_THRESHOLD = Duration.ofMillis(120);
 
@@ -145,28 +149,42 @@ public class DefaultBudgetPolicyEngine implements BudgetPolicyEngine {
         boolean veryLowBudget = remainingBudget.compareTo(VERY_LOW_BUDGET_THRESHOLD) < 0;
 
         if (task.importance() == Importance.IMPORTANT) {
-            ExecutionMode mode = (highPressure || lowBudget || latencyRatio >= 0.35) && task.fallbackSupported()
+            ExecutionMode mode = (highPressure || lowBudget || latencyRatio >= IMPORTANT_FALLBACK_LATENCY_RATIO) && task.fallbackSupported()
                 ? ExecutionMode.EXECUTE_WITH_FALLBACK
                 : ExecutionMode.EXECUTE;
             return new PolicySelection(mode, explainReason(mode, snapshot, remainingBudget, latencyRatio));
         }
 
-        if (veryLowBudget || highPressure || latencyRatio >= 0.55) {
+        boolean severeBudgetOrPressure = veryLowBudget || highPressure;
+        boolean stressConditions = severeBudgetOrPressure
+            || moderatePressure
+            || lowBudget
+            || latencyRatio >= OPTIONAL_DEGRADE_LATENCY_RATIO;
+        boolean omitDueToExtremeRatio = severeBudgetOrPressure && latencyRatio >= OPTIONAL_OMIT_LATENCY_RATIO;
+        boolean omitDueToNoDegradedPath = latencyRatio >= OPTIONAL_EXTREME_OMIT_LATENCY_RATIO
+            && !task.approximateSupported()
+            && !task.fallbackSupported();
+
+        if (omitDueToExtremeRatio || omitDueToNoDegradedPath) {
             return new PolicySelection(ExecutionMode.OMIT, explainReason(ExecutionMode.OMIT, snapshot, remainingBudget, latencyRatio));
         }
 
-        if ((moderatePressure || lowBudget || latencyRatio >= 0.45) && task.approximateSupported()) {
+        if (stressConditions && task.approximateSupported()) {
             return new PolicySelection(
                 ExecutionMode.EXECUTE_APPROXIMATE,
                 explainReason(ExecutionMode.EXECUTE_APPROXIMATE, snapshot, remainingBudget, latencyRatio)
             );
         }
 
-        if ((moderatePressure || lowBudget || latencyRatio >= 0.45) && task.fallbackSupported()) {
+        if (stressConditions && task.fallbackSupported()) {
             return new PolicySelection(
                 ExecutionMode.EXECUTE_WITH_FALLBACK,
                 explainReason(ExecutionMode.EXECUTE_WITH_FALLBACK, snapshot, remainingBudget, latencyRatio)
             );
+        }
+
+        if (severeBudgetOrPressure || latencyRatio >= OPTIONAL_OMIT_LATENCY_RATIO) {
+            return new PolicySelection(ExecutionMode.OMIT, explainReason(ExecutionMode.OMIT, snapshot, remainingBudget, latencyRatio));
         }
 
         return new PolicySelection(ExecutionMode.EXECUTE, explainReason(ExecutionMode.EXECUTE, snapshot, remainingBudget, latencyRatio));

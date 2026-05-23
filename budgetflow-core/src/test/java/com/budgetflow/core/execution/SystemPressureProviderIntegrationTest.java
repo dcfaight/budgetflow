@@ -191,7 +191,7 @@ class SystemPressureProviderIntegrationTest {
         );
 
         var response = executor.executeRequest(List.of(
-            TaskSpec.important("rewards", Duration.ofMillis(400), () -> "primary").withFallback(() -> "fallback"),
+            TaskSpec.important("rewards", Duration.ofMillis(500), () -> "primary").withFallback(() -> "fallback"),
             TaskSpec.optional("offers", Duration.ofMillis(300), () -> "primary-offers").withApproximate(() -> "approx-offers")
         )).toCompletableFuture().join();
 

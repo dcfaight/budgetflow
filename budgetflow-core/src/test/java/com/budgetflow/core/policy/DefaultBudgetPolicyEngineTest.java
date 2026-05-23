@@ -29,6 +29,35 @@ class DefaultBudgetPolicyEngineTest {
     }
 
     @Test
+    void optionalTaskWithApproximatePathPrefersApproximateBeforeOmissionUnderHighPressure() {
+        DefaultBudgetPolicyEngine engine = new DefaultBudgetPolicyEngine();
+
+        PolicyDecision decision = engine.evaluate(new PolicyEvaluationInput(
+            Duration.ofMillis(200),
+            List.of(new TaskDescriptor("offers", Importance.OPTIONAL, Duration.ofMillis(100), false, true)),
+            new SystemPressureSnapshot(0.86, 0.20, 0.20)
+        ));
+
+        assertEquals(ExecutionMode.EXECUTE_APPROXIMATE, decision.directives().get(0).executionMode());
+        assertFalse(decision.directives().get(0).omitted());
+        assertTrue(decision.directives().get(0).reason().startsWith("approximate_selected_by_policy["));
+    }
+
+    @Test
+    void optionalTaskWithoutDegradedPathIsOmittedUnderHighPressure() {
+        DefaultBudgetPolicyEngine engine = new DefaultBudgetPolicyEngine();
+
+        PolicyDecision decision = engine.evaluate(new PolicyEvaluationInput(
+            Duration.ofMillis(200),
+            List.of(new TaskDescriptor("insights", Importance.OPTIONAL, Duration.ofMillis(100), false, false)),
+            new SystemPressureSnapshot(0.86, 0.20, 0.20)
+        ));
+
+        assertEquals(ExecutionMode.OMIT, decision.directives().get(0).executionMode());
+        assertTrue(decision.directives().get(0).omitted());
+    }
+
+    @Test
     void approximationIsNotAlwaysSelectedWhenSupported() {
         DefaultBudgetPolicyEngine engine = new DefaultBudgetPolicyEngine();
 
