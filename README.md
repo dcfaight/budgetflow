@@ -117,20 +117,22 @@ curl http://localhost:8080/api/accounts/acc-123/dashboard
 
 ## Running the comparison harness
 
-Use the lightweight comparison harness to see naive parallel fan-out beside BudgetFlow adaptive execution across a few dashboard scenarios:
+## Comparison harness
 
-```bash
-./gradlew :budgetflow-demo-fintech:runDashboardComparison
-```
+The fintech demo includes a lightweight comparison harness that runs the same dashboard workload with two strategies:
 
-The output includes:
-- scenario name
-- execution strategy
-- executed task count
-- omitted / fallback / approximated tasks
-- degraded status
-- budget vs projected work
-- simulated pressure snapshot
+- `naive_parallel`
+- `budgetflow_adaptive`
+
+The harness exists to make the framework’s behavior easier to inspect locally. It is not intended to be a statistically rigorous benchmark system.
+
+Its purpose is to show:
+- how request-scoped planning changes task execution
+- how constrained budgets affect response composition
+- how pressure and task importance influence omission, fallback, and approximation
+- how diagnostics and decision trace make degraded execution explainable
+
+The comparison harness reuses the same `DashboardTaskSpecs` model as the main demo service so that comparison scenarios remain aligned with the actual example workload.
 
 ## Current status
 
