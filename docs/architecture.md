@@ -24,6 +24,27 @@ BudgetFlow then:
 
 ---
 
+## Architecture diagram
+
+```mermaid
+flowchart LR
+    A[Incoming Request] --> B[BudgetContext / ExecutionBudget]
+    B --> C[AdaptiveRequest or TaskSpec list]
+    C --> D[DefaultAdaptiveExecutor]
+    D --> E[BudgetPolicyEngine]
+    D --> F[SystemPressureProvider]
+    F --> F1[Default budget-derived provider]
+    F --> F2[RuntimeSignalPressureProvider]
+    F --> F3[CompositeSystemPressureProvider]
+    E --> G[TaskExecutionDirectives + DecisionTrace]
+    G --> H[Task execution by selected mode]
+    H --> I[RequestExecutionResult]
+    I --> J[RequestExecutionDiagnostics]
+    I --> K[DecisionTraceEntry list]
+```
+
+---
+
 ## Core concepts
 
 ### Execution budget
@@ -136,6 +157,29 @@ The default policy now also emits deterministic reason strings that include:
 - latency ratio at planning time
 
 That keeps degradation decisions explainable without introducing opaque heuristics.
+
+---
+
+## Decision flow diagram
+
+```mermaid
+flowchart TD
+    A[Request budget available] --> B[Grouped tasks built]
+    B --> C[Mandatory reserve]
+    C --> D[Policy evaluation with pressure snapshot]
+    D --> E{Task importance + budget + pressure}
+    E -->|Mandatory| F[EXECUTE]
+    E -->|Important| G[EXECUTE or EXECUTE_WITH_FALLBACK]
+    E -->|Optional| H[EXECUTE / FALLBACK / APPROXIMATE / OMIT]
+    F --> I[Execute task]
+    G --> I
+    H --> I
+    I --> J[Collect task results]
+    J --> K[Build diagnostics: degraded, omit/fallback/approx]
+    J --> L[Emit decision trace entries]
+    K --> M[Return result payload + metadata]
+    L --> M
+```
 
 ---
 
@@ -286,6 +330,7 @@ Current limitations include:
 - heuristic planner thresholds
 - limited runtime pressure realism
 - no production-grade observability integration
+- lightweight optional lifecycle hooks only (no full telemetry pipeline)
 - low-level developer ergonomics in some APIs beyond the new grouped request helpers
 - no advanced scheduling/concurrency orchestration yet
 - comparison harness is scenario-driven, not a rigorous benchmark suite

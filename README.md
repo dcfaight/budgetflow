@@ -126,6 +126,8 @@ BudgetFlow currently includes:
 - per-task decision trace
 - request-level execution diagnostics
 - pluggable pressure provider abstraction
+- optional runtime pressure adapters (`RuntimeSignalPressureProvider`, `CompositeSystemPressureProvider`)
+- optional execution lifecycle hooks (`ExecutionLifecycleListener`)
 - fintech dashboard demo application
 - naive-vs-adaptive comparison harness with scenario packs, grouped reporting, and optional JSON output
 
@@ -206,6 +208,17 @@ Available scenario packs:
 - `extended` — adds generous-budget/elevated-pressure, DB-bound, and downstream-spike scenarios
 - `realism` — emphasizes richer pressure narratives while staying deterministic and explainable
 
+### Scenario matrix
+
+| Scenario | Pack(s) | What it demonstrates |
+|----------|---------|----------------------|
+| `generous_budget_low_pressure` | default, extended | Baseline convergence: adaptive and naive should be effectively equivalent when there is ample budget and low pressure. |
+| `constrained_budget_low_pressure` | default, extended, realism | Budget-only stress: adaptive should approximate/omit optional work while preserving mandatory-first behavior. |
+| `constrained_budget_elevated_pressure` | default, extended, realism | Joint budget + pressure stress: adaptive should degrade more aggressively (including fallback for important tasks). |
+| `generous_budget_elevated_pressure` | extended | Pressure-only stress: even with budget headroom, elevated runtime pressure can trigger graceful degradation. |
+| `tight_budget_moderate_db_pressure` | extended, realism | Dominant DB pressure path: demonstrates policy behavior when one pressure dimension (DB) is the main bottleneck. |
+| `moderate_budget_downstream_spike` | extended, realism | Downstream dependency instability: shows degradation decisions when downstream pressure dominates. |
+
 The optional JSON mode is intentionally simple and stable enough for demo automation or snapshot-style tests; it is not intended as a full benchmarking/reporting platform.
 
 See the [Comparison harness output](#comparison-harness-output) section above for example output and interpretation guidance.
@@ -232,6 +245,7 @@ Near-term priorities include:
 - improving documentation and examples
 - refining public developer ergonomics
 - evolving pressure providers toward more realistic runtime signals
+- expanding lightweight runtime integration hooks for pressure and observability-style callbacks
 - expanding scenario realism and comparison depth
 - exploring richer planning and orchestration strategies
 

@@ -35,31 +35,44 @@ public class DefaultAdaptiveExecutor implements AdaptiveExecutor {
     private final Executor executor;
     private final BudgetPolicyEngine budgetPolicyEngine;
     private final SystemPressureProvider pressureProvider;
+    private final List<ExecutionLifecycleListener> lifecycleListeners;
 
     public DefaultAdaptiveExecutor() {
-        this(ForkJoinPool.commonPool(), new DefaultBudgetPolicyEngine(), new DefaultSystemPressureProvider());
+        this(ForkJoinPool.commonPool(), new DefaultBudgetPolicyEngine(), new DefaultSystemPressureProvider(), List.of());
     }
 
     public DefaultAdaptiveExecutor(BudgetPolicyEngine budgetPolicyEngine) {
-        this(ForkJoinPool.commonPool(), budgetPolicyEngine, new DefaultSystemPressureProvider());
+        this(ForkJoinPool.commonPool(), budgetPolicyEngine, new DefaultSystemPressureProvider(), List.of());
     }
 
     public DefaultAdaptiveExecutor(Executor executor) {
-        this(executor, new DefaultBudgetPolicyEngine(), new DefaultSystemPressureProvider());
+        this(executor, new DefaultBudgetPolicyEngine(), new DefaultSystemPressureProvider(), List.of());
     }
 
     public DefaultAdaptiveExecutor(Executor executor, BudgetPolicyEngine budgetPolicyEngine) {
-        this(executor, budgetPolicyEngine, new DefaultSystemPressureProvider());
+        this(executor, budgetPolicyEngine, new DefaultSystemPressureProvider(), List.of());
     }
 
     public DefaultAdaptiveExecutor(BudgetPolicyEngine budgetPolicyEngine, SystemPressureProvider pressureProvider) {
-        this(ForkJoinPool.commonPool(), budgetPolicyEngine, pressureProvider);
+        this(ForkJoinPool.commonPool(), budgetPolicyEngine, pressureProvider, List.of());
     }
 
     public DefaultAdaptiveExecutor(Executor executor, BudgetPolicyEngine budgetPolicyEngine, SystemPressureProvider pressureProvider) {
+        this(executor, budgetPolicyEngine, pressureProvider, List.of());
+    }
+
+    public DefaultAdaptiveExecutor(
+        Executor executor,
+        BudgetPolicyEngine budgetPolicyEngine,
+        SystemPressureProvider pressureProvider,
+        List<ExecutionLifecycleListener> lifecycleListeners
+    ) {
         this.executor = executor;
         this.budgetPolicyEngine = Objects.requireNonNull(budgetPolicyEngine, "budgetPolicyEngine must not be null");
         this.pressureProvider = Objects.requireNonNull(pressureProvider, "pressureProvider must not be null");
+        this.lifecycleListeners = List.copyOf(
+            Objects.requireNonNull(lifecycleListeners, "lifecycleListeners must not be null")
+        );
     }
 
     @Override
@@ -93,7 +106,9 @@ public class DefaultAdaptiveExecutor implements AdaptiveExecutor {
                 totalRequestBudget,
                 remainingRequestBudget
             );
-            return new RequestExecutionResult(results, decision.decisionTrace(), diagnostics);
+            RequestExecutionResult requestExecutionResult = new RequestExecutionResult(results, decision.decisionTrace(), diagnostics);
+            notifyAfterRequestExecution(requestExecutionResult);
+            return requestExecutionResult;
         });
     }
 
@@ -112,7 +127,10 @@ public class DefaultAdaptiveExecutor implements AdaptiveExecutor {
                 .toList(),
             pressureProvider.currentPressure()
         );
-        return budgetPolicyEngine.evaluate(evaluationInput);
+        notifyBeforePolicyEvaluation(evaluationInput);
+        PolicyDecision decision = budgetPolicyEngine.evaluate(evaluationInput);
+        notifyAfterPolicyEvaluation(evaluationInput, decision);
+        return decision;
     }
 
     private Optional<ExecutionBudget> currentExecutionBudget() {
@@ -180,5 +198,31 @@ public class DefaultAdaptiveExecutor implements AdaptiveExecutor {
 
     private String nonEmptyReason(String reason, String fallbackReason) {
         return reason == null || reason.isBlank() ? fallbackReason : reason;
+    }
+
+    private void notifyBeforePolicyEvaluation(PolicyEvaluationInput input) {
+        for (ExecutionLifecycleListener listener : lifecycleListeners) {
+            invokeListener(() -> listener.beforePolicyEvaluation(input));
+        }
+    }
+
+    private void notifyAfterPolicyEvaluation(PolicyEvaluationInput input, PolicyDecision decision) {
+        for (ExecutionLifecycleListener listener : lifecycleListeners) {
+            invokeListener(() -> listener.afterPolicyEvaluation(input, decision));
+        }
+    }
+
+    private void notifyAfterRequestExecution(RequestExecutionResult result) {
+        for (ExecutionLifecycleListener listener : lifecycleListeners) {
+            invokeListener(() -> listener.afterRequestExecution(result));
+        }
+    }
+
+    private void invokeListener(Runnable callback) {
+        try {
+            callback.run();
+        } catch (RuntimeException ignored) {
+            // Observability/extension hooks are best-effort and must not break request execution.
+        }
     }
 }
