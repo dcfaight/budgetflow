@@ -17,8 +17,8 @@ import org.springframework.context.annotation.Bean;
 public class BudgetFlowAutoConfiguration {
     @Bean
     @ConditionalOnMissingBean
-    public AdaptiveExecutor adaptiveExecutor() {
-        return new DefaultAdaptiveExecutor();
+    public AdaptiveExecutor adaptiveExecutor(BudgetPolicyEngine budgetPolicyEngine) {
+        return new DefaultAdaptiveExecutor(budgetPolicyEngine);
     }
 
     @Bean

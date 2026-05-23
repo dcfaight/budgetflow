@@ -19,4 +19,14 @@ public class OffersClient {
             new Offer("Travel bonus points weekend")
         );
     }
+
+    public List<Offer> getCachedOffers(String accountId) {
+        simulationSupport.delay(12);
+        return List.of(new Offer("Cached: grocery saver"));
+    }
+
+    public List<Offer> getApproximateOffers(String accountId) {
+        simulationSupport.delay(8);
+        return List.of(new Offer("Approximate: personalized offers unavailable"));
+    }
 }

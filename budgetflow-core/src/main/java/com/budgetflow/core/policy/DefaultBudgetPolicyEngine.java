@@ -9,6 +9,7 @@ import java.util.List;
 
 public class DefaultBudgetPolicyEngine implements BudgetPolicyEngine {
     private static final double HIGH_PRESSURE = 0.85;
+    private static final double MODERATE_PRESSURE = 0.60;
 
     @Override
     public PolicyDecision evaluate(PolicyEvaluationInput input) {
@@ -22,7 +23,9 @@ public class DefaultBudgetPolicyEngine implements BudgetPolicyEngine {
         for (TaskDescriptor task : input.tasks()) {
             ExecutionMode mode = chooseExecutionMode(task, input.pressureSnapshot(), remainingBudget);
             Duration allocated = minPositive(task.expectedLatency(), perTaskBudget);
+            boolean omitted = mode == ExecutionMode.OMIT;
             boolean degraded = mode != ExecutionMode.EXECUTE;
+            String reason = reasonFor(mode);
 
             if (degraded) {
                 degradationReasons.add(task.taskName() + ": " + mode);
@@ -32,8 +35,8 @@ public class DefaultBudgetPolicyEngine implements BudgetPolicyEngine {
                 task.taskName(),
                 mode,
                 allocated,
-                false,
-                degraded ? "pressure_or_budget_constraints" : "normal"
+                omitted,
+                reason
             ));
         }
 
@@ -45,27 +48,49 @@ public class DefaultBudgetPolicyEngine implements BudgetPolicyEngine {
         SystemPressureSnapshot snapshot,
         Duration remainingBudget
     ) {
+        Duration expectedLatency = task.expectedLatency() == null ? Duration.ZERO : task.expectedLatency();
+        long remainingMillis = Math.max(remainingBudget.toMillis(), 1L);
+        long expectedMillis = Math.max(expectedLatency.toMillis(), 0L);
+        double latencyRatio = (double) expectedMillis / (double) remainingMillis;
+
+        double pressureLevel = Math.max(snapshot.executorUtilization(), Math.max(snapshot.dbPressure(), snapshot.downstreamPressure()));
         if (task.importance() == Importance.MANDATORY) {
             return ExecutionMode.EXECUTE;
         }
 
-        boolean highPressure = snapshot.executorUtilization() >= HIGH_PRESSURE
-            || snapshot.dbPressure() >= HIGH_PRESSURE
-            || snapshot.downstreamPressure() >= HIGH_PRESSURE;
-
+        boolean highPressure = pressureLevel >= HIGH_PRESSURE;
+        boolean moderatePressure = pressureLevel >= MODERATE_PRESSURE;
         boolean lowBudget = remainingBudget.compareTo(Duration.ofMillis(200)) < 0;
+        boolean veryLowBudget = remainingBudget.compareTo(Duration.ofMillis(120)) < 0;
 
         if (task.importance() == Importance.IMPORTANT) {
-            return (highPressure || lowBudget) && task.fallbackSupported()
+            return (highPressure || lowBudget || latencyRatio >= 0.35) && task.fallbackSupported()
                 ? ExecutionMode.EXECUTE_WITH_FALLBACK
                 : ExecutionMode.EXECUTE;
         }
 
-        if (task.approximateSupported()) {
+        if (veryLowBudget || highPressure || latencyRatio >= 0.55) {
+            return ExecutionMode.OMIT;
+        }
+
+        if ((moderatePressure || lowBudget || latencyRatio >= 0.45) && task.approximateSupported()) {
             return ExecutionMode.EXECUTE_APPROXIMATE;
         }
 
-        return task.fallbackSupported() ? ExecutionMode.EXECUTE_WITH_FALLBACK : ExecutionMode.EXECUTE;
+        if ((moderatePressure || lowBudget || latencyRatio >= 0.45) && task.fallbackSupported()) {
+            return ExecutionMode.EXECUTE_WITH_FALLBACK;
+        }
+
+        return ExecutionMode.EXECUTE;
+    }
+
+    private String reasonFor(ExecutionMode mode) {
+        return switch (mode) {
+            case EXECUTE -> "normal";
+            case EXECUTE_WITH_FALLBACK -> "fallback_selected_by_policy";
+            case EXECUTE_APPROXIMATE -> "approximate_selected_by_policy";
+            case OMIT -> "omitted_by_policy";
+        };
     }
 
     private Duration minPositive(Duration first, Duration second) {

@@ -14,4 +14,9 @@ public class RewardsClient {
         simulationSupport.delay(90);
         return new RewardsSummary(2450);
     }
+
+    public RewardsSummary getCachedRewards(String accountId) {
+        simulationSupport.delay(10);
+        return new RewardsSummary(1800);
+    }
 }
