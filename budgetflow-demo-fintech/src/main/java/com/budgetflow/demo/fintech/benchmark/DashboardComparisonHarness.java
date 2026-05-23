@@ -10,7 +10,6 @@ import com.budgetflow.core.context.BudgetContextHolder;
 import com.budgetflow.core.execution.DefaultAdaptiveExecutor;
 import com.budgetflow.core.metadata.RequestExecutionDiagnostics;
 import com.budgetflow.core.policy.DefaultBudgetPolicyEngine;
-import com.budgetflow.core.policy.SystemPressureSnapshot;
 import com.budgetflow.demo.fintech.dashboard.BalanceClient;
 import com.budgetflow.demo.fintech.dashboard.DashboardTaskSpecs;
 import com.budgetflow.demo.fintech.dashboard.InsightsClient;
@@ -64,23 +63,7 @@ public final class DashboardComparisonHarness implements AutoCloseable {
     }
 
     public List<DashboardBenchmarkSummary> runDefaultScenarios() {
-        return run(List.of(
-            new DashboardBenchmarkScenario(
-                "generous_budget_low_pressure",
-                Duration.ofMillis(650),
-                new SystemPressureSnapshot(0.15, 0.10, 0.20)
-            ),
-            new DashboardBenchmarkScenario(
-                "constrained_budget_low_pressure",
-                Duration.ofMillis(430),
-                new SystemPressureSnapshot(0.15, 0.10, 0.20)
-            ),
-            new DashboardBenchmarkScenario(
-                "constrained_budget_elevated_pressure",
-                Duration.ofMillis(430),
-                new SystemPressureSnapshot(0.90, 0.88, 0.92)
-            )
-        ));
+        return run(PressureScenarios.defaultScenarios());
     }
 
     public List<DashboardBenchmarkSummary> run(List<DashboardBenchmarkScenario> scenarios) {
