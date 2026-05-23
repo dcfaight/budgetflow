@@ -7,6 +7,7 @@ import com.budgetflow.core.api.TaskResult;
 import com.budgetflow.core.api.TaskSpec;
 import com.budgetflow.core.classification.ExecutionMode;
 import com.budgetflow.core.context.BudgetContextHolder;
+import com.budgetflow.core.metadata.RequestExecutionDiagnostics;
 import com.budgetflow.core.policy.BudgetPolicyEngine;
 import com.budgetflow.core.policy.DefaultBudgetPolicyEngine;
 import com.budgetflow.core.policy.PolicyDecision;
@@ -59,7 +60,9 @@ public class DefaultAdaptiveExecutor implements AdaptiveExecutor {
     @Override
     public CompletionStage<RequestExecutionResult> executeRequest(List<TaskSpec<?>> taskSpecs) {
         validateTaskNames(taskSpecs);
-        PolicyDecision decision = evaluateDecision(taskSpecs);
+        Optional<ExecutionBudget> requestBudget = currentExecutionBudget();
+        Duration availableBudget = requestBudget.map(ExecutionBudget::remaining).orElse(DEFAULT_REMAINING_BUDGET);
+        PolicyDecision decision = evaluateDecision(taskSpecs, availableBudget);
         Map<String, TaskExecutionDirective> directivesByName = directivesByTaskName(decision, taskSpecs);
         List<CompletableFuture<TaskResult<?>>> futures = taskSpecs.stream()
             .map(taskSpec -> executeWithDirective(taskSpec, directivesByName.get(taskSpec.taskName())).toCompletableFuture())
@@ -71,7 +74,15 @@ public class DefaultAdaptiveExecutor implements AdaptiveExecutor {
             for (int index = 0; index < taskSpecs.size(); index++) {
                 results.put(taskSpecs.get(index).taskName(), futures.get(index).join());
             }
-            return new RequestExecutionResult(results, decision.decisionTrace());
+            Duration totalRequestBudget = requestBudget.map(ExecutionBudget::totalBudget).orElse(availableBudget);
+            Duration remainingRequestBudget = requestBudget.map(ExecutionBudget::remaining).orElse(DEFAULT_REMAINING_BUDGET);
+            RequestExecutionDiagnostics diagnostics = RequestExecutionDiagnostics.from(
+                results,
+                decision.decisionTrace(),
+                totalRequestBudget,
+                remainingRequestBudget
+            );
+            return new RequestExecutionResult(results, decision.decisionTrace(), diagnostics);
         });
     }
 
@@ -82,15 +93,19 @@ public class DefaultAdaptiveExecutor implements AdaptiveExecutor {
         }
     }
 
-    private PolicyDecision evaluateDecision(List<TaskSpec<?>> taskSpecs) {
+    private PolicyDecision evaluateDecision(List<TaskSpec<?>> taskSpecs, Duration availableBudget) {
         PolicyEvaluationInput evaluationInput = new PolicyEvaluationInput(
-            currentRemainingBudget(),
+            availableBudget,
             taskSpecs.stream()
                 .map(this::toTaskDescriptor)
                 .toList(),
             currentPressureSnapshot()
         );
         return budgetPolicyEngine.evaluate(evaluationInput);
+    }
+
+    private Optional<ExecutionBudget> currentExecutionBudget() {
+        return BudgetContextHolder.current().map(context -> context.getExecutionBudget());
     }
 
     private Map<String, TaskExecutionDirective> directivesByTaskName(PolicyDecision decision, List<TaskSpec<?>> taskSpecs) {
@@ -150,12 +165,6 @@ public class DefaultAdaptiveExecutor implements AdaptiveExecutor {
 
     private TaskExecutionDirective defaultDirective(String taskName) {
         return new TaskExecutionDirective(taskName, ExecutionMode.EXECUTE, Duration.ZERO, false, "normal");
-    }
-
-    private Duration currentRemainingBudget() {
-        return BudgetContextHolder.current()
-            .map(context -> context.getExecutionBudget().remaining())
-            .orElse(DEFAULT_REMAINING_BUDGET);
     }
 
     private SystemPressureSnapshot currentPressureSnapshot() {

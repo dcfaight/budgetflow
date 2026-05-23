@@ -158,6 +158,10 @@ class DefaultAdaptiveExecutorTest {
         assertEquals("ok", response.taskResult("balance").value().orElseThrow());
         assertTrue(response.taskResult("offers").omitted());
         assertEquals(2, response.decisionTrace().size());
+        assertTrue(response.diagnostics().degraded());
+        assertEquals(List.of("offers"), response.diagnostics().omittedTaskNames());
+        assertEquals(List.of(), response.diagnostics().fallbackTaskNames());
+        assertEquals(List.of(), response.diagnostics().approximatedTaskNames());
     }
 
     @Test
@@ -186,6 +190,121 @@ class DefaultAdaptiveExecutorTest {
         )).toCompletableFuture().join();
 
         assertEquals(List.of(traceEntry), response.decisionTrace());
+        assertEquals(List.of("offers"), response.diagnostics().approximatedTaskNames());
+    }
+
+    @Test
+    void diagnosticsCaptureRequestBudgetAndDegradedSummary() {
+        Duration totalBudget = Duration.ofMillis(250);
+        BudgetContextHolder.set(new BudgetContext(
+            new DefaultExecutionBudget(totalBudget, Instant.now().minusMillis(15))
+        ));
+
+        BudgetPolicyEngine policyEngine = input -> new PolicyDecision(
+            List.of(
+                new TaskExecutionDirective("balance", ExecutionMode.EXECUTE, Duration.ofMillis(40), false, "normal"),
+                new TaskExecutionDirective("offers", ExecutionMode.EXECUTE_APPROXIMATE, Duration.ofMillis(20), false, "approximate_selected_by_policy"),
+                new TaskExecutionDirective("insights", ExecutionMode.OMIT, Duration.ZERO, true, "omitted_by_policy")
+            ),
+            true,
+            List.of("offers: EXECUTE_APPROXIMATE", "insights: OMIT"),
+            List.of(
+                new DecisionTraceEntry(
+                    "balance",
+                    Importance.MANDATORY,
+                    ExecutionMode.EXECUTE,
+                    "normal",
+                    Duration.ofMillis(40),
+                    Duration.ofMillis(40),
+                    input.remainingBudget()
+                ),
+                new DecisionTraceEntry(
+                    "offers",
+                    Importance.OPTIONAL,
+                    ExecutionMode.EXECUTE_APPROXIMATE,
+                    "approximate_selected_by_policy",
+                    Duration.ofMillis(120),
+                    Duration.ofMillis(20),
+                    input.remainingBudget()
+                ),
+                new DecisionTraceEntry(
+                    "insights",
+                    Importance.OPTIONAL,
+                    ExecutionMode.OMIT,
+                    "omitted_by_policy",
+                    Duration.ofMillis(140),
+                    Duration.ZERO,
+                    input.remainingBudget()
+                )
+            )
+        );
+
+        DefaultAdaptiveExecutor executor = new DefaultAdaptiveExecutor(policyEngine);
+        var response = executor.executeRequest(List.of(
+            TaskSpec.mandatory("balance", Duration.ofMillis(40), () -> "ok"),
+            TaskSpec.optional("offers", Duration.ofMillis(120), () -> "expensive").withApproximate(() -> "approx"),
+            TaskSpec.optional("insights", Duration.ofMillis(140), () -> "insight")
+        )).toCompletableFuture().join();
+
+        assertEquals(totalBudget, response.diagnostics().totalRequestBudget());
+        assertTrue(response.diagnostics().remainingRequestBudget().toMillis() <= totalBudget.toMillis());
+        assertTrue(response.diagnostics().degraded());
+        assertEquals(List.of("insights"), response.diagnostics().omittedTaskNames());
+        assertEquals(List.of("offers"), response.diagnostics().approximatedTaskNames());
+        assertEquals(List.of(), response.diagnostics().fallbackTaskNames());
+    }
+
+    @Test
+    void diagnosticsRemainConsistentWithDecisionTraceModes() {
+        BudgetPolicyEngine policyEngine = input -> new PolicyDecision(
+            List.of(
+                new TaskExecutionDirective("rewards", ExecutionMode.EXECUTE_WITH_FALLBACK, Duration.ofMillis(50), false, "fallback_selected_by_policy"),
+                new TaskExecutionDirective("offers", ExecutionMode.EXECUTE_APPROXIMATE, Duration.ofMillis(30), false, "approximate_selected_by_policy"),
+                new TaskExecutionDirective("insights", ExecutionMode.OMIT, Duration.ZERO, true, "omitted_by_policy")
+            ),
+            true,
+            List.of("rewards: EXECUTE_WITH_FALLBACK", "offers: EXECUTE_APPROXIMATE", "insights: OMIT"),
+            List.of(
+                new DecisionTraceEntry(
+                    "rewards",
+                    Importance.IMPORTANT,
+                    ExecutionMode.EXECUTE_WITH_FALLBACK,
+                    "fallback_selected_by_policy",
+                    Duration.ofMillis(90),
+                    Duration.ofMillis(50),
+                    input.remainingBudget()
+                ),
+                new DecisionTraceEntry(
+                    "offers",
+                    Importance.OPTIONAL,
+                    ExecutionMode.EXECUTE_APPROXIMATE,
+                    "approximate_selected_by_policy",
+                    Duration.ofMillis(110),
+                    Duration.ofMillis(30),
+                    input.remainingBudget()
+                ),
+                new DecisionTraceEntry(
+                    "insights",
+                    Importance.OPTIONAL,
+                    ExecutionMode.OMIT,
+                    "omitted_by_policy",
+                    Duration.ofMillis(140),
+                    Duration.ZERO,
+                    input.remainingBudget()
+                )
+            )
+        );
+
+        DefaultAdaptiveExecutor executor = new DefaultAdaptiveExecutor(policyEngine);
+        var response = executor.executeRequest(List.of(
+            TaskSpec.important("rewards", Duration.ofMillis(90), () -> "primary").withFallback(() -> "fallback"),
+            TaskSpec.optional("offers", Duration.ofMillis(110), () -> "primary").withApproximate(() -> "approx"),
+            TaskSpec.optional("insights", Duration.ofMillis(140), () -> "insight")
+        )).toCompletableFuture().join();
+
+        assertEquals(List.of("insights"), response.diagnostics().omittedTaskNames());
+        assertEquals(List.of("rewards"), response.diagnostics().fallbackTaskNames());
+        assertEquals(List.of("offers"), response.diagnostics().approximatedTaskNames());
     }
 
     @Test
