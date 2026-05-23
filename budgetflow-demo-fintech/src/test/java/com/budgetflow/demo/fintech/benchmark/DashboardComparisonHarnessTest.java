@@ -67,6 +67,47 @@ class DashboardComparisonHarnessTest {
         assertTrue(output.contains("scenario-a | budgetflow_adaptive | 3 | insights | rewards | offers | true | 430ms/115ms | exec=0.90 db=0.88 down=0.92"));
     }
 
+    @Test
+    void generousBudgetElevatedPressureAdaptiveDegradesOptionalAndEnrichesImportantWithFallback() {
+        try (DashboardComparisonHarness harness = new DashboardComparisonHarness(new NoDelaySimulationSupport())) {
+            List<DashboardBenchmarkSummary> summaries = harness.run(List.of(
+                PressureScenarios.generousBudgetElevatedPressure()
+            ));
+
+            DashboardBenchmarkSummary adaptive = summaryFor(summaries, "generous_budget_elevated_pressure", "budgetflow_adaptive");
+            // Mandatory tasks (balance, transactions) always execute
+            // Important task (rewards) gets fallback under high pressure
+            // Optional tasks (offers, insights) are omitted under high pressure
+            assertEquals(List.of("rewards"), adaptive.fallbackTasks());
+            assertEquals(List.of("offers", "insights"), adaptive.omittedTasks());
+            assertTrue(adaptive.degraded());
+
+            DashboardBenchmarkSummary naive = summaryFor(summaries, "generous_budget_elevated_pressure", "naive_parallel");
+            // Naive always runs everything — generous budget means no degradation flag
+            assertEquals(5, naive.totalTasksExecuted());
+            assertFalse(naive.degraded());
+        }
+    }
+
+    @Test
+    void extendedScenariosFromPressureScenariosAreRunnable() {
+        try (DashboardComparisonHarness harness = new DashboardComparisonHarness(new NoDelaySimulationSupport())) {
+            List<DashboardBenchmarkScenario> extended = List.of(
+                PressureScenarios.generousBudgetLowPressure(),
+                PressureScenarios.constrainedBudgetLowPressure(),
+                PressureScenarios.constrainedBudgetElevatedPressure(),
+                PressureScenarios.generousBudgetElevatedPressure(),
+                PressureScenarios.tightBudgetModerateDbPressure()
+            );
+
+            List<DashboardBenchmarkSummary> summaries = harness.run(extended);
+
+            // 5 scenarios × 2 strategies = 10 summaries
+            assertEquals(10, summaries.size());
+            summaries.forEach(s -> assertTrue(s.totalTasksExecuted() >= 0));
+        }
+    }
+
     private DashboardBenchmarkSummary summaryFor(
         List<DashboardBenchmarkSummary> summaries,
         String scenarioName,
