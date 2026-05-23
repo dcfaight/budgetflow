@@ -10,9 +10,10 @@ import com.budgetflow.core.context.BudgetContextHolder;
 import com.budgetflow.core.metadata.RequestExecutionDiagnostics;
 import com.budgetflow.core.policy.BudgetPolicyEngine;
 import com.budgetflow.core.policy.DefaultBudgetPolicyEngine;
+import com.budgetflow.core.policy.DefaultSystemPressureProvider;
 import com.budgetflow.core.policy.PolicyDecision;
 import com.budgetflow.core.policy.PolicyEvaluationInput;
-import com.budgetflow.core.policy.SystemPressureSnapshot;
+import com.budgetflow.core.policy.SystemPressureProvider;
 import com.budgetflow.core.policy.TaskDescriptor;
 import com.budgetflow.core.policy.TaskExecutionDirective;
 
@@ -33,22 +34,32 @@ public class DefaultAdaptiveExecutor implements AdaptiveExecutor {
 
     private final Executor executor;
     private final BudgetPolicyEngine budgetPolicyEngine;
+    private final SystemPressureProvider pressureProvider;
 
     public DefaultAdaptiveExecutor() {
-        this(ForkJoinPool.commonPool(), new DefaultBudgetPolicyEngine());
+        this(ForkJoinPool.commonPool(), new DefaultBudgetPolicyEngine(), new DefaultSystemPressureProvider());
     }
 
     public DefaultAdaptiveExecutor(BudgetPolicyEngine budgetPolicyEngine) {
-        this(ForkJoinPool.commonPool(), budgetPolicyEngine);
+        this(ForkJoinPool.commonPool(), budgetPolicyEngine, new DefaultSystemPressureProvider());
     }
 
     public DefaultAdaptiveExecutor(Executor executor) {
-        this(executor, new DefaultBudgetPolicyEngine());
+        this(executor, new DefaultBudgetPolicyEngine(), new DefaultSystemPressureProvider());
     }
 
     public DefaultAdaptiveExecutor(Executor executor, BudgetPolicyEngine budgetPolicyEngine) {
+        this(executor, budgetPolicyEngine, new DefaultSystemPressureProvider());
+    }
+
+    public DefaultAdaptiveExecutor(BudgetPolicyEngine budgetPolicyEngine, SystemPressureProvider pressureProvider) {
+        this(ForkJoinPool.commonPool(), budgetPolicyEngine, pressureProvider);
+    }
+
+    public DefaultAdaptiveExecutor(Executor executor, BudgetPolicyEngine budgetPolicyEngine, SystemPressureProvider pressureProvider) {
         this.executor = executor;
         this.budgetPolicyEngine = Objects.requireNonNull(budgetPolicyEngine, "budgetPolicyEngine must not be null");
+        this.pressureProvider = Objects.requireNonNull(pressureProvider, "pressureProvider must not be null");
     }
 
     @Override
@@ -99,7 +110,7 @@ public class DefaultAdaptiveExecutor implements AdaptiveExecutor {
             taskSpecs.stream()
                 .map(this::toTaskDescriptor)
                 .toList(),
-            currentPressureSnapshot()
+            pressureProvider.currentPressure()
         );
         return budgetPolicyEngine.evaluate(evaluationInput);
     }
@@ -165,24 +176,6 @@ public class DefaultAdaptiveExecutor implements AdaptiveExecutor {
 
     private TaskExecutionDirective defaultDirective(String taskName) {
         return new TaskExecutionDirective(taskName, ExecutionMode.EXECUTE, Duration.ZERO, false, "normal");
-    }
-
-    private SystemPressureSnapshot currentPressureSnapshot() {
-        Optional<ExecutionBudget> executionBudget = BudgetContextHolder.current().map(context -> context.getExecutionBudget());
-        if (executionBudget.isEmpty()) {
-            return new SystemPressureSnapshot(0.0, 0.0, 0.0);
-        }
-
-        Duration total = executionBudget.get().totalBudget();
-        Duration remaining = executionBudget.get().remaining();
-
-        if (total.isZero() || total.isNegative()) {
-            return new SystemPressureSnapshot(1.0, 1.0, 1.0);
-        }
-
-        double utilization = 1.0 - (double) remaining.toMillis() / (double) total.toMillis();
-        double normalized = Math.max(0.0, Math.min(utilization, 1.0));
-        return new SystemPressureSnapshot(normalized, normalized, normalized);
     }
 
     private String nonEmptyReason(String reason, String fallbackReason) {
