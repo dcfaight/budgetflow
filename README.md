@@ -53,6 +53,35 @@ Execution surfaces request-level signals such as:
 - fallback tasks
 - approximated tasks
 
+## Ergonomic grouped request API
+
+BudgetFlow includes a higher-level grouped request API for application code:
+
+- `TaskKey<T>` — typed handle for a named task
+- `AdaptiveRequest` — groups multiple adaptive tasks into one request
+- `AdaptiveRequestResult` — provides typed access to task results, diagnostics, and decision trace
+
+This reduces manual string-based result lookup while preserving the underlying request-scoped execution model.
+
+Example:
+
+```java
+TaskKey<Balance> BALANCE = TaskKey.of("balance");
+TaskKey<List<Transaction>> TRANSACTIONS = TaskKey.of("transactions");
+
+AdaptiveRequest request = AdaptiveRequest.builder()
+    .mandatory(BALANCE, Duration.ofMillis(40), () -> balanceClient.getBalance(accountId))
+    .mandatory(TRANSACTIONS, Duration.ofMillis(65), () -> transactionClient.getTransactions(accountId))
+    .build();
+
+AdaptiveRequestResult result = request.execute(adaptiveExecutor).toCompletableFuture().join();
+
+Balance balance = result.require(BALANCE);
+List<Transaction> transactions = result.require(TRANSACTIONS);
+```
+
+The lower-level `TaskSpec<T>` / `RequestExecutionResult` model remains available for advanced or custom usage.
+
 ## Current prototype capabilities
 
 BudgetFlow currently includes:
@@ -62,6 +91,8 @@ BudgetFlow currently includes:
 - `@LatencyBudget` request budget context
 - `TaskSpec<T>` / `TaskResult<T>` execution model
 - request-scoped `executeRequest(...)`
+- higher-level grouped request composition via `AdaptiveRequest`
+- typed task result access via `TaskKey<T>` and `AdaptiveRequestResult`
 - policy-driven execution mode selection
 - deterministic mandatory-first planning
 - per-task decision trace
@@ -103,7 +134,7 @@ These help explain:
 
 ## Modules
 
-- `budgetflow-core` — core execution contracts, planning, policy, tracing, diagnostics, and pressure abstraction.
+- `budgetflow-core` — core execution contracts, planning, policy, tracing, diagnostics, pressure abstraction, and ergonomic grouped request helpers.
 - `budgetflow-autoconfigure` — Spring Boot auto-configuration and latency budget aspect.
 - `budgetflow-spring-boot-starter` — starter dependency.
 - `budgetflow-demo-fintech` — demo dashboard application and comparison harness.
@@ -163,7 +194,7 @@ BudgetFlow is an **early prototype / design exploration**, not a production-read
 ### What it is today
 - a working request-aware adaptive execution prototype
 - a concrete experiment in graceful degradation under latency budgets
-- a framework skeleton with real planning, execution, tracing, diagnostics, pluggable pressure inputs, and a local comparison harness
+- a framework skeleton with real planning, execution, tracing, diagnostics, pluggable pressure inputs, grouped request ergonomics, and a local comparison harness
 
 ### What it is not yet
 - production hardened
@@ -197,5 +228,7 @@ This repository is intentionally evolving incrementally:
 5. surface diagnostics and explainability
 6. separate pressure from budget via pluggable providers
 7. add a naive-vs-adaptive comparison harness
+8. improve pressure realism and scenario support
+9. add higher-level grouped request ergonomics
 
 That progression is deliberate: the goal is to keep the architecture understandable while the core model matures.

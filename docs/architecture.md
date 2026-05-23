@@ -85,6 +85,29 @@ These modes are recorded both in execution results and in the decision trace.
 
 ---
 
+## Ergonomic request composition layer
+
+BudgetFlow now includes a higher-level grouped request composition layer on top of the core execution model.
+
+Key types include:
+- `TaskKey<T>` — typed handle for a task name
+- `AdaptiveRequest` — grouped request builder and execution helper
+- `AdaptiveRequestResult` — typed wrapper around `RequestExecutionResult`
+
+This layer improves application-level ergonomics by:
+- reducing string-based result lookup
+- making grouped request composition more readable
+- preserving direct access to diagnostics and decision trace
+
+The underlying execution model is unchanged:
+- `TaskSpec<T>` still defines task behavior
+- `AdaptiveExecutor` still performs grouped execution
+- `RequestExecutionResult` still represents raw request outcomes
+
+This means the ergonomics layer is additive rather than a replacement for the core model.
+
+---
+
 ## Request-scoped planning
 
 ### Why request scope matters
@@ -142,7 +165,11 @@ The main request-scoped path is:
 
 - `executeRequest(List<TaskSpec<?>>)`
 
-Execution produces a `RequestExecutionResult`, which contains:
+The ergonomic layer adds:
+- grouped request construction with `AdaptiveRequest`
+- typed result retrieval through `AdaptiveRequestResult`
+
+Execution ultimately produces request-scoped outcomes that include:
 - per-task results
 - decision trace
 - request diagnostics
@@ -218,6 +245,8 @@ The request is planned as a group, executed under the active budget, and returne
 - diagnostics
 - concise execution summary
 
+The demo now also uses the ergonomic grouped request API so the example application reflects the preferred application-facing usage style.
+
 ---
 
 ## Comparison harness
@@ -235,7 +264,7 @@ Its purpose is to show:
 - how pressure and task importance influence omission, fallback, and approximation
 - how diagnostics and decision trace make degraded execution explainable
 
-The comparison harness reuses the same `DashboardTaskSpecs` model as the main demo service so that comparison scenarios remain aligned with the actual example workload.
+The comparison harness reuses the same dashboard workload definitions as the main demo service so that comparison scenarios remain aligned with the actual example workload.
 
 ---
 
@@ -247,7 +276,7 @@ Current limitations include:
 - heuristic planner thresholds
 - limited runtime pressure realism
 - no production-grade observability integration
-- low-level developer ergonomics in some APIs
+- low-level developer ergonomics in some APIs beyond the new grouped request helpers
 - no advanced scheduling/concurrency orchestration yet
 - comparison harness is scenario-driven, not a rigorous benchmark suite
 
@@ -276,3 +305,4 @@ Everything else in the system follows from that:
 - decision trace
 - execution diagnostics
 - pressure-aware policy evaluation
+- higher-level grouped request composition
