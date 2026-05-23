@@ -244,6 +244,25 @@ The most important next steps are likely:
 
 ---
 
+## Comparison harness
+
+The fintech demo includes a lightweight comparison harness that runs the same dashboard workload with two strategies:
+
+- `naive_parallel`
+- `budgetflow_adaptive`
+
+The harness exists to make the framework’s behavior easier to inspect locally. It is not intended to be a statistically rigorous benchmark system.
+
+Its purpose is to show:
+- how request-scoped planning changes task execution
+- how constrained budgets affect response composition
+- how pressure and task importance influence omission, fallback, and approximation
+- how diagnostics and decision trace make degraded execution explainable
+
+The comparison harness reuses the same `DashboardTaskSpecs` model as the main demo service so that comparison scenarios remain aligned with the actual example workload.
+
+---
+
 ## Summary
 
 BudgetFlow’s architecture is centered on a simple idea:
