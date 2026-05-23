@@ -7,6 +7,12 @@ import com.budgetflow.core.classification.ExecutionMode;
 import java.time.Duration;
 import java.util.List;
 
+/**
+ * Demo helper that defines dashboard task keys and grouped request construction.
+ * <p>
+ * This is fintech-demo-specific utility code and not part of BudgetFlow's
+ * reusable core API contracts.
+ */
 public final class DashboardTaskSpecs {
     public static final String BALANCE_TASK = "balance";
     public static final String TRANSACTIONS_TASK = "transactions";

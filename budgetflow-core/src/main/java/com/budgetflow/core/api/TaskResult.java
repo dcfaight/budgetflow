@@ -5,6 +5,13 @@ import com.budgetflow.core.classification.ExecutionMode;
 import java.util.Objects;
 import java.util.Optional;
 
+/**
+ * Per-task execution outcome.
+ * <p>
+ * Core and advanced integrations often consume this directly.
+ * Application-facing grouped usage usually accesses this through
+ * {@link AdaptiveRequestResult#taskResult(TaskKey)}.
+ */
 public record TaskResult<T>(
     Optional<T> value,
     ExecutionMode executionMode,

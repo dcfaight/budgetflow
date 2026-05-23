@@ -239,6 +239,7 @@ class AdaptiveRequestTest {
 
         assertSame(diag, result.diagnostics());
         assertEquals(List.of(traceEntry), result.decisionTrace());
+        assertSame(raw, result.requestExecutionResult());
         assertSame(raw, result.raw());
     }
 
@@ -247,6 +248,7 @@ class AdaptiveRequestTest {
     // -------------------------------------------------------------------------
 
     @Test
+    @SuppressWarnings("deprecation")
     void rawDelegateAllowsLegacyStringLookup() {
         AdaptiveRequestResult result = resultWith(
             "balance", TaskResult.executed("v", ExecutionMode.EXECUTE, "normal")

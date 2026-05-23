@@ -24,6 +24,14 @@ BudgetFlow then:
 
 ---
 
+## Public API layering
+
+- **Preferred application-facing API:** `TaskKey<T>`, `AdaptiveRequest`, `AdaptiveRequestResult`
+- **Core foundational contracts:** `AdaptiveExecutor`, `TaskSpec<T>`, `RequestExecutionResult`, `TaskResult<T>`, `ExecutionBudget`
+- **Demo-only utilities:** dashboard comparison harness/scenarios/reporting under `com.budgetflow.demo.fintech.benchmark`
+
+---
+
 ## Architecture diagram
 
 ```mermaid
