@@ -1,9 +1,12 @@
 package com.budgetflow.demo.fintech.dashboard;
 
 import com.budgetflow.core.api.AdaptiveExecutor;
+import com.budgetflow.core.api.TaskSpec;
+import com.budgetflow.core.classification.ExecutionMode;
 import com.budgetflow.core.metadata.DegradationMetadata;
 import org.springframework.stereotype.Service;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -33,33 +36,47 @@ public class DashboardService {
     }
 
     public DashboardResponse getDashboard(String accountId) {
-        var balanceFuture = adaptiveExecutor.executeMandatory("balance", () -> balanceClient.getBalance(accountId)).toCompletableFuture();
-        var transactionsFuture = adaptiveExecutor.executeMandatory("transactions", () -> transactionClient.getTransactions(accountId)).toCompletableFuture();
-        var rewardsFuture = adaptiveExecutor.executeImportant("rewards", () -> rewardsClient.getRewards(accountId)).toCompletableFuture();
-        var offersFuture = adaptiveExecutor.executeImportant("offers", () -> offersClient.getOffers(accountId)).toCompletableFuture();
-        var insightsFuture = adaptiveExecutor.executeOptional("insights", () -> insightsClient.getInsights(accountId)).toCompletableFuture();
+        var balanceFuture = adaptiveExecutor.execute(
+            TaskSpec.mandatory("balance", Duration.ofMillis(40), () -> balanceClient.getBalance(accountId))
+        ).toCompletableFuture();
+        var transactionsFuture = adaptiveExecutor.execute(
+            TaskSpec.mandatory("transactions", Duration.ofMillis(65), () -> transactionClient.getTransactions(accountId))
+        ).toCompletableFuture();
+        var rewardsFuture = adaptiveExecutor.execute(
+            TaskSpec.important("rewards", Duration.ofMillis(90), () -> rewardsClient.getRewards(accountId))
+                .withFallback(() -> rewardsClient.getCachedRewards(accountId))
+        ).toCompletableFuture();
+        var offersFuture = adaptiveExecutor.execute(
+            TaskSpec.optional("offers", Duration.ofMillis(110), () -> offersClient.getOffers(accountId))
+                .withFallback(() -> offersClient.getCachedOffers(accountId))
+                .withApproximate(() -> offersClient.getApproximateOffers(accountId))
+        ).toCompletableFuture();
+        var insightsFuture = adaptiveExecutor.execute(
+            TaskSpec.optional("insights", Duration.ofMillis(140), () -> insightsClient.getInsights(accountId))
+        ).toCompletableFuture();
 
-        Balance balance = balanceFuture.join();
-        List<Transaction> transactions = transactionsFuture.join();
+        var balanceResult = balanceFuture.join();
+        var transactionsResult = transactionsFuture.join();
+        var rewardsResult = rewardsFuture.join();
+        var offersResult = offersFuture.join();
+        var insightsResult = insightsFuture.join();
+
+        Balance balance = balanceResult.value().orElseThrow(() -> new IllegalStateException("balance must be present"));
+        List<Transaction> transactions = transactionsResult.value()
+            .orElseThrow(() -> new IllegalStateException("transactions must be present"));
 
         List<String> omitted = new ArrayList<>();
         List<String> fallback = new ArrayList<>();
         List<String> approximated = new ArrayList<>();
 
-        RewardsSummary rewards = rewardsFuture.join().orElseGet(() -> {
-            fallback.add("rewards");
-            return new RewardsSummary(0);
-        });
+        RewardsSummary rewards = rewardsResult.value().orElseGet(() -> new RewardsSummary(0));
+        List<Offer> offers = offersResult.value().orElseGet(List::of);
+        SpendingInsights insights = insightsResult.value()
+            .orElseGet(() -> new SpendingInsights("Insights omitted due to budget constraints."));
 
-        List<Offer> offers = offersFuture.join().orElseGet(() -> {
-            approximated.add("offers");
-            return List.of();
-        });
-
-        SpendingInsights insights = insightsFuture.join().orElseGet(() -> {
-            omitted.add("insights");
-            return new SpendingInsights("Insights omitted due to budget constraints.");
-        });
+        collectDegradation("rewards", rewardsResult.executionMode(), rewardsResult.omitted(), omitted, fallback, approximated);
+        collectDegradation("offers", offersResult.executionMode(), offersResult.omitted(), omitted, fallback, approximated);
+        collectDegradation("insights", insightsResult.executionMode(), insightsResult.omitted(), omitted, fallback, approximated);
 
         DegradationMetadata metadata = new DegradationMetadata(
             !omitted.isEmpty() || !fallback.isEmpty() || !approximated.isEmpty(),
@@ -69,5 +86,28 @@ public class DashboardService {
         );
 
         return new DashboardResponse(balance, transactions, rewards, offers, insights, metadata);
+    }
+
+    private void collectDegradation(
+        String taskName,
+        ExecutionMode mode,
+        boolean omittedByPolicy,
+        List<String> omitted,
+        List<String> fallback,
+        List<String> approximated
+    ) {
+        if (omittedByPolicy || mode == ExecutionMode.OMIT) {
+            omitted.add(taskName);
+            return;
+        }
+
+        if (mode == ExecutionMode.EXECUTE_WITH_FALLBACK) {
+            fallback.add(taskName);
+            return;
+        }
+
+        if (mode == ExecutionMode.EXECUTE_APPROXIMATE) {
+            approximated.add(taskName);
+        }
     }
 }
