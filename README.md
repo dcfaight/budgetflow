@@ -68,6 +68,7 @@ BudgetFlow currently includes:
 - request-level execution diagnostics
 - pluggable pressure provider abstraction
 - fintech dashboard demo application
+- naive-vs-adaptive comparison harness for local scenario testing
 
 ## Example use case
 
@@ -105,7 +106,7 @@ These help explain:
 - `budgetflow-core` — core execution contracts, planning, policy, tracing, diagnostics, and pressure abstraction.
 - `budgetflow-autoconfigure` — Spring Boot auto-configuration and latency budget aspect.
 - `budgetflow-spring-boot-starter` — starter dependency.
-- `budgetflow-demo-fintech` — demo dashboard application.
+- `budgetflow-demo-fintech` — demo dashboard application and comparison harness.
 
 ## Running the demo
 
@@ -117,22 +118,43 @@ curl http://localhost:8080/api/accounts/acc-123/dashboard
 
 ## Running the comparison harness
 
-## Comparison harness
-
-The fintech demo includes a lightweight comparison harness that runs the same dashboard workload with two strategies:
+BudgetFlow includes a lightweight comparison harness that runs the same dashboard workload with:
 
 - `naive_parallel`
 - `budgetflow_adaptive`
 
-The harness exists to make the framework’s behavior easier to inspect locally. It is not intended to be a statistically rigorous benchmark system.
+This makes it easy to inspect how adaptive execution changes the request outcome under different latency budgets and pressure conditions.
 
-Its purpose is to show:
-- how request-scoped planning changes task execution
-- how constrained budgets affect response composition
-- how pressure and task importance influence omission, fallback, and approximation
-- how diagnostics and decision trace make degraded execution explainable
+Run it with:
 
-The comparison harness reuses the same `DashboardTaskSpecs` model as the main demo service so that comparison scenarios remain aligned with the actual example workload.
+```bash
+./gradlew :budgetflow-demo-fintech:runDashboardComparison
+```
+
+Built-in scenarios currently include:
+- generous budget / low pressure
+- constrained budget / low pressure
+- constrained budget / elevated pressure
+
+The harness prints compact comparison output including:
+- scenario name
+- execution strategy
+- executed task count
+- omitted tasks
+- fallback tasks
+- approximated tasks
+- degraded status
+- request budget vs projected work
+- simulated pressure snapshot
+
+### What the comparison is for
+
+This is a **local comparison harness**, not a rigorous performance benchmark suite.
+
+It is intended to help demonstrate:
+- how BudgetFlow changes execution under pressure
+- how adaptive planning affects response completeness
+- how degradation becomes visible through diagnostics
 
 ## Current status
 
@@ -141,7 +163,7 @@ BudgetFlow is an **early prototype / design exploration**, not a production-read
 ### What it is today
 - a working request-aware adaptive execution prototype
 - a concrete experiment in graceful degradation under latency budgets
-- a framework skeleton with real planning, execution, tracing, diagnostics, and pluggable pressure inputs
+- a framework skeleton with real planning, execution, tracing, diagnostics, pluggable pressure inputs, and a local comparison harness
 
 ### What it is not yet
 - production hardened
@@ -154,9 +176,9 @@ BudgetFlow is an **early prototype / design exploration**, not a production-read
 
 Near-term priorities include:
 - improving documentation and examples
-- benchmarking naive vs adaptive execution
 - refining public developer ergonomics
 - evolving pressure providers toward more realistic runtime signals
+- expanding scenario realism and comparison depth
 - exploring richer planning and orchestration strategies
 
 ## Project motivation
@@ -174,5 +196,6 @@ This repository is intentionally evolving incrementally:
 4. harden planner semantics
 5. surface diagnostics and explainability
 6. separate pressure from budget via pluggable providers
+7. add a naive-vs-adaptive comparison harness
 
 That progression is deliberate: the goal is to keep the architecture understandable while the core model matures.
