@@ -17,16 +17,63 @@ public class DefaultBudgetPolicyEngine implements BudgetPolicyEngine {
         List<String> degradationReasons = new ArrayList<>();
         List<DecisionTraceEntry> decisionTrace = new ArrayList<>();
 
-        Duration rollingRemainingBudget = input.remainingBudget();
-        int totalTasks = input.tasks().size();
+        List<TaskDescriptor> mandatoryTasks = tasksByImportance(input.tasks(), Importance.MANDATORY);
+        List<TaskDescriptor> importantTasks = tasksByImportance(input.tasks(), Importance.IMPORTANT);
+        List<TaskDescriptor> optionalTasks = tasksByImportance(input.tasks(), Importance.OPTIONAL);
+
+        Duration mandatoryReserve = reserveMandatoryBudget(mandatoryTasks, input.remainingBudget());
+        Duration remainingMandatoryReserve = planTasks(
+            mandatoryTasks,
+            mandatoryReserve,
+            input.pressureSnapshot(),
+            directives,
+            degradationReasons,
+            decisionTrace
+        );
+
+        Duration discretionaryBudget = nonNegative(input.remainingBudget()
+            .minus(mandatoryReserve)
+            .plus(remainingMandatoryReserve));
+
+        Duration remainingAfterImportant = planTasks(
+            importantTasks,
+            discretionaryBudget,
+            input.pressureSnapshot(),
+            directives,
+            degradationReasons,
+            decisionTrace
+        );
+
+        planTasks(
+            optionalTasks,
+            remainingAfterImportant,
+            input.pressureSnapshot(),
+            directives,
+            degradationReasons,
+            decisionTrace
+        );
+
+        return new PolicyDecision(directives, !degradationReasons.isEmpty(), degradationReasons, decisionTrace);
+    }
+
+    private Duration planTasks(
+        List<TaskDescriptor> tasks,
+        Duration classBudget,
+        SystemPressureSnapshot snapshot,
+        List<TaskExecutionDirective> directives,
+        List<String> degradationReasons,
+        List<DecisionTraceEntry> decisionTrace
+    ) {
+        Duration rollingRemainingBudget = nonNegative(classBudget);
+        int totalTasks = tasks.size();
         int index = 0;
 
-        for (TaskDescriptor task : input.tasks()) {
+        for (TaskDescriptor task : tasks) {
             int tasksRemaining = Math.max(totalTasks - index, 1);
             Duration perTaskBudget = rollingRemainingBudget.dividedBy(tasksRemaining);
             Duration budgetAtPlanningTime = rollingRemainingBudget;
-            ExecutionMode mode = chooseExecutionMode(task, input.pressureSnapshot(), budgetAtPlanningTime);
-            Duration allocated = minPositive(task.expectedLatency(), perTaskBudget);
+            ExecutionMode mode = chooseExecutionMode(task, snapshot, budgetAtPlanningTime);
+            Duration allocated = mode == ExecutionMode.OMIT ? Duration.ZERO : minPositive(expectedLatencyOrZero(task), perTaskBudget);
             boolean omitted = mode == ExecutionMode.OMIT;
             boolean degraded = mode != ExecutionMode.EXECUTE;
             String reason = reasonFor(mode);
@@ -45,20 +92,33 @@ public class DefaultBudgetPolicyEngine implements BudgetPolicyEngine {
 
             decisionTrace.add(new DecisionTraceEntry(
                 task.taskName(),
+                task.importance(),
                 mode,
                 reason,
-                task.expectedLatency(),
+                expectedLatencyOrZero(task),
+                allocated,
                 budgetAtPlanningTime
             ));
 
-            rollingRemainingBudget = rollingRemainingBudget.minus(allocated);
-            if (rollingRemainingBudget.isNegative()) {
-                rollingRemainingBudget = Duration.ZERO;
-            }
+            rollingRemainingBudget = nonNegative(rollingRemainingBudget.minus(allocated));
             index++;
         }
 
-        return new PolicyDecision(directives, !degradationReasons.isEmpty(), degradationReasons, decisionTrace);
+        return rollingRemainingBudget;
+    }
+
+    private List<TaskDescriptor> tasksByImportance(List<TaskDescriptor> tasks, Importance importance) {
+        return tasks.stream()
+            .filter(task -> task.importance() == importance)
+            .toList();
+    }
+
+    private Duration reserveMandatoryBudget(List<TaskDescriptor> mandatoryTasks, Duration totalBudget) {
+        Duration mandatoryExpected = Duration.ZERO;
+        for (TaskDescriptor task : mandatoryTasks) {
+            mandatoryExpected = mandatoryExpected.plus(expectedLatencyOrZero(task));
+        }
+        return minPositive(nonNegative(totalBudget), mandatoryExpected);
     }
 
     private ExecutionMode chooseExecutionMode(
@@ -66,7 +126,7 @@ public class DefaultBudgetPolicyEngine implements BudgetPolicyEngine {
         SystemPressureSnapshot snapshot,
         Duration remainingBudget
     ) {
-        Duration expectedLatency = task.expectedLatency() == null ? Duration.ZERO : task.expectedLatency();
+        Duration expectedLatency = expectedLatencyOrZero(task);
         long remainingMillis = Math.max(remainingBudget.toMillis(), 1L);
         long expectedMillis = Math.max(expectedLatency.toMillis(), 0L);
         double latencyRatio = (double) expectedMillis / (double) remainingMillis;
@@ -119,5 +179,13 @@ public class DefaultBudgetPolicyEngine implements BudgetPolicyEngine {
             return first;
         }
         return first.compareTo(second) <= 0 ? first : second;
+    }
+
+    private Duration expectedLatencyOrZero(TaskDescriptor task) {
+        return task.expectedLatency() == null || task.expectedLatency().isNegative() ? Duration.ZERO : task.expectedLatency();
+    }
+
+    private Duration nonNegative(Duration value) {
+        return value == null || value.isNegative() ? Duration.ZERO : value;
     }
 }

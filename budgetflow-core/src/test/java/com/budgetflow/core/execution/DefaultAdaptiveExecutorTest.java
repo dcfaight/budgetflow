@@ -3,8 +3,10 @@ package com.budgetflow.core.execution;
 import com.budgetflow.core.api.TaskSpec;
 import com.budgetflow.core.budget.DefaultExecutionBudget;
 import com.budgetflow.core.classification.ExecutionMode;
+import com.budgetflow.core.classification.Importance;
 import com.budgetflow.core.context.BudgetContext;
 import com.budgetflow.core.context.BudgetContextHolder;
+import com.budgetflow.core.api.AdaptiveExecutor;
 import com.budgetflow.core.policy.BudgetPolicyEngine;
 import com.budgetflow.core.policy.DecisionTraceEntry;
 import com.budgetflow.core.policy.DefaultBudgetPolicyEngine;
@@ -122,8 +124,24 @@ class DefaultAdaptiveExecutorTest {
                 true,
                 List.of("offers: OMIT"),
                 List.of(
-                    new DecisionTraceEntry("balance", ExecutionMode.EXECUTE, "normal", Duration.ofMillis(40), input.remainingBudget()),
-                    new DecisionTraceEntry("offers", ExecutionMode.OMIT, "omitted_by_policy", Duration.ofMillis(120), input.remainingBudget())
+                    new DecisionTraceEntry(
+                        "balance",
+                        Importance.MANDATORY,
+                        ExecutionMode.EXECUTE,
+                        "normal",
+                        Duration.ofMillis(40),
+                        Duration.ofMillis(40),
+                        input.remainingBudget()
+                    ),
+                    new DecisionTraceEntry(
+                        "offers",
+                        Importance.OPTIONAL,
+                        ExecutionMode.OMIT,
+                        "omitted_by_policy",
+                        Duration.ofMillis(120),
+                        Duration.ZERO,
+                        input.remainingBudget()
+                    )
                 )
             );
         };
@@ -140,6 +158,39 @@ class DefaultAdaptiveExecutorTest {
         assertEquals("ok", response.taskResult("balance").value().orElseThrow());
         assertTrue(response.taskResult("offers").omitted());
         assertEquals(2, response.decisionTrace().size());
+    }
+
+    @Test
+    void requestExecutionResultPreservesPolicyTrace() {
+        DecisionTraceEntry traceEntry = new DecisionTraceEntry(
+            "offers",
+            Importance.OPTIONAL,
+            ExecutionMode.EXECUTE_APPROXIMATE,
+            "approximate_selected_by_policy",
+            Duration.ofMillis(80),
+            Duration.ofMillis(40),
+            Duration.ofMillis(100)
+        );
+
+        BudgetPolicyEngine policyEngine = input -> new PolicyDecision(
+            List.of(new TaskExecutionDirective("offers", ExecutionMode.EXECUTE_APPROXIMATE, Duration.ofMillis(40), false, "approximate_selected_by_policy")),
+            true,
+            List.of("offers: EXECUTE_APPROXIMATE"),
+            List.of(traceEntry)
+        );
+
+        DefaultAdaptiveExecutor executor = new DefaultAdaptiveExecutor(policyEngine);
+
+        var response = executor.executeRequest(List.of(
+            TaskSpec.optional("offers", Duration.ofMillis(80), () -> "primary").withApproximate(() -> "approx")
+        )).toCompletableFuture().join();
+
+        assertEquals(List.of(traceEntry), response.decisionTrace());
+    }
+
+    @Test
+    void adaptiveExecutorRequestExecutionIsNotDefaulted() throws NoSuchMethodException {
+        assertFalse(AdaptiveExecutor.class.getMethod("executeRequest", List.class).isDefault());
     }
 
     private BudgetPolicyEngine policyFor(String taskName, ExecutionMode mode, boolean omitted, String reason) {

@@ -5,6 +5,7 @@ import com.budgetflow.core.api.RequestExecutionResult;
 import com.budgetflow.core.api.TaskResult;
 import com.budgetflow.core.api.TaskSpec;
 import com.budgetflow.core.classification.ExecutionMode;
+import com.budgetflow.core.classification.Importance;
 import com.budgetflow.core.policy.DecisionTraceEntry;
 import org.junit.jupiter.api.Test;
 
@@ -53,8 +54,24 @@ class DashboardServiceTest {
                     "insights", TaskResult.omitted("omitted_by_policy")
                 ),
                 List.of(
-                    new DecisionTraceEntry("balance", ExecutionMode.EXECUTE, "normal", Duration.ofMillis(40), Duration.ofMillis(250)),
-                    new DecisionTraceEntry("insights", ExecutionMode.OMIT, "omitted_by_policy", Duration.ofMillis(140), Duration.ofMillis(60))
+                    new DecisionTraceEntry(
+                        "balance",
+                        Importance.MANDATORY,
+                        ExecutionMode.EXECUTE,
+                        "normal",
+                        Duration.ofMillis(40),
+                        Duration.ofMillis(40),
+                        Duration.ofMillis(250)
+                    ),
+                    new DecisionTraceEntry(
+                        "insights",
+                        Importance.OPTIONAL,
+                        ExecutionMode.OMIT,
+                        "omitted_by_policy",
+                        Duration.ofMillis(140),
+                        Duration.ZERO,
+                        Duration.ofMillis(60)
+                    )
                 )
             )
         ));
