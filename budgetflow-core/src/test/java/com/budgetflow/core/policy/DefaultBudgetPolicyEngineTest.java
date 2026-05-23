@@ -8,6 +8,7 @@ import java.time.Duration;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class DefaultBudgetPolicyEngineTest {
 
@@ -36,5 +37,26 @@ class DefaultBudgetPolicyEngineTest {
         ));
 
         assertEquals(ExecutionMode.EXECUTE, decision.directives().get(0).executionMode());
+    }
+
+    @Test
+    void multiTaskPlanningOmitsOptionalWhilePreservingMandatoryWork() {
+        DefaultBudgetPolicyEngine engine = new DefaultBudgetPolicyEngine();
+
+        PolicyDecision decision = engine.evaluate(new PolicyEvaluationInput(
+            Duration.ofMillis(100),
+            List.of(
+                new TaskDescriptor("balance", Importance.MANDATORY, Duration.ofMillis(40), false, false),
+                new TaskDescriptor("transactions", Importance.MANDATORY, Duration.ofMillis(60), false, false),
+                new TaskDescriptor("insights", Importance.OPTIONAL, Duration.ofMillis(140), false, false)
+            ),
+            new SystemPressureSnapshot(0.2, 0.2, 0.2)
+        ));
+
+        assertEquals(ExecutionMode.EXECUTE, decision.directives().get(0).executionMode());
+        assertEquals(ExecutionMode.EXECUTE, decision.directives().get(1).executionMode());
+        assertEquals(ExecutionMode.OMIT, decision.directives().get(2).executionMode());
+        assertTrue(decision.directives().get(2).omitted());
+        assertEquals(3, decision.decisionTrace().size());
     }
 }
