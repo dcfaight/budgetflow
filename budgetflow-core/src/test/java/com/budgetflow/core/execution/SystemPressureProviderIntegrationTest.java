@@ -20,6 +20,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 
 class SystemPressureProviderIntegrationTest {
 
@@ -180,5 +181,85 @@ class SystemPressureProviderIntegrationTest {
         assertEquals(0.75, snapshot.executorUtilization());
         assertEquals(0.75, snapshot.dbPressure());
         assertEquals(0.75, snapshot.downstreamPressure());
+    }
+
+    @Test
+    void requestScopedExecutionUsesFallbackAndApproximationUnderModeratePressure() {
+        DefaultAdaptiveExecutor executor = new DefaultAdaptiveExecutor(
+            new DefaultBudgetPolicyEngine(),
+            FixedPressureProvider.of(0.55, 0.62, 0.58)
+        );
+
+        var response = executor.executeRequest(List.of(
+            TaskSpec.important("rewards", Duration.ofMillis(400), () -> "primary").withFallback(() -> "fallback"),
+            TaskSpec.optional("offers", Duration.ofMillis(300), () -> "primary-offers").withApproximate(() -> "approx-offers")
+        )).toCompletableFuture().join();
+
+        assertEquals("fallback", response.taskResult("rewards").value().orElseThrow());
+        assertEquals(ExecutionMode.EXECUTE_WITH_FALLBACK, response.taskResult("rewards").executionMode());
+        assertEquals("approx-offers", response.taskResult("offers").value().orElseThrow());
+        assertEquals(ExecutionMode.EXECUTE_APPROXIMATE, response.taskResult("offers").executionMode());
+        assertTrue(response.diagnostics().degraded());
+        assertEquals(List.of("rewards"), response.diagnostics().fallbackTaskNames());
+        assertEquals(List.of("offers"), response.diagnostics().approximatedTaskNames());
+        assertEquals(List.of(), response.diagnostics().omittedTaskNames());
+    }
+
+    @Test
+    void requestScopedExecutionOmitsOptionalTaskUnderHighPressure() {
+        DefaultAdaptiveExecutor executor = new DefaultAdaptiveExecutor(
+            new DefaultBudgetPolicyEngine(),
+            FixedPressureProvider.maximum()
+        );
+
+        var response = executor.executeRequest(List.of(
+            TaskSpec.mandatory("balance", Duration.ofMillis(80), () -> "ok"),
+            TaskSpec.optional("insights", Duration.ofMillis(500), () -> "insight")
+        )).toCompletableFuture().join();
+
+        assertEquals("ok", response.taskResult("balance").value().orElseThrow());
+        assertTrue(response.taskResult("insights").omitted());
+        assertEquals(ExecutionMode.OMIT, response.taskResult("insights").executionMode());
+        assertTrue(response.diagnostics().degraded());
+        assertEquals(List.of("insights"), response.diagnostics().omittedTaskNames());
+        assertEquals(List.of(), response.diagnostics().fallbackTaskNames());
+        assertEquals(List.of(), response.diagnostics().approximatedTaskNames());
+    }
+
+    @Test
+    void requestScopedPlanningOrderRemainsDeterministicAcrossRuns() {
+        DefaultAdaptiveExecutor executor = new DefaultAdaptiveExecutor(
+            new DefaultBudgetPolicyEngine(),
+            FixedPressureProvider.zero()
+        );
+
+        var first = executor.executeRequest(List.of(
+            TaskSpec.optional("optional-a", Duration.ofMillis(60), () -> "oa"),
+            TaskSpec.mandatory("mandatory-a", Duration.ofMillis(70), () -> "ma"),
+            TaskSpec.important("important-a", Duration.ofMillis(70), () -> "ia"),
+            TaskSpec.optional("optional-b", Duration.ofMillis(60), () -> "ob"),
+            TaskSpec.mandatory("mandatory-b", Duration.ofMillis(70), () -> "mb"),
+            TaskSpec.important("important-b", Duration.ofMillis(70), () -> "ib")
+        )).toCompletableFuture().join();
+
+        var second = executor.executeRequest(List.of(
+            TaskSpec.optional("optional-a", Duration.ofMillis(60), () -> "oa"),
+            TaskSpec.mandatory("mandatory-a", Duration.ofMillis(70), () -> "ma"),
+            TaskSpec.important("important-a", Duration.ofMillis(70), () -> "ia"),
+            TaskSpec.optional("optional-b", Duration.ofMillis(60), () -> "ob"),
+            TaskSpec.mandatory("mandatory-b", Duration.ofMillis(70), () -> "mb"),
+            TaskSpec.important("important-b", Duration.ofMillis(70), () -> "ib")
+        )).toCompletableFuture().join();
+
+        assertFalse(first.decisionTrace().isEmpty());
+        assertEquals(
+            List.of("mandatory-a", "mandatory-b", "important-a", "important-b", "optional-a", "optional-b"),
+            first.decisionTrace().stream().map(entry -> entry.taskName()).toList()
+        );
+        assertEquals(
+            first.decisionTrace().stream().map(entry -> entry.taskName()).toList(),
+            second.decisionTrace().stream().map(entry -> entry.taskName()).toList()
+        );
+        assertEquals(first.diagnostics().degraded(), second.diagnostics().degraded());
     }
 }

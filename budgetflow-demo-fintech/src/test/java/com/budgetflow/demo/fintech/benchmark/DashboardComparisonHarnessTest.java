@@ -117,6 +117,24 @@ class DashboardComparisonHarnessTest {
         }
     }
 
+    @Test
+    void formatterOutputRetainsStableScenarioGroupingAndComparisonLine() {
+        try (DashboardComparisonHarness harness = new DashboardComparisonHarness(new NoDelaySimulationSupport())) {
+            DashboardScenarioPack pack = PressureScenarios.defaultPack();
+            String output = DashboardBenchmarkFormatter.format(pack, harness.run(pack.scenarios()));
+
+            int generousIndex = output.indexOf("Scenario: generous_budget_low_pressure");
+            int constrainedIndex = output.indexOf("Scenario: constrained_budget_low_pressure");
+            int elevatedIndex = output.indexOf("Scenario: constrained_budget_elevated_pressure");
+
+            assertTrue(generousIndex >= 0);
+            assertTrue(constrainedIndex > generousIndex);
+            assertTrue(elevatedIndex > constrainedIndex);
+            assertTrue(output.contains("Comparison: adaptive projected work delta="));
+            assertTrue(output.contains("adaptive_changes="));
+        }
+    }
+
     private DashboardBenchmarkSummary summaryFor(
         List<DashboardBenchmarkSummary> summaries,
         String scenarioName,

@@ -11,6 +11,7 @@ import com.budgetflow.core.policy.BudgetPolicyEngine;
 import com.budgetflow.core.policy.DecisionTraceEntry;
 import com.budgetflow.core.policy.DefaultBudgetPolicyEngine;
 import com.budgetflow.core.policy.PolicyDecision;
+import com.budgetflow.core.policy.PolicyEvaluationInput;
 import com.budgetflow.core.policy.TaskDescriptor;
 import com.budgetflow.core.policy.TaskExecutionDirective;
 import org.junit.jupiter.api.AfterEach;
@@ -18,6 +19,7 @@ import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -26,6 +28,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 
 class DefaultAdaptiveExecutorTest {
 
@@ -310,6 +313,69 @@ class DefaultAdaptiveExecutorTest {
     @Test
     void adaptiveExecutorRequestExecutionIsNotDefaulted() throws NoSuchMethodException {
         assertFalse(AdaptiveExecutor.class.getMethod("executeRequest", List.class).isDefault());
+    }
+
+    @Test
+    void lifecycleListenersReceivePolicyAndResultEvents() {
+        List<String> events = new ArrayList<>();
+        AtomicReference<PolicyEvaluationInput> capturedInput = new AtomicReference<>();
+        AtomicReference<PolicyDecision> capturedDecision = new AtomicReference<>();
+
+        ExecutionLifecycleListener listener = new ExecutionLifecycleListener() {
+            @Override
+            public void beforePolicyEvaluation(PolicyEvaluationInput input) {
+                events.add("before");
+                capturedInput.set(input);
+            }
+
+            @Override
+            public void afterPolicyEvaluation(PolicyEvaluationInput input, PolicyDecision decision) {
+                events.add("after_policy");
+                capturedDecision.set(decision);
+            }
+
+            @Override
+            public void afterRequestExecution(com.budgetflow.core.api.RequestExecutionResult result) {
+                events.add("after_result");
+            }
+        };
+
+        DefaultAdaptiveExecutor executor = new DefaultAdaptiveExecutor(
+            Runnable::run,
+            new DefaultBudgetPolicyEngine(),
+            () -> new com.budgetflow.core.policy.SystemPressureSnapshot(0.1, 0.1, 0.1),
+            List.of(listener)
+        );
+
+        var response = executor.executeRequest(List.of(
+            TaskSpec.mandatory("balance", Duration.ofMillis(40), () -> "ok")
+        )).toCompletableFuture().join();
+
+        assertEquals(List.of("before", "after_policy", "after_result"), events);
+        assertNotNull(capturedInput.get());
+        assertNotNull(capturedDecision.get());
+        assertFalse(response.diagnostics().degraded());
+    }
+
+    @Test
+    void listenerFailuresDoNotBreakRequestExecution() {
+        ExecutionLifecycleListener failingListener = new ExecutionLifecycleListener() {
+            @Override
+            public void beforePolicyEvaluation(PolicyEvaluationInput input) {
+                throw new IllegalStateException("listener failure");
+            }
+        };
+
+        DefaultAdaptiveExecutor executor = new DefaultAdaptiveExecutor(
+            Runnable::run,
+            new DefaultBudgetPolicyEngine(),
+            () -> new com.budgetflow.core.policy.SystemPressureSnapshot(0.0, 0.0, 0.0),
+            List.of(failingListener)
+        );
+
+        assertDoesNotThrow(() -> executor.executeRequest(List.of(
+            TaskSpec.mandatory("balance", Duration.ofMillis(40), () -> "ok")
+        )).toCompletableFuture().join());
     }
 
     private BudgetPolicyEngine policyFor(String taskName, ExecutionMode mode, boolean omitted, String reason) {

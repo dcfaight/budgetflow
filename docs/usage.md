@@ -208,3 +208,32 @@ That means:
 - task names still matter
 - execution remains explicit
 - diagnostics and decision trace remain first-class
+
+---
+
+## Runtime integration hooks (optional)
+
+BudgetFlow remains a prototype, but now includes lightweight integration points for more realistic runtime usage:
+
+- `RuntimeSignalPressureProvider` for plugging in live pressure signal suppliers (executor, DB, downstream).
+- `CompositeSystemPressureProvider` for combining multiple pressure sources conservatively (max per dimension).
+- `ExecutionLifecycleListener` for optional lifecycle callbacks before/after policy evaluation and after request execution.
+
+These hooks are intentionally lightweight and optional:
+- no hard dependency on any observability vendor
+- no mandatory telemetry platform setup
+- core planner semantics remain unchanged
+
+### Typical wiring pattern
+
+```mermaid
+flowchart LR
+    A[Request budget context] --> B[DefaultSystemPressureProvider]
+    C[Runtime metrics/signals] --> D[RuntimeSignalPressureProvider]
+    B --> E[CompositeSystemPressureProvider]
+    D --> E
+    E --> F[DefaultAdaptiveExecutor]
+    F --> G[ExecutionLifecycleListener (optional)]
+```
+
+Use this only when you need richer runtime realism; simple demos can continue using fixed/default providers.
