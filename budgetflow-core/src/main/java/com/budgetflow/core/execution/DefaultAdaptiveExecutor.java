@@ -2,6 +2,7 @@ package com.budgetflow.core.execution;
 
 import com.budgetflow.core.api.AdaptiveExecutor;
 import com.budgetflow.core.api.ExecutionBudget;
+import com.budgetflow.core.api.RequestExecutionResult;
 import com.budgetflow.core.api.TaskResult;
 import com.budgetflow.core.api.TaskSpec;
 import com.budgetflow.core.classification.ExecutionMode;
@@ -15,7 +16,9 @@ import com.budgetflow.core.policy.TaskDescriptor;
 import com.budgetflow.core.policy.TaskExecutionDirective;
 
 import java.time.Duration;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
@@ -49,47 +52,100 @@ public class DefaultAdaptiveExecutor implements AdaptiveExecutor {
 
     @Override
     public <T> CompletionStage<TaskResult<T>> execute(TaskSpec<T> taskSpec) {
-        TaskExecutionDirective directive = evaluateDirective(taskSpec);
+        return executeRequest(List.of(taskSpec))
+            .thenApply(result -> result.taskResult(taskSpec.taskName()));
+    }
+
+    @Override
+    public CompletionStage<RequestExecutionResult> executeRequest(List<TaskSpec<?>> taskSpecs) {
+        validateTaskNames(taskSpecs);
+        PolicyDecision decision = evaluateDecision(taskSpecs);
+        Map<String, TaskExecutionDirective> directivesByName = directivesByTaskName(decision, taskSpecs);
+        List<CompletableFuture<TaskResult<?>>> futures = taskSpecs.stream()
+            .map(taskSpec -> executeWithDirective(taskSpec, directivesByName.get(taskSpec.taskName())).toCompletableFuture())
+            .toList();
+
+        CompletableFuture<Void> allDone = CompletableFuture.allOf(futures.toArray(CompletableFuture[]::new));
+        return allDone.thenApply(ignored -> {
+            Map<String, TaskResult<?>> results = new LinkedHashMap<>();
+            for (int index = 0; index < taskSpecs.size(); index++) {
+                results.put(taskSpecs.get(index).taskName(), futures.get(index).join());
+            }
+            return new RequestExecutionResult(results, decision.decisionTrace());
+        });
+    }
+
+    private void validateTaskNames(List<TaskSpec<?>> taskSpecs) {
+        long distinctNames = taskSpecs.stream().map(TaskSpec::taskName).distinct().count();
+        if (distinctNames != taskSpecs.size()) {
+            throw new IllegalArgumentException("Task names must be unique for request-scoped planning.");
+        }
+    }
+
+    private PolicyDecision evaluateDecision(List<TaskSpec<?>> taskSpecs) {
+        PolicyEvaluationInput evaluationInput = new PolicyEvaluationInput(
+            currentRemainingBudget(),
+            taskSpecs.stream()
+                .map(this::toTaskDescriptor)
+                .toList(),
+            currentPressureSnapshot()
+        );
+        return budgetPolicyEngine.evaluate(evaluationInput);
+    }
+
+    private Map<String, TaskExecutionDirective> directivesByTaskName(PolicyDecision decision, List<TaskSpec<?>> taskSpecs) {
+        Map<String, TaskExecutionDirective> directivesByName = new LinkedHashMap<>();
+        for (TaskExecutionDirective directive : decision.directives()) {
+            directivesByName.put(directive.taskName(), directive);
+        }
+        for (TaskSpec<?> taskSpec : taskSpecs) {
+            directivesByName.computeIfAbsent(taskSpec.taskName(), name -> defaultDirective(name));
+        }
+        return directivesByName;
+    }
+
+    private TaskDescriptor toTaskDescriptor(TaskSpec<?> taskSpec) {
+        return new TaskDescriptor(
+            taskSpec.taskName(),
+            taskSpec.importance(),
+            taskSpec.expectedLatency(),
+            taskSpec.fallbackSupplier().isPresent(),
+            taskSpec.approximateSupplier().isPresent()
+        );
+    }
+
+    private <T> CompletionStage<TaskResult<?>> executeWithDirective(TaskSpec<T> taskSpec, TaskExecutionDirective directive) {
         if (directive.omitted() || directive.executionMode() == ExecutionMode.OMIT) {
             return CompletableFuture.completedFuture(TaskResult.omitted(nonEmptyReason(directive.reason(), "omitted_by_policy")));
         }
-
         return CompletableFuture.supplyAsync(() -> executeDirective(taskSpec, directive), executor);
     }
 
-    private <T> TaskResult<T> executeDirective(TaskSpec<T> taskSpec, TaskExecutionDirective directive) {
+    private <T> TaskResult<?> executeDirective(TaskSpec<T> taskSpec, TaskExecutionDirective directive) {
         return switch (directive.executionMode()) {
-            case EXECUTE -> TaskResult.executed(taskSpec.primarySupplier().get(), ExecutionMode.EXECUTE, nonEmptyReason(directive.reason(), "normal_execution"));
+            case EXECUTE -> TaskResult.executed(
+                taskSpec.primarySupplier().get(),
+                ExecutionMode.EXECUTE,
+                nonEmptyReason(directive.reason(), "normal_execution")
+            );
             case EXECUTE_WITH_FALLBACK -> {
                 Supplier<T> fallbackSupplier = taskSpec.fallbackSupplier().orElse(taskSpec.primarySupplier());
-                yield TaskResult.executed(fallbackSupplier.get(), ExecutionMode.EXECUTE_WITH_FALLBACK, nonEmptyReason(directive.reason(), "fallback_selected"));
+                yield TaskResult.executed(
+                    fallbackSupplier.get(),
+                    ExecutionMode.EXECUTE_WITH_FALLBACK,
+                    nonEmptyReason(directive.reason(), "fallback_selected")
+                );
             }
             case EXECUTE_APPROXIMATE -> {
                 Supplier<T> approximateSupplier = taskSpec.approximateSupplier().orElse(taskSpec.primarySupplier());
-                yield TaskResult.executed(approximateSupplier.get(), ExecutionMode.EXECUTE_APPROXIMATE, nonEmptyReason(directive.reason(), "approximate_selected"));
+                yield TaskResult.executed(
+                    approximateSupplier.get(),
+                    ExecutionMode.EXECUTE_APPROXIMATE,
+                    nonEmptyReason(directive.reason(), "approximate_selected")
+                );
             }
             case OMIT -> TaskResult.omitted(nonEmptyReason(directive.reason(), "omitted_by_policy"));
         };
-    }
-
-    private <T> TaskExecutionDirective evaluateDirective(TaskSpec<T> taskSpec) {
-        PolicyEvaluationInput evaluationInput = new PolicyEvaluationInput(
-            currentRemainingBudget(),
-            List.of(new TaskDescriptor(
-                taskSpec.taskName(),
-                taskSpec.importance(),
-                taskSpec.expectedLatency(),
-                taskSpec.fallbackSupplier().isPresent(),
-                taskSpec.approximateSupplier().isPresent()
-            )),
-            currentPressureSnapshot()
-        );
-
-        PolicyDecision decision = budgetPolicyEngine.evaluate(evaluationInput);
-        return decision.directives().stream()
-            .filter(directive -> directive.taskName().equals(taskSpec.taskName()))
-            .findFirst()
-            .orElseGet(() -> defaultDirective(taskSpec.taskName()));
     }
 
     private TaskExecutionDirective defaultDirective(String taskName) {

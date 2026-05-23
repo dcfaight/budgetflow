@@ -1,6 +1,8 @@
 package com.budgetflow.demo.fintech.dashboard;
 
 import com.budgetflow.core.api.AdaptiveExecutor;
+import com.budgetflow.core.api.RequestExecutionResult;
+import com.budgetflow.core.api.TaskResult;
 import com.budgetflow.core.api.TaskSpec;
 import com.budgetflow.core.classification.ExecutionMode;
 import com.budgetflow.core.metadata.DegradationMetadata;
@@ -36,30 +38,43 @@ public class DashboardService {
     }
 
     public DashboardResponse getDashboard(String accountId) {
-        var balanceFuture = adaptiveExecutor.execute(
-            TaskSpec.mandatory("balance", Duration.ofMillis(40), () -> balanceClient.getBalance(accountId))
-        ).toCompletableFuture();
-        var transactionsFuture = adaptiveExecutor.execute(
-            TaskSpec.mandatory("transactions", Duration.ofMillis(65), () -> transactionClient.getTransactions(accountId))
-        ).toCompletableFuture();
-        var rewardsFuture = adaptiveExecutor.execute(
-            TaskSpec.important("rewards", Duration.ofMillis(90), () -> rewardsClient.getRewards(accountId))
-                .withFallback(() -> rewardsClient.getCachedRewards(accountId))
-        ).toCompletableFuture();
-        var offersFuture = adaptiveExecutor.execute(
-            TaskSpec.optional("offers", Duration.ofMillis(110), () -> offersClient.getOffers(accountId))
-                .withFallback(() -> offersClient.getCachedOffers(accountId))
-                .withApproximate(() -> offersClient.getApproximateOffers(accountId))
-        ).toCompletableFuture();
-        var insightsFuture = adaptiveExecutor.execute(
-            TaskSpec.optional("insights", Duration.ofMillis(140), () -> insightsClient.getInsights(accountId))
-        ).toCompletableFuture();
+        TaskSpec<Balance> balanceTask = TaskSpec.mandatory("balance", Duration.ofMillis(40), () -> balanceClient.getBalance(accountId));
+        TaskSpec<List<Transaction>> transactionsTask = TaskSpec.mandatory(
+            "transactions",
+            Duration.ofMillis(65),
+            () -> transactionClient.getTransactions(accountId)
+        );
+        TaskSpec<RewardsSummary> rewardsTask = TaskSpec.important(
+            "rewards",
+            Duration.ofMillis(90),
+            () -> rewardsClient.getRewards(accountId)
+        ).withFallback(() -> rewardsClient.getCachedRewards(accountId));
+        TaskSpec<List<Offer>> offersTask = TaskSpec.optional(
+            "offers",
+            Duration.ofMillis(110),
+            () -> offersClient.getOffers(accountId)
+        )
+            .withFallback(() -> offersClient.getCachedOffers(accountId))
+            .withApproximate(() -> offersClient.getApproximateOffers(accountId));
+        TaskSpec<SpendingInsights> insightsTask = TaskSpec.optional(
+            "insights",
+            Duration.ofMillis(140),
+            () -> insightsClient.getInsights(accountId)
+        );
 
-        var balanceResult = balanceFuture.join();
-        var transactionsResult = transactionsFuture.join();
-        var rewardsResult = rewardsFuture.join();
-        var offersResult = offersFuture.join();
-        var insightsResult = insightsFuture.join();
+        RequestExecutionResult executionResult = adaptiveExecutor.executeRequest(List.of(
+            balanceTask,
+            transactionsTask,
+            rewardsTask,
+            offersTask,
+            insightsTask
+        )).toCompletableFuture().join();
+
+        TaskResult<Balance> balanceResult = executionResult.taskResult("balance");
+        TaskResult<List<Transaction>> transactionsResult = executionResult.taskResult("transactions");
+        TaskResult<RewardsSummary> rewardsResult = executionResult.taskResult("rewards");
+        TaskResult<List<Offer>> offersResult = executionResult.taskResult("offers");
+        TaskResult<SpendingInsights> insightsResult = executionResult.taskResult("insights");
 
         Balance balance = balanceResult.value().orElseThrow(() -> new IllegalStateException("balance must be present"));
         List<Transaction> transactions = transactionsResult.value()
@@ -85,7 +100,7 @@ public class DashboardService {
             approximated
         );
 
-        return new DashboardResponse(balance, transactions, rewards, offers, insights, metadata);
+        return new DashboardResponse(balance, transactions, rewards, offers, insights, metadata, executionResult.decisionTrace());
     }
 
     private void collectDegradation(

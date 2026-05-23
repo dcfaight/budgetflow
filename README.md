@@ -5,6 +5,7 @@ Latency-budget-aware adaptive execution for Spring Boot.
 ## Idea
 
 BudgetFlow provides a lightweight baseline for latency-aware orchestration where mandatory, important, and optional tasks can degrade gracefully under time pressure.
+The core executor now supports request-scoped planning so related tasks are evaluated together under one budget with per-task decision tracing.
 
 ## Modules
 

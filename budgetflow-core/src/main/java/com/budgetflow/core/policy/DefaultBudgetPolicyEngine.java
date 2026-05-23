@@ -15,13 +15,17 @@ public class DefaultBudgetPolicyEngine implements BudgetPolicyEngine {
     public PolicyDecision evaluate(PolicyEvaluationInput input) {
         List<TaskExecutionDirective> directives = new ArrayList<>();
         List<String> degradationReasons = new ArrayList<>();
+        List<DecisionTraceEntry> decisionTrace = new ArrayList<>();
 
-        Duration remainingBudget = input.remainingBudget();
-        int taskCount = Math.max(input.tasks().size(), 1);
-        Duration perTaskBudget = remainingBudget.dividedBy(taskCount);
+        Duration rollingRemainingBudget = input.remainingBudget();
+        int totalTasks = input.tasks().size();
+        int index = 0;
 
         for (TaskDescriptor task : input.tasks()) {
-            ExecutionMode mode = chooseExecutionMode(task, input.pressureSnapshot(), remainingBudget);
+            int tasksRemaining = Math.max(totalTasks - index, 1);
+            Duration perTaskBudget = rollingRemainingBudget.dividedBy(tasksRemaining);
+            Duration budgetAtPlanningTime = rollingRemainingBudget;
+            ExecutionMode mode = chooseExecutionMode(task, input.pressureSnapshot(), budgetAtPlanningTime);
             Duration allocated = minPositive(task.expectedLatency(), perTaskBudget);
             boolean omitted = mode == ExecutionMode.OMIT;
             boolean degraded = mode != ExecutionMode.EXECUTE;
@@ -38,9 +42,23 @@ public class DefaultBudgetPolicyEngine implements BudgetPolicyEngine {
                 omitted,
                 reason
             ));
+
+            decisionTrace.add(new DecisionTraceEntry(
+                task.taskName(),
+                mode,
+                reason,
+                task.expectedLatency(),
+                budgetAtPlanningTime
+            ));
+
+            rollingRemainingBudget = rollingRemainingBudget.minus(allocated);
+            if (rollingRemainingBudget.isNegative()) {
+                rollingRemainingBudget = Duration.ZERO;
+            }
+            index++;
         }
 
-        return new PolicyDecision(directives, !degradationReasons.isEmpty(), degradationReasons);
+        return new PolicyDecision(directives, !degradationReasons.isEmpty(), degradationReasons, decisionTrace);
     }
 
     private ExecutionMode chooseExecutionMode(

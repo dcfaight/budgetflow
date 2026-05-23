@@ -1,6 +1,7 @@
 package com.budgetflow.demo.fintech.dashboard;
 
 import com.budgetflow.core.metadata.DegradationMetadata;
+import com.budgetflow.core.policy.DecisionTraceEntry;
 
 import java.util.List;
 
@@ -10,6 +11,7 @@ public record DashboardResponse(
     RewardsSummary rewards,
     List<Offer> offers,
     SpendingInsights insights,
-    DegradationMetadata degradationMetadata
+    DegradationMetadata degradationMetadata,
+    List<DecisionTraceEntry> decisionTrace
 ) {
 }
