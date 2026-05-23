@@ -105,7 +105,7 @@ public final class DashboardComparisonHarness implements AutoCloseable {
 
     private DashboardBenchmarkSummary runNaiveParallel(DashboardBenchmarkScenario scenario) {
         List<TaskSpec<?>> taskSpecs = taskSpecs();
-        List<CompletableFuture<TaskResult<?>>> futures = taskSpecs.stream()
+        List<CompletableFuture<TaskResult<Object>>> futures = taskSpecs.stream()
             .map(taskSpec -> CompletableFuture.supplyAsync(
                 () -> TaskResult.executed(taskSpec.primarySupplier().get(), ExecutionMode.EXECUTE, "naive_parallel"),
                 executorService
