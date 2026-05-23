@@ -63,21 +63,46 @@ BudgetFlow includes a higher-level grouped request API for application code:
 
 This reduces manual string-based result lookup while preserving the underlying request-scoped execution model.
 
-Example:
+### Dashboard example
+
+A fintech dashboard assembles five pieces of data with different importance levels:
 
 ```java
-TaskKey<Balance> BALANCE = TaskKey.of("balance");
-TaskKey<List<Transaction>> TRANSACTIONS = TaskKey.of("transactions");
+static final TaskKey<Balance>            BALANCE      = TaskKey.of("balance");
+static final TaskKey<List<Transaction>>  TRANSACTIONS = TaskKey.of("transactions");
+static final TaskKey<RewardsSummary>     REWARDS      = TaskKey.of("rewards");
+static final TaskKey<List<Offer>>        OFFERS       = TaskKey.of("offers");
+static final TaskKey<SpendingInsights>   INSIGHTS     = TaskKey.of("insights");
 
 AdaptiveRequest request = AdaptiveRequest.builder()
-    .mandatory(BALANCE, Duration.ofMillis(40), () -> balanceClient.getBalance(accountId))
-    .mandatory(TRANSACTIONS, Duration.ofMillis(65), () -> transactionClient.getTransactions(accountId))
+    // Must always complete
+    .mandatory(BALANCE,      Duration.ofMillis(40),  () -> balanceClient.getBalance(accountId))
+    .mandatory(TRANSACTIONS, Duration.ofMillis(65),  () -> transactionClient.getTransactions(accountId))
+    // Important — has a cheaper cached fallback
+    .task(REWARDS, TaskSpec.important("rewards", Duration.ofMillis(90), () -> rewardsClient.getRewards(accountId))
+        .withFallback(() -> rewardsClient.getCachedRewards(accountId)))
+    // Optional — accepts approximate results or a cached fallback
+    .task(OFFERS, TaskSpec.optional("offers", Duration.ofMillis(110), () -> offersClient.getOffers(accountId))
+        .withFallback(() -> offersClient.getCachedOffers(accountId))
+        .withApproximate(() -> offersClient.getApproximateOffers(accountId)))
+    // Optional — can be dropped entirely under pressure
+    .optional(INSIGHTS, Duration.ofMillis(140), () -> insightsClient.getInsights(accountId))
     .build();
 
 AdaptiveRequestResult result = request.execute(adaptiveExecutor).toCompletableFuture().join();
 
-Balance balance = result.require(BALANCE);
-List<Transaction> transactions = result.require(TRANSACTIONS);
+// Mandatory results — throws if not present
+Balance             balance      = result.require(BALANCE);
+List<Transaction>   transactions = result.require(TRANSACTIONS);
+
+// Optional results — safe even when omitted or degraded
+RewardsSummary      rewards  = result.get(REWARDS).orElseGet(() -> new RewardsSummary(0));
+List<Offer>         offers   = result.get(OFFERS).orElseGet(List::of);
+SpendingInsights    insights = result.get(INSIGHTS).orElseGet(() -> new SpendingInsights("unavailable"));
+
+// Inspect execution metadata
+RequestExecutionDiagnostics diagnostics = result.diagnostics();
+List<DecisionTraceEntry>    trace       = result.decisionTrace();
 ```
 
 The lower-level `TaskSpec<T>` / `RequestExecutionResult` model remains available for advanced or custom usage.
@@ -101,36 +126,35 @@ BudgetFlow currently includes:
 - fintech dashboard demo application
 - naive-vs-adaptive comparison harness for local scenario testing
 
-## Example use case
+## Comparison harness output
 
-A fintech dashboard endpoint may need to assemble:
+Running the harness across the three default scenarios produces output like:
 
-### Mandatory
-- account balance
-- recent transactions
+```
+Scenario | Strategy | Executed | Omitted | Fallback | Approximated | Degraded | Budget/Work | Pressure
+-------- | -------- | -------- | ------- | -------- | ------------ | -------- | ----------- | --------
+generous_budget_low_pressure      | naive_parallel      | 5 | -               | -       | -      | false | 650ms/445ms | exec=0.15 db=0.10 down=0.20
+generous_budget_low_pressure      | budgetflow_adaptive | 5 | -               | -       | -      | false | 650ms/445ms | exec=0.15 db=0.10 down=0.20
+constrained_budget_low_pressure   | naive_parallel      | 5 | -               | -       | -      | true  | 430ms/445ms | exec=0.15 db=0.10 down=0.20
+constrained_budget_low_pressure   | budgetflow_adaptive | 4 | insights        | -       | offers | true  | 430ms/203ms | exec=0.15 db=0.10 down=0.20
+constrained_budget_elevated_press | naive_parallel      | 5 | -               | -       | -      | true  | 430ms/445ms | exec=0.90 db=0.88 down=0.92
+constrained_budget_elevated_press | budgetflow_adaptive | 3 | offers,insights | rewards | -      | true  | 430ms/115ms | exec=0.90 db=0.88 down=0.92
+```
 
-### Important
-- rewards summary, with a fallback path
+### How to read the output
 
-### Optional
-- offers, with approximate or cached fallback options
-- spending insights, which can be omitted under pressure
+| Column | Meaning |
+|--------|---------|
+| **Degraded** | `true` when any task was omitted, fell back, or ran approximately |
+| **Omitted** | Tasks skipped entirely — their data is absent from the response |
+| **Fallback** | Tasks that ran a cheaper secondary path instead of the primary |
+| **Approximated** | Tasks that returned a lower-fidelity result (e.g., cached or estimated) |
+| **Budget/Work** | Request latency budget vs projected work under the chosen execution modes |
 
-BudgetFlow plans these tasks together under one request budget and surfaces what happened to the response.
-
-## Example response signals
-
-The demo can surface:
-- `decisionTrace`
-- `diagnostics`
-- `executionSummary`
-
-These help explain:
-- which tasks were omitted
-- which tasks used fallback
-- which tasks were approximated
-- whether the request was degraded
-- how much request budget remained
+**What the scenarios show:**
+- Under a generous budget and low pressure, naive and adaptive produce identical results — no degradation is needed.
+- Under a constrained budget and low pressure, the adaptive executor sheds the optional `insights` task and approximates `offers`, bringing projected work down from 445 ms to 203 ms. The naive executor still attempts all five tasks over budget.
+- Under elevated pressure, the adaptive executor also falls back on `rewards` and omits both optional tasks, projecting 115 ms of work. The naive executor is unaware of pressure and attempts everything.
 
 ## Modules
 
@@ -154,8 +178,6 @@ BudgetFlow includes a lightweight comparison harness that runs the same dashboar
 - `naive_parallel`
 - `budgetflow_adaptive`
 
-This makes it easy to inspect how adaptive execution changes the request outcome under different latency budgets and pressure conditions.
-
 Run it with:
 
 ```bash
@@ -167,25 +189,7 @@ Built-in scenarios currently include:
 - constrained budget / low pressure
 - constrained budget / elevated pressure
 
-The harness prints compact comparison output including:
-- scenario name
-- execution strategy
-- executed task count
-- omitted tasks
-- fallback tasks
-- approximated tasks
-- degraded status
-- request budget vs projected work
-- simulated pressure snapshot
-
-### What the comparison is for
-
-This is a **local comparison harness**, not a rigorous performance benchmark suite.
-
-It is intended to help demonstrate:
-- how BudgetFlow changes execution under pressure
-- how adaptive planning affects response completeness
-- how degradation becomes visible through diagnostics
+See the [Comparison harness output](#comparison-harness-output) section above for example output and interpretation guidance.
 
 ## Current status
 
