@@ -47,6 +47,14 @@ class PressureScenariosTest {
         assertEquals(0.15, p.downstreamPressure());
     }
 
+    @Test
+    void downstreamSpikePressureConstantHasElevatedDownstreamAndLowOthers() {
+        SystemPressureSnapshot p = PressureScenarios.DOWNSTREAM_SPIKE_PRESSURE;
+        assertEquals(0.30, p.executorUtilization());
+        assertEquals(0.22, p.dbPressure());
+        assertEquals(0.84, p.downstreamPressure());
+    }
+
     // -----------------------------------------------------------------------
     // Scenario factory methods — name, budget, pressure
     // -----------------------------------------------------------------------
@@ -54,7 +62,9 @@ class PressureScenariosTest {
     @Test
     void generousBudgetLowPressureScenarioIsConsistent() {
         DashboardBenchmarkScenario scenario = PressureScenarios.generousBudgetLowPressure();
+        assertEquals("default", scenario.packName());
         assertEquals("generous_budget_low_pressure", scenario.name());
+        assertEquals("Generous budget / low pressure", scenario.displayName());
         assertEquals(Duration.ofMillis(650), scenario.requestBudget());
         assertEquals(PressureScenarios.LOW_PRESSURE, scenario.pressureSnapshot());
     }
@@ -63,6 +73,7 @@ class PressureScenariosTest {
     void constrainedBudgetLowPressureScenarioIsConsistent() {
         DashboardBenchmarkScenario scenario = PressureScenarios.constrainedBudgetLowPressure();
         assertEquals("constrained_budget_low_pressure", scenario.name());
+        assertEquals("constrained_budget", scenario.budgetProfile());
         assertEquals(Duration.ofMillis(430), scenario.requestBudget());
         assertEquals(PressureScenarios.LOW_PRESSURE, scenario.pressureSnapshot());
     }
@@ -78,6 +89,7 @@ class PressureScenariosTest {
     @Test
     void generousBudgetElevatedPressureScenarioIsConsistent() {
         DashboardBenchmarkScenario scenario = PressureScenarios.generousBudgetElevatedPressure();
+        assertEquals("extended", scenario.packName());
         assertEquals("generous_budget_elevated_pressure", scenario.name());
         assertEquals(Duration.ofMillis(650), scenario.requestBudget());
         assertEquals(PressureScenarios.ELEVATED_PRESSURE, scenario.pressureSnapshot());
@@ -89,6 +101,15 @@ class PressureScenariosTest {
         assertEquals("tight_budget_moderate_db_pressure", scenario.name());
         assertEquals(Duration.ofMillis(300), scenario.requestBudget());
         assertEquals(PressureScenarios.MODERATE_DB_PRESSURE, scenario.pressureSnapshot());
+    }
+
+    @Test
+    void moderateBudgetDownstreamSpikeScenarioIsConsistent() {
+        DashboardBenchmarkScenario scenario = PressureScenarios.moderateBudgetDownstreamSpike();
+        assertEquals("moderate_budget_downstream_spike", scenario.name());
+        assertEquals(Duration.ofMillis(500), scenario.requestBudget());
+        assertEquals(PressureScenarios.DOWNSTREAM_SPIKE_PRESSURE, scenario.pressureSnapshot());
+        assertEquals("downstream_spike", scenario.pressureProfile());
     }
 
     // -----------------------------------------------------------------------
@@ -107,6 +128,8 @@ class PressureScenariosTest {
             PressureScenarios.generousBudgetElevatedPressure());
         assertEquals(PressureScenarios.tightBudgetModerateDbPressure(),
             PressureScenarios.tightBudgetModerateDbPressure());
+        assertEquals(PressureScenarios.moderateBudgetDownstreamSpike(),
+            PressureScenarios.moderateBudgetDownstreamSpike());
     }
 
     // -----------------------------------------------------------------------
@@ -136,5 +159,16 @@ class PressureScenariosTest {
             UnsupportedOperationException.class,
             () -> defaults.add(PressureScenarios.generousBudgetElevatedPressure())
         );
+    }
+
+    @Test
+    void scenarioPacksExposeNamedReusableCollections() {
+        DashboardScenarioPack extended = PressureScenarios.extendedPack();
+        DashboardScenarioPack realism = PressureScenarios.realismPack();
+
+        assertEquals("extended", extended.name());
+        assertEquals(6, extended.scenarios().size());
+        assertEquals("realism", realism.name());
+        assertEquals(4, realism.scenarios().size());
     }
 }

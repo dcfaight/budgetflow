@@ -2,7 +2,6 @@ package com.budgetflow.demo.fintech.dashboard;
 
 import com.budgetflow.core.api.AdaptiveRequest;
 import com.budgetflow.core.api.TaskKey;
-import com.budgetflow.core.api.TaskSpec;
 import com.budgetflow.core.classification.ExecutionMode;
 
 import java.time.Duration;
@@ -50,13 +49,13 @@ public final class DashboardTaskSpecs {
                 () -> balanceClient.getBalance(accountId))
             .mandatory(TRANSACTIONS_KEY, TRANSACTIONS_PRIMARY_LATENCY,
                 () -> transactionClient.getTransactions(accountId))
-            .task(REWARDS_KEY, TaskSpec.important(REWARDS_TASK, REWARDS_PRIMARY_LATENCY,
-                    () -> rewardsClient.getRewards(accountId))
-                .withFallback(() -> rewardsClient.getCachedRewards(accountId)))
-            .task(OFFERS_KEY, TaskSpec.optional(OFFERS_TASK, OFFERS_PRIMARY_LATENCY,
-                    () -> offersClient.getOffers(accountId))
-                .withFallback(() -> offersClient.getCachedOffers(accountId))
-                .withApproximate(() -> offersClient.getApproximateOffers(accountId)))
+            .importantWithFallback(REWARDS_KEY, REWARDS_PRIMARY_LATENCY,
+                () -> rewardsClient.getRewards(accountId),
+                () -> rewardsClient.getCachedRewards(accountId))
+            .optionalWithFallbackAndApproximate(OFFERS_KEY, OFFERS_PRIMARY_LATENCY,
+                () -> offersClient.getOffers(accountId),
+                () -> offersClient.getCachedOffers(accountId),
+                () -> offersClient.getApproximateOffers(accountId))
             .optional(INSIGHTS_KEY, INSIGHTS_PRIMARY_LATENCY,
                 () -> insightsClient.getInsights(accountId))
             .build();

@@ -10,6 +10,7 @@ import java.util.stream.Collectors;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 
 class DefaultBudgetPolicyEngineTest {
 
@@ -102,5 +103,22 @@ class DefaultBudgetPolicyEngineTest {
             List.of("mandatory-a", "mandatory-b", "important-a", "important-b", "optional-a", "optional-b"),
             decision.directives().stream().map(TaskExecutionDirective::taskName).collect(Collectors.toList())
         );
+    }
+
+    @Test
+    void degradationReasonsRemainDeterministicAndExplainable() {
+        DefaultBudgetPolicyEngine engine = new DefaultBudgetPolicyEngine();
+
+        PolicyDecision decision = engine.evaluate(new PolicyEvaluationInput(
+            Duration.ofMillis(300),
+            List.of(new TaskDescriptor("offers", Importance.OPTIONAL, Duration.ofMillis(160), true, true)),
+            new SystemPressureSnapshot(0.30, 0.22, 0.84)
+        ));
+
+        String reason = decision.directives().get(0).reason();
+        assertTrue(reason.startsWith("approximate_selected_by_policy["));
+        assertTrue(reason.contains("pressure=moderate:downstream"));
+        assertTrue(reason.contains("budget=available"));
+        assertFalse(reason.isBlank());
     }
 }

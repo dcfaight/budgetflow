@@ -28,12 +28,27 @@ public record TaskSpec<T>(
         return new TaskSpec<>(taskName, Importance.MANDATORY, expectedLatency, primarySupplier, Optional.empty(), Optional.empty());
     }
 
+    public static <T> TaskSpec<T> mandatory(TaskKey<T> key, Duration expectedLatency, Supplier<T> primarySupplier) {
+        Objects.requireNonNull(key, "key must not be null");
+        return mandatory(key.name(), expectedLatency, primarySupplier);
+    }
+
     public static <T> TaskSpec<T> important(String taskName, Duration expectedLatency, Supplier<T> primarySupplier) {
         return new TaskSpec<>(taskName, Importance.IMPORTANT, expectedLatency, primarySupplier, Optional.empty(), Optional.empty());
     }
 
+    public static <T> TaskSpec<T> important(TaskKey<T> key, Duration expectedLatency, Supplier<T> primarySupplier) {
+        Objects.requireNonNull(key, "key must not be null");
+        return important(key.name(), expectedLatency, primarySupplier);
+    }
+
     public static <T> TaskSpec<T> optional(String taskName, Duration expectedLatency, Supplier<T> primarySupplier) {
         return new TaskSpec<>(taskName, Importance.OPTIONAL, expectedLatency, primarySupplier, Optional.empty(), Optional.empty());
+    }
+
+    public static <T> TaskSpec<T> optional(TaskKey<T> key, Duration expectedLatency, Supplier<T> primarySupplier) {
+        Objects.requireNonNull(key, "key must not be null");
+        return optional(key.name(), expectedLatency, primarySupplier);
     }
 
     public TaskSpec<T> withFallback(Supplier<T> fallback) {

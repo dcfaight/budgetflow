@@ -57,8 +57,14 @@ public final class DashboardComparisonHarness implements AutoCloseable {
     }
 
     public static void main(String[] args) {
+        HarnessOptions options = HarnessOptions.parse(args);
         try (DashboardComparisonHarness harness = new DashboardComparisonHarness()) {
-            System.out.println(DashboardBenchmarkFormatter.format(harness.runDefaultScenarios()));
+            DashboardScenarioPack pack = PressureScenarios.packNamed(options.packName());
+            List<DashboardBenchmarkSummary> summaries = harness.run(pack.scenarios());
+            String output = options.json()
+                ? DashboardBenchmarkFormatter.formatJson(pack, summaries)
+                : DashboardBenchmarkFormatter.format(pack, summaries);
+            System.out.println(output);
         }
     }
 
@@ -104,13 +110,20 @@ public final class DashboardComparisonHarness implements AutoCloseable {
 
         Duration projectedWork = DashboardTaskSpecs.totalPrimaryLatency();
         boolean degraded = projectedWork.compareTo(scenario.requestBudget()) > 0;
+        List<String> degradationReasons = degraded
+            ? List.of("projected_work_exceeds_request_budget_by_%dms"
+                .formatted(projectedWork.minus(scenario.requestBudget()).toMillis()))
+            : List.of();
         return summaryFor(
             scenario,
             NAIVE_PARALLEL,
             results,
             List.of(),
+            List.of(),
+            List.of(),
             degraded,
-            projectedWork
+            projectedWork,
+            degradationReasons
         );
     }
 
@@ -127,13 +140,21 @@ public final class DashboardComparisonHarness implements AutoCloseable {
                 .map(entry -> DashboardTaskSpecs.expectedLatency(entry.getKey(), entry.getValue().executionMode()))
                 .reduce(Duration.ZERO, Duration::plus);
 
+            List<String> degradationReasons = result.decisionTrace().stream()
+                .filter(entry -> entry.selectedExecutionMode() != ExecutionMode.EXECUTE)
+                .map(entry -> entry.taskName() + "=" + stableReason(entry.reason()))
+                .toList();
+
             return summaryFor(
                 scenario,
                 BUDGETFLOW_ADAPTIVE,
                 result.taskResults(),
-                result.diagnostics(),
+                result.diagnostics().omittedTaskNames(),
+                result.diagnostics().fallbackTaskNames(),
+                result.diagnostics().approximatedTaskNames(),
                 result.diagnostics().degraded(),
-                projectedWork
+                projectedWork,
+                degradationReasons
             );
         } finally {
             BudgetContextHolder.clear();
@@ -144,49 +165,26 @@ public final class DashboardComparisonHarness implements AutoCloseable {
         DashboardBenchmarkScenario scenario,
         String strategy,
         Map<String, TaskResult<?>> taskResults,
-        RequestExecutionDiagnostics diagnostics,
-        boolean degraded,
-        Duration projectedWork
-    ) {
-        int executedTasks = (int) taskResults.values().stream()
-            .filter(taskResult -> !taskResult.omitted())
-            .count();
-        return new DashboardBenchmarkSummary(
-            scenario.name(),
-            strategy,
-            executedTasks,
-            diagnostics.omittedTaskNames(),
-            diagnostics.fallbackTaskNames(),
-            diagnostics.approximatedTaskNames(),
-            degraded,
-            scenario.requestBudget(),
-            projectedWork,
-            scenario.pressureSnapshot()
-        );
-    }
-
-    private DashboardBenchmarkSummary summaryFor(
-        DashboardBenchmarkScenario scenario,
-        String strategy,
-        Map<String, TaskResult<?>> taskResults,
         List<String> omittedTasks,
+        List<String> fallbackTasks,
+        List<String> approximatedTasks,
         boolean degraded,
-        Duration projectedWork
+        Duration projectedWork,
+        List<String> degradationReasons
     ) {
         int executedTasks = (int) taskResults.values().stream()
             .filter(taskResult -> !taskResult.omitted())
             .count();
         return new DashboardBenchmarkSummary(
-            scenario.name(),
+            scenario,
             strategy,
             executedTasks,
             omittedTasks,
-            List.of(),
-            List.of(),
+            fallbackTasks,
+            approximatedTasks,
             degraded,
-            scenario.requestBudget(),
             projectedWork,
-            scenario.pressureSnapshot()
+            degradationReasons
         );
     }
 
@@ -199,5 +197,30 @@ public final class DashboardComparisonHarness implements AutoCloseable {
             offersClient,
             insightsClient
         ).taskSpecs();
+    }
+
+    private String stableReason(String reason) {
+        int ratioIndex = reason.indexOf(",latency_ratio=");
+        if (ratioIndex < 0) {
+            return reason;
+        }
+        return reason.substring(0, ratioIndex) + "]";
+    }
+
+    private record HarnessOptions(String packName, boolean json) {
+        private static HarnessOptions parse(String[] args) {
+            String packName = "default";
+            boolean json = false;
+            for (String arg : args) {
+                if ("--json".equals(arg)) {
+                    json = true;
+                    continue;
+                }
+                if (arg.startsWith("--pack=")) {
+                    packName = arg.substring("--pack=".length());
+                }
+            }
+            return new HarnessOptions(packName, json);
+        }
     }
 }

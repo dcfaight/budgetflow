@@ -10,6 +10,8 @@ import java.util.List;
 public class DefaultBudgetPolicyEngine implements BudgetPolicyEngine {
     private static final double HIGH_PRESSURE = 0.85;
     private static final double MODERATE_PRESSURE = 0.60;
+    private static final Duration LOW_BUDGET_THRESHOLD = Duration.ofMillis(200);
+    private static final Duration VERY_LOW_BUDGET_THRESHOLD = Duration.ofMillis(120);
 
     @Override
     public PolicyDecision evaluate(PolicyEvaluationInput input) {
@@ -72,11 +74,12 @@ public class DefaultBudgetPolicyEngine implements BudgetPolicyEngine {
             int tasksRemaining = Math.max(totalTasks - index, 1);
             Duration perTaskBudget = rollingRemainingBudget.dividedBy(tasksRemaining);
             Duration budgetAtPlanningTime = rollingRemainingBudget;
-            ExecutionMode mode = chooseExecutionMode(task, snapshot, budgetAtPlanningTime);
+            PolicySelection selection = chooseExecutionMode(task, snapshot, budgetAtPlanningTime);
+            ExecutionMode mode = selection.mode();
             Duration allocated = mode == ExecutionMode.OMIT ? Duration.ZERO : minPositive(expectedLatencyOrZero(task), perTaskBudget);
             boolean omitted = mode == ExecutionMode.OMIT;
             boolean degraded = mode != ExecutionMode.EXECUTE;
-            String reason = reasonFor(mode);
+            String reason = selection.reason();
 
             if (degraded) {
                 degradationReasons.add(task.taskName() + ": " + mode);
@@ -121,7 +124,7 @@ public class DefaultBudgetPolicyEngine implements BudgetPolicyEngine {
         return minPositive(nonNegative(totalBudget), mandatoryExpected);
     }
 
-    private ExecutionMode chooseExecutionMode(
+    private PolicySelection chooseExecutionMode(
         TaskDescriptor task,
         SystemPressureSnapshot snapshot,
         Duration remainingBudget
@@ -131,44 +134,83 @@ public class DefaultBudgetPolicyEngine implements BudgetPolicyEngine {
         long expectedMillis = Math.max(expectedLatency.toMillis(), 0L);
         double latencyRatio = (double) expectedMillis / (double) remainingMillis;
 
-        double pressureLevel = Math.max(snapshot.executorUtilization(), Math.max(snapshot.dbPressure(), snapshot.downstreamPressure()));
+        double pressureLevel = snapshot.peakPressure();
         if (task.importance() == Importance.MANDATORY) {
-            return ExecutionMode.EXECUTE;
+            return new PolicySelection(ExecutionMode.EXECUTE, explainReason(ExecutionMode.EXECUTE, snapshot, remainingBudget, latencyRatio));
         }
 
         boolean highPressure = pressureLevel >= HIGH_PRESSURE;
         boolean moderatePressure = pressureLevel >= MODERATE_PRESSURE;
-        boolean lowBudget = remainingBudget.compareTo(Duration.ofMillis(200)) < 0;
-        boolean veryLowBudget = remainingBudget.compareTo(Duration.ofMillis(120)) < 0;
+        boolean lowBudget = remainingBudget.compareTo(LOW_BUDGET_THRESHOLD) < 0;
+        boolean veryLowBudget = remainingBudget.compareTo(VERY_LOW_BUDGET_THRESHOLD) < 0;
 
         if (task.importance() == Importance.IMPORTANT) {
-            return (highPressure || lowBudget || latencyRatio >= 0.35) && task.fallbackSupported()
+            ExecutionMode mode = (highPressure || lowBudget || latencyRatio >= 0.35) && task.fallbackSupported()
                 ? ExecutionMode.EXECUTE_WITH_FALLBACK
                 : ExecutionMode.EXECUTE;
+            return new PolicySelection(mode, explainReason(mode, snapshot, remainingBudget, latencyRatio));
         }
 
         if (veryLowBudget || highPressure || latencyRatio >= 0.55) {
-            return ExecutionMode.OMIT;
+            return new PolicySelection(ExecutionMode.OMIT, explainReason(ExecutionMode.OMIT, snapshot, remainingBudget, latencyRatio));
         }
 
         if ((moderatePressure || lowBudget || latencyRatio >= 0.45) && task.approximateSupported()) {
-            return ExecutionMode.EXECUTE_APPROXIMATE;
+            return new PolicySelection(
+                ExecutionMode.EXECUTE_APPROXIMATE,
+                explainReason(ExecutionMode.EXECUTE_APPROXIMATE, snapshot, remainingBudget, latencyRatio)
+            );
         }
 
         if ((moderatePressure || lowBudget || latencyRatio >= 0.45) && task.fallbackSupported()) {
-            return ExecutionMode.EXECUTE_WITH_FALLBACK;
+            return new PolicySelection(
+                ExecutionMode.EXECUTE_WITH_FALLBACK,
+                explainReason(ExecutionMode.EXECUTE_WITH_FALLBACK, snapshot, remainingBudget, latencyRatio)
+            );
         }
 
-        return ExecutionMode.EXECUTE;
+        return new PolicySelection(ExecutionMode.EXECUTE, explainReason(ExecutionMode.EXECUTE, snapshot, remainingBudget, latencyRatio));
     }
 
-    private String reasonFor(ExecutionMode mode) {
+    private String explainReason(
+        ExecutionMode mode,
+        SystemPressureSnapshot snapshot,
+        Duration remainingBudget,
+        double latencyRatio
+    ) {
+        String pressureBand = pressureBand(snapshot.peakPressure());
+        String budgetBand = budgetBand(remainingBudget);
+        String ratio = String.format("%.2f", latencyRatio);
         return switch (mode) {
-            case EXECUTE -> "normal";
-            case EXECUTE_WITH_FALLBACK -> "fallback_selected_by_policy";
-            case EXECUTE_APPROXIMATE -> "approximate_selected_by_policy";
-            case OMIT -> "omitted_by_policy";
+            case EXECUTE -> "normal[pressure=%s:%s,budget=%s,latency_ratio=%s]"
+                .formatted(pressureBand, snapshot.dominantSignal(), budgetBand, ratio);
+            case EXECUTE_WITH_FALLBACK -> "fallback_selected_by_policy[pressure=%s:%s,budget=%s,latency_ratio=%s]"
+                .formatted(pressureBand, snapshot.dominantSignal(), budgetBand, ratio);
+            case EXECUTE_APPROXIMATE -> "approximate_selected_by_policy[pressure=%s:%s,budget=%s,latency_ratio=%s]"
+                .formatted(pressureBand, snapshot.dominantSignal(), budgetBand, ratio);
+            case OMIT -> "omitted_by_policy[pressure=%s:%s,budget=%s,latency_ratio=%s]"
+                .formatted(pressureBand, snapshot.dominantSignal(), budgetBand, ratio);
         };
+    }
+
+    private String pressureBand(double pressureLevel) {
+        if (pressureLevel >= HIGH_PRESSURE) {
+            return "high";
+        }
+        if (pressureLevel >= MODERATE_PRESSURE) {
+            return "moderate";
+        }
+        return "low";
+    }
+
+    private String budgetBand(Duration remainingBudget) {
+        if (remainingBudget.compareTo(VERY_LOW_BUDGET_THRESHOLD) < 0) {
+            return "very_low";
+        }
+        if (remainingBudget.compareTo(LOW_BUDGET_THRESHOLD) < 0) {
+            return "tight";
+        }
+        return "available";
     }
 
     private Duration minPositive(Duration first, Duration second) {
@@ -187,5 +229,8 @@ public class DefaultBudgetPolicyEngine implements BudgetPolicyEngine {
 
     private Duration nonNegative(Duration value) {
         return value == null || value.isNegative() ? Duration.ZERO : value;
+    }
+
+    private record PolicySelection(ExecutionMode mode, String reason) {
     }
 }
