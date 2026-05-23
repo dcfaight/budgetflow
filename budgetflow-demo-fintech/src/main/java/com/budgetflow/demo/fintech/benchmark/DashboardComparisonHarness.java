@@ -1,0 +1,220 @@
+package com.budgetflow.demo.fintech.benchmark;
+
+import com.budgetflow.core.api.RequestExecutionResult;
+import com.budgetflow.core.api.TaskResult;
+import com.budgetflow.core.api.TaskSpec;
+import com.budgetflow.core.budget.DefaultExecutionBudget;
+import com.budgetflow.core.classification.ExecutionMode;
+import com.budgetflow.core.context.BudgetContext;
+import com.budgetflow.core.context.BudgetContextHolder;
+import com.budgetflow.core.execution.DefaultAdaptiveExecutor;
+import com.budgetflow.core.metadata.RequestExecutionDiagnostics;
+import com.budgetflow.core.policy.DefaultBudgetPolicyEngine;
+import com.budgetflow.core.policy.SystemPressureSnapshot;
+import com.budgetflow.demo.fintech.dashboard.BalanceClient;
+import com.budgetflow.demo.fintech.dashboard.DashboardTaskSpecs;
+import com.budgetflow.demo.fintech.dashboard.InsightsClient;
+import com.budgetflow.demo.fintech.dashboard.OffersClient;
+import com.budgetflow.demo.fintech.dashboard.RewardsClient;
+import com.budgetflow.demo.fintech.dashboard.SimulationSupport;
+import com.budgetflow.demo.fintech.dashboard.TransactionClient;
+
+import java.time.Duration;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
+
+public final class DashboardComparisonHarness implements AutoCloseable {
+    private static final String ACCOUNT_ID = "acc-123";
+    private static final String NAIVE_PARALLEL = "naive_parallel";
+    private static final String BUDGETFLOW_ADAPTIVE = "budgetflow_adaptive";
+
+    private final ExecutorService executorService;
+    private final BalanceClient balanceClient;
+    private final TransactionClient transactionClient;
+    private final RewardsClient rewardsClient;
+    private final OffersClient offersClient;
+    private final InsightsClient insightsClient;
+
+    public DashboardComparisonHarness() {
+        this(Executors.newFixedThreadPool(8), new SimulationSupport());
+    }
+
+    public DashboardComparisonHarness(SimulationSupport simulationSupport) {
+        this(Executors.newFixedThreadPool(8), simulationSupport);
+    }
+
+    DashboardComparisonHarness(ExecutorService executorService, SimulationSupport simulationSupport) {
+        this.executorService = executorService;
+        this.balanceClient = new BalanceClient(simulationSupport);
+        this.transactionClient = new TransactionClient(simulationSupport);
+        this.rewardsClient = new RewardsClient(simulationSupport);
+        this.offersClient = new OffersClient(simulationSupport);
+        this.insightsClient = new InsightsClient(simulationSupport);
+    }
+
+    public static void main(String[] args) {
+        try (DashboardComparisonHarness harness = new DashboardComparisonHarness()) {
+            System.out.println(DashboardBenchmarkFormatter.format(harness.runDefaultScenarios()));
+        }
+    }
+
+    public List<DashboardBenchmarkSummary> runDefaultScenarios() {
+        return run(List.of(
+            new DashboardBenchmarkScenario(
+                "generous_budget_low_pressure",
+                Duration.ofMillis(650),
+                new SystemPressureSnapshot(0.15, 0.10, 0.20)
+            ),
+            new DashboardBenchmarkScenario(
+                "constrained_budget_low_pressure",
+                Duration.ofMillis(430),
+                new SystemPressureSnapshot(0.15, 0.10, 0.20)
+            ),
+            new DashboardBenchmarkScenario(
+                "constrained_budget_elevated_pressure",
+                Duration.ofMillis(430),
+                new SystemPressureSnapshot(0.90, 0.88, 0.92)
+            )
+        ));
+    }
+
+    public List<DashboardBenchmarkSummary> run(List<DashboardBenchmarkScenario> scenarios) {
+        return scenarios.stream()
+            .flatMap(scenario -> List.of(runNaiveParallel(scenario), runAdaptive(scenario)).stream())
+            .toList();
+    }
+
+    @Override
+    public void close() {
+        BudgetContextHolder.clear();
+        executorService.shutdown();
+        try {
+            if (!executorService.awaitTermination(5, TimeUnit.SECONDS)) {
+                executorService.shutdownNow();
+            }
+        } catch (InterruptedException interruptedException) {
+            Thread.currentThread().interrupt();
+            executorService.shutdownNow();
+        }
+    }
+
+    private DashboardBenchmarkSummary runNaiveParallel(DashboardBenchmarkScenario scenario) {
+        List<TaskSpec<?>> taskSpecs = taskSpecs();
+        List<CompletableFuture<TaskResult<?>>> futures = taskSpecs.stream()
+            .map(taskSpec -> CompletableFuture.supplyAsync(
+                () -> TaskResult.executed(taskSpec.primarySupplier().get(), ExecutionMode.EXECUTE, "naive_parallel"),
+                executorService
+            ))
+            .toList();
+
+        CompletableFuture.allOf(futures.toArray(CompletableFuture[]::new)).join();
+
+        Map<String, TaskResult<?>> results = new LinkedHashMap<>();
+        for (int index = 0; index < taskSpecs.size(); index++) {
+            results.put(taskSpecs.get(index).taskName(), futures.get(index).join());
+        }
+
+        Duration projectedWork = DashboardTaskSpecs.totalPrimaryLatency();
+        boolean degraded = projectedWork.compareTo(scenario.requestBudget()) > 0;
+        return summaryFor(
+            scenario,
+            NAIVE_PARALLEL,
+            results,
+            List.of(),
+            degraded,
+            projectedWork
+        );
+    }
+
+    private DashboardBenchmarkSummary runAdaptive(DashboardBenchmarkScenario scenario) {
+        BudgetContextHolder.set(new BudgetContext(new DefaultExecutionBudget(scenario.requestBudget())));
+        try {
+            RequestExecutionResult result = new DefaultAdaptiveExecutor(
+                executorService,
+                new DefaultBudgetPolicyEngine(),
+                scenario::pressureSnapshot
+            ).executeRequest(taskSpecs()).toCompletableFuture().join();
+
+            Duration projectedWork = result.taskResults().entrySet().stream()
+                .map(entry -> DashboardTaskSpecs.expectedLatency(entry.getKey(), entry.getValue().executionMode()))
+                .reduce(Duration.ZERO, Duration::plus);
+
+            return summaryFor(
+                scenario,
+                BUDGETFLOW_ADAPTIVE,
+                result.taskResults(),
+                result.diagnostics(),
+                result.diagnostics().degraded(),
+                projectedWork
+            );
+        } finally {
+            BudgetContextHolder.clear();
+        }
+    }
+
+    private DashboardBenchmarkSummary summaryFor(
+        DashboardBenchmarkScenario scenario,
+        String strategy,
+        Map<String, TaskResult<?>> taskResults,
+        RequestExecutionDiagnostics diagnostics,
+        boolean degraded,
+        Duration projectedWork
+    ) {
+        int executedTasks = (int) taskResults.values().stream()
+            .filter(taskResult -> !taskResult.omitted())
+            .count();
+        return new DashboardBenchmarkSummary(
+            scenario.name(),
+            strategy,
+            executedTasks,
+            diagnostics.omittedTaskNames(),
+            diagnostics.fallbackTaskNames(),
+            diagnostics.approximatedTaskNames(),
+            degraded,
+            scenario.requestBudget(),
+            projectedWork,
+            scenario.pressureSnapshot()
+        );
+    }
+
+    private DashboardBenchmarkSummary summaryFor(
+        DashboardBenchmarkScenario scenario,
+        String strategy,
+        Map<String, TaskResult<?>> taskResults,
+        List<String> omittedTasks,
+        boolean degraded,
+        Duration projectedWork
+    ) {
+        int executedTasks = (int) taskResults.values().stream()
+            .filter(taskResult -> !taskResult.omitted())
+            .count();
+        return new DashboardBenchmarkSummary(
+            scenario.name(),
+            strategy,
+            executedTasks,
+            omittedTasks,
+            List.of(),
+            List.of(),
+            degraded,
+            scenario.requestBudget(),
+            projectedWork,
+            scenario.pressureSnapshot()
+        );
+    }
+
+    private List<TaskSpec<?>> taskSpecs() {
+        return DashboardTaskSpecs.forAccount(
+            ACCOUNT_ID,
+            balanceClient,
+            transactionClient,
+            rewardsClient,
+            offersClient,
+            insightsClient
+        );
+    }
+}

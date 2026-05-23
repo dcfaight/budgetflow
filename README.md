@@ -115,6 +115,23 @@ These help explain:
 curl http://localhost:8080/api/accounts/acc-123/dashboard
 ```
 
+## Running the comparison harness
+
+Use the lightweight comparison harness to see naive parallel fan-out beside BudgetFlow adaptive execution across a few dashboard scenarios:
+
+```bash
+./gradlew :budgetflow-demo-fintech:runDashboardComparison
+```
+
+The output includes:
+- scenario name
+- execution strategy
+- executed task count
+- omitted / fallback / approximated tasks
+- degraded status
+- budget vs projected work
+- simulated pressure snapshot
+
 ## Current status
 
 BudgetFlow is an **early prototype / design exploration**, not a production-ready framework.

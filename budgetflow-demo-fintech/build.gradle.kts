@@ -10,3 +10,10 @@ dependencies {
 
     testImplementation("org.springframework.boot:spring-boot-starter-test")
 }
+
+tasks.register<JavaExec>("runDashboardComparison") {
+    group = "application"
+    description = "Runs the naive vs adaptive dashboard comparison harness."
+    classpath = sourceSets["main"].runtimeClasspath
+    mainClass.set("com.budgetflow.demo.fintech.benchmark.DashboardComparisonHarness")
+}

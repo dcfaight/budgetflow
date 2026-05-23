@@ -41,43 +41,22 @@ public class DashboardService {
     }
 
     public DashboardResponse getDashboard(String accountId) {
-        TaskSpec<Balance> balanceTask = TaskSpec.mandatory("balance", Duration.ofMillis(40), () -> balanceClient.getBalance(accountId));
-        TaskSpec<List<Transaction>> transactionsTask = TaskSpec.mandatory(
-            "transactions",
-            Duration.ofMillis(65),
-            () -> transactionClient.getTransactions(accountId)
-        );
-        TaskSpec<RewardsSummary> rewardsTask = TaskSpec.important(
-            "rewards",
-            Duration.ofMillis(90),
-            () -> rewardsClient.getRewards(accountId)
-        ).withFallback(() -> rewardsClient.getCachedRewards(accountId));
-        TaskSpec<List<Offer>> offersTask = TaskSpec.optional(
-            "offers",
-            Duration.ofMillis(110),
-            () -> offersClient.getOffers(accountId)
-        )
-            .withFallback(() -> offersClient.getCachedOffers(accountId))
-            .withApproximate(() -> offersClient.getApproximateOffers(accountId));
-        TaskSpec<SpendingInsights> insightsTask = TaskSpec.optional(
-            "insights",
-            Duration.ofMillis(140),
-            () -> insightsClient.getInsights(accountId)
+        List<TaskSpec<?>> taskSpecs = DashboardTaskSpecs.forAccount(
+            accountId,
+            balanceClient,
+            transactionClient,
+            rewardsClient,
+            offersClient,
+            insightsClient
         );
 
-        RequestExecutionResult executionResult = adaptiveExecutor.executeRequest(List.of(
-            balanceTask,
-            transactionsTask,
-            rewardsTask,
-            offersTask,
-            insightsTask
-        )).toCompletableFuture().join();
+        RequestExecutionResult executionResult = adaptiveExecutor.executeRequest(taskSpecs).toCompletableFuture().join();
 
-        TaskResult<Balance> balanceResult = executionResult.taskResult("balance");
-        TaskResult<List<Transaction>> transactionsResult = executionResult.taskResult("transactions");
-        TaskResult<RewardsSummary> rewardsResult = executionResult.taskResult("rewards");
-        TaskResult<List<Offer>> offersResult = executionResult.taskResult("offers");
-        TaskResult<SpendingInsights> insightsResult = executionResult.taskResult("insights");
+        TaskResult<Balance> balanceResult = executionResult.taskResult(DashboardTaskSpecs.BALANCE_TASK);
+        TaskResult<List<Transaction>> transactionsResult = executionResult.taskResult(DashboardTaskSpecs.TRANSACTIONS_TASK);
+        TaskResult<RewardsSummary> rewardsResult = executionResult.taskResult(DashboardTaskSpecs.REWARDS_TASK);
+        TaskResult<List<Offer>> offersResult = executionResult.taskResult(DashboardTaskSpecs.OFFERS_TASK);
+        TaskResult<SpendingInsights> insightsResult = executionResult.taskResult(DashboardTaskSpecs.INSIGHTS_TASK);
 
         Balance balance = balanceResult.value().orElseThrow(() -> new IllegalStateException("balance must be present"));
         List<Transaction> transactions = transactionsResult.value()
