@@ -220,30 +220,6 @@ The request is planned as a group, executed under the active budget, and returne
 
 ---
 
-## Current limitations
-
-BudgetFlow is still an early prototype.
-
-Current limitations include:
-- heuristic planner thresholds
-- limited runtime pressure realism
-- no benchmark harness yet
-- no production-grade observability integration
-- low-level developer ergonomics in some APIs
-- no advanced scheduling/concurrency orchestration yet
-
----
-
-## Near-term evolution
-
-The most important next steps are likely:
-- benchmark naive vs adaptive execution
-- improve pressure-provider realism
-- refine public developer ergonomics
-- add richer architectural documentation and examples
-
----
-
 ## Comparison harness
 
 The fintech demo includes a lightweight comparison harness that runs the same dashboard workload with two strategies:
@@ -263,6 +239,30 @@ The comparison harness reuses the same `DashboardTaskSpecs` model as the main de
 
 ---
 
+## Current limitations
+
+BudgetFlow is still an early prototype.
+
+Current limitations include:
+- heuristic planner thresholds
+- limited runtime pressure realism
+- no production-grade observability integration
+- low-level developer ergonomics in some APIs
+- no advanced scheduling/concurrency orchestration yet
+- comparison harness is scenario-driven, not a rigorous benchmark suite
+
+---
+
+## Near-term evolution
+
+The most important next steps are likely:
+- improve pressure-provider realism
+- refine public developer ergonomics
+- expand comparison scenarios and realism
+- add richer architectural documentation and examples
+
+---
+
 ## Summary
 
 BudgetFlow’s architecture is centered on a simple idea:
@@ -275,3 +275,4 @@ Everything else in the system follows from that:
 - adaptive execution modes
 - decision trace
 - execution diagnostics
+- pressure-aware policy evaluation
