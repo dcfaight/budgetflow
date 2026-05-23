@@ -1,9 +1,8 @@
 package com.budgetflow.demo.fintech.dashboard;
 
 import com.budgetflow.core.api.AdaptiveExecutor;
-import com.budgetflow.core.api.RequestExecutionResult;
-import com.budgetflow.core.api.TaskResult;
-import com.budgetflow.core.api.TaskSpec;
+import com.budgetflow.core.api.AdaptiveRequest;
+import com.budgetflow.core.api.AdaptiveRequestResult;
 import com.budgetflow.core.metadata.RequestExecutionDiagnostics;
 import com.budgetflow.core.metadata.RequestExecutionDiagnosticsFormatter;
 import org.slf4j.Logger;
@@ -40,7 +39,7 @@ public class DashboardService {
     }
 
     public DashboardResponse getDashboard(String accountId) {
-        List<TaskSpec<?>> taskSpecs = DashboardTaskSpecs.forAccount(
+        AdaptiveRequest request = DashboardTaskSpecs.forAccount(
             accountId,
             balanceClient,
             transactionClient,
@@ -49,25 +48,19 @@ public class DashboardService {
             insightsClient
         );
 
-        RequestExecutionResult executionResult = adaptiveExecutor.executeRequest(taskSpecs).toCompletableFuture().join();
+        AdaptiveRequestResult result = request.execute(adaptiveExecutor).toCompletableFuture().join();
 
-        TaskResult<Balance> balanceResult = executionResult.taskResult(DashboardTaskSpecs.BALANCE_TASK);
-        TaskResult<List<Transaction>> transactionsResult = executionResult.taskResult(DashboardTaskSpecs.TRANSACTIONS_TASK);
-        TaskResult<RewardsSummary> rewardsResult = executionResult.taskResult(DashboardTaskSpecs.REWARDS_TASK);
-        TaskResult<List<Offer>> offersResult = executionResult.taskResult(DashboardTaskSpecs.OFFERS_TASK);
-        TaskResult<SpendingInsights> insightsResult = executionResult.taskResult(DashboardTaskSpecs.INSIGHTS_TASK);
-
-        Balance balance = balanceResult.value().orElseThrow(() -> new IllegalStateException("balance must be present"));
-        List<Transaction> transactions = transactionsResult.value()
-            .orElseThrow(() -> new IllegalStateException("transactions must be present"));
-
-        RewardsSummary rewards = rewardsResult.value().orElseGet(() -> new RewardsSummary(0));
-        List<Offer> offers = offersResult.value().orElseGet(List::of);
-        SpendingInsights insights = insightsResult.value()
+        Balance balance = result.require(DashboardTaskSpecs.BALANCE_KEY);
+        List<Transaction> transactions = result.require(DashboardTaskSpecs.TRANSACTIONS_KEY);
+        RewardsSummary rewards = result.get(DashboardTaskSpecs.REWARDS_KEY)
+            .orElseGet(() -> new RewardsSummary(0));
+        List<Offer> offers = result.get(DashboardTaskSpecs.OFFERS_KEY)
+            .orElseGet(List::of);
+        SpendingInsights insights = result.get(DashboardTaskSpecs.INSIGHTS_KEY)
             .orElseGet(() -> new SpendingInsights("Insights omitted due to budget constraints."));
 
-        RequestExecutionDiagnostics diagnostics = executionResult.diagnostics();
-        String executionSummary = RequestExecutionDiagnosticsFormatter.formatSummary(diagnostics, executionResult.decisionTrace());
+        RequestExecutionDiagnostics diagnostics = result.diagnostics();
+        String executionSummary = RequestExecutionDiagnosticsFormatter.formatSummary(diagnostics, result.decisionTrace());
         LOGGER.info("dashboard_execution accountId={} {}", accountId, executionSummary);
 
         return new DashboardResponse(
@@ -77,7 +70,7 @@ public class DashboardService {
             offers,
             insights,
             diagnostics,
-            executionResult.decisionTrace(),
+            result.decisionTrace(),
             executionSummary
         );
     }
