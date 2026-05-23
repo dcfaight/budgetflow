@@ -7,6 +7,13 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.function.Supplier;
 
+/**
+ * Low-level task specification used by the core planner and executor.
+ * <p>
+ * For application-facing grouped usage, prefer {@link AdaptiveRequest.Builder}
+ * with {@link TaskKey}. Use {@code TaskSpec} directly when you need explicit
+ * low-level control or framework-style integrations.
+ */
 public record TaskSpec<T>(
     String taskName,
     Importance importance,

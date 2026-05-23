@@ -7,6 +7,11 @@ import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * Raw request-scoped execution outcome for lower-level and integration usage.
+ * <p>
+ * For application-facing typed access, prefer {@link AdaptiveRequestResult}.
+ */
 public record RequestExecutionResult(
     Map<String, TaskResult<?>> taskResults,
     List<DecisionTraceEntry> decisionTrace,

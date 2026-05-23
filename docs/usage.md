@@ -8,6 +8,12 @@ BudgetFlow still supports lower-level task execution through `TaskSpec<T>` and `
 - `AdaptiveRequest`
 - `AdaptiveRequestResult`
 
+## Public API layering at a glance
+
+- **Preferred application-facing path:** `TaskKey<T>`, `AdaptiveRequest`, `AdaptiveRequestResult`
+- **Core/advanced contracts:** `AdaptiveExecutor`, `TaskSpec<T>`, `RequestExecutionResult`, `TaskResult<T>`
+- **Demo/comparison tooling:** fintech benchmark harness/scenarios/reporting in `budgetflow-demo-fintech`
+
 ---
 
 ## When to use the ergonomic API
@@ -164,7 +170,7 @@ Use decision trace to inspect:
 If you need lower-level or legacy access, use:
 
 ```java
-RequestExecutionResult raw = result.raw();
+RequestExecutionResult raw = result.requestExecutionResult();
 ```
 
 This can be useful when:

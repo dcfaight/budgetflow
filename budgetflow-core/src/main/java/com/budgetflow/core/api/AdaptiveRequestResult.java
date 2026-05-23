@@ -67,7 +67,17 @@ public final class AdaptiveRequestResult {
     }
 
     /** The underlying {@link RequestExecutionResult} for advanced or legacy access. */
-    public RequestExecutionResult raw() {
+    public RequestExecutionResult requestExecutionResult() {
         return delegate;
+    }
+
+    /**
+     * Legacy alias for {@link #requestExecutionResult()}.
+     *
+     * @deprecated Prefer {@link #requestExecutionResult()} for clearer intent.
+     */
+    @Deprecated(since = "0.1.0", forRemoval = false)
+    public RequestExecutionResult raw() {
+        return requestExecutionResult();
     }
 }

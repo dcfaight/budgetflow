@@ -13,6 +13,9 @@ import java.util.function.Supplier;
  * {@link TaskSpec TaskSpec&lt;?&gt;} instances and executes them together under a
  * single request budget via {@link AdaptiveExecutor#executeRequest}.
  * <p>
+ * This is the preferred application-facing entry point for multi-task request
+ * orchestration.
+ * <p>
  * Use {@link #builder()} to assemble the request, then {@link #execute} to run
  * it and obtain a typed {@link AdaptiveRequestResult}.
  * <p>

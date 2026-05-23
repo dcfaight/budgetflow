@@ -63,6 +63,22 @@ BudgetFlow includes a higher-level grouped request API for application code:
 
 This reduces manual string-based result lookup while preserving the underlying request-scoped execution model.
 
+### Start here: public API layers
+
+For most application/service code, start with:
+
+- `TaskKey<T>`
+- `AdaptiveRequest`
+- `AdaptiveRequestResult`
+
+Use lower-level contracts when you need explicit framework/infrastructure control:
+
+- `AdaptiveExecutor`
+- `TaskSpec<T>`
+- `RequestExecutionResult`
+
+Demo/comparison helpers (for example, the fintech benchmark harness and scenario packs) are sample tooling, not the preferred framework entry path.
+
 ### Dashboard example
 
 A fintech dashboard assembles five pieces of data with different importance levels:
