@@ -6,6 +6,7 @@ import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
 import java.util.List;
+import java.util.stream.Collectors;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -58,5 +59,48 @@ class DefaultBudgetPolicyEngineTest {
         assertEquals(ExecutionMode.OMIT, decision.directives().get(2).executionMode());
         assertTrue(decision.directives().get(2).omitted());
         assertEquals(3, decision.decisionTrace().size());
+    }
+
+    @Test
+    void mandatoryReserveIsAppliedBeforeOptionalPlanning() {
+        DefaultBudgetPolicyEngine engine = new DefaultBudgetPolicyEngine();
+
+        PolicyDecision decision = engine.evaluate(new PolicyEvaluationInput(
+            Duration.ofMillis(80),
+            List.of(
+                new TaskDescriptor("optional-first", Importance.OPTIONAL, Duration.ofMillis(100), false, false),
+                new TaskDescriptor("mandatory-core", Importance.MANDATORY, Duration.ofMillis(80), false, false)
+            ),
+            new SystemPressureSnapshot(0.1, 0.1, 0.1)
+        ));
+
+        assertEquals("mandatory-core", decision.directives().get(0).taskName());
+        assertEquals(ExecutionMode.EXECUTE, decision.directives().get(0).executionMode());
+        assertEquals("optional-first", decision.directives().get(1).taskName());
+        assertEquals(ExecutionMode.OMIT, decision.directives().get(1).executionMode());
+        assertEquals(Duration.ZERO, decision.directives().get(1).allocatedBudget());
+    }
+
+    @Test
+    void planningOrderIsDeterministicByImportanceWithStableWithinClassOrder() {
+        DefaultBudgetPolicyEngine engine = new DefaultBudgetPolicyEngine();
+
+        PolicyDecision decision = engine.evaluate(new PolicyEvaluationInput(
+            Duration.ofMillis(400),
+            List.of(
+                new TaskDescriptor("optional-a", Importance.OPTIONAL, Duration.ofMillis(60), false, true),
+                new TaskDescriptor("mandatory-a", Importance.MANDATORY, Duration.ofMillis(70), false, false),
+                new TaskDescriptor("important-a", Importance.IMPORTANT, Duration.ofMillis(70), true, false),
+                new TaskDescriptor("optional-b", Importance.OPTIONAL, Duration.ofMillis(60), false, true),
+                new TaskDescriptor("mandatory-b", Importance.MANDATORY, Duration.ofMillis(70), false, false),
+                new TaskDescriptor("important-b", Importance.IMPORTANT, Duration.ofMillis(70), true, false)
+            ),
+            new SystemPressureSnapshot(0.1, 0.1, 0.1)
+        ));
+
+        assertEquals(
+            List.of("mandatory-a", "mandatory-b", "important-a", "important-b", "optional-a", "optional-b"),
+            decision.directives().stream().map(TaskExecutionDirective::taskName).collect(Collectors.toList())
+        );
     }
 }
