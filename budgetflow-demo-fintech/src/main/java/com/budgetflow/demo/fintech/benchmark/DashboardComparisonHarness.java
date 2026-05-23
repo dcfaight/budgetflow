@@ -142,7 +142,7 @@ public final class DashboardComparisonHarness implements AutoCloseable {
 
             List<String> degradationReasons = result.decisionTrace().stream()
                 .filter(entry -> entry.selectedExecutionMode() != ExecutionMode.EXECUTE)
-                .map(entry -> entry.taskName() + "=" + entry.reason())
+                .map(entry -> entry.taskName() + "=" + stableReason(entry.reason()))
                 .toList();
 
             return summaryFor(
@@ -197,6 +197,14 @@ public final class DashboardComparisonHarness implements AutoCloseable {
             offersClient,
             insightsClient
         ).taskSpecs();
+    }
+
+    private String stableReason(String reason) {
+        int ratioIndex = reason.indexOf(",latency_ratio=");
+        if (ratioIndex < 0) {
+            return reason;
+        }
+        return reason.substring(0, ratioIndex) + "]";
     }
 
     private record HarnessOptions(String packName, boolean json) {

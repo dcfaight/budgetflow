@@ -129,6 +129,14 @@ The default policy engine currently uses a deterministic planning model:
 
 This gives the planner a stable and explainable behavior model.
 
+The default policy now also emits deterministic reason strings that include:
+- pressure band
+- dominant pressure source
+- budget band
+- latency ratio at planning time
+
+That keeps degradation decisions explainable without introducing opaque heuristics.
+
 ---
 
 ## Policy evaluation
@@ -208,6 +216,8 @@ It includes:
 - approximated task names
 
 This is the main request-level observability summary.
+
+For the demo harness, these diagnostics are paired with grouped scenario reporting and optional JSON output so a reader can compare naïve and adaptive behavior side-by-side. This reporting remains intentionally lightweight and should be treated as a prototype demonstration aid rather than a rigorous benchmark/reporting stack.
 
 ---
 

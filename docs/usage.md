@@ -40,14 +40,16 @@ AdaptiveRequest request = AdaptiveRequest.builder()
     .mandatory(BALANCE,      Duration.ofMillis(40),  () -> balanceClient.getBalance(accountId))
     .mandatory(TRANSACTIONS, Duration.ofMillis(65),  () -> transactionClient.getTransactions(accountId))
     // Important: has a cached fallback for when the primary path is too slow
-    .task(REWARDS,
-        TaskSpec.important("rewards", Duration.ofMillis(90), () -> rewardsClient.getRewards(accountId))
-            .withFallback(() -> rewardsClient.getCachedRewards(accountId)))
+    .importantWithFallback(REWARDS,
+        Duration.ofMillis(90),
+        () -> rewardsClient.getRewards(accountId),
+        () -> rewardsClient.getCachedRewards(accountId))
     // Optional: accepts approximate results or a cheap cached fallback
-    .task(OFFERS,
-        TaskSpec.optional("offers", Duration.ofMillis(110), () -> offersClient.getOffers(accountId))
-            .withFallback(() -> offersClient.getCachedOffers(accountId))
-            .withApproximate(() -> offersClient.getApproximateOffers(accountId)))
+    .optionalWithFallbackAndApproximate(OFFERS,
+        Duration.ofMillis(110),
+        () -> offersClient.getOffers(accountId),
+        () -> offersClient.getCachedOffers(accountId),
+        () -> offersClient.getApproximateOffers(accountId))
     // Optional: can be dropped entirely under budget or pressure constraints
     .optional(INSIGHTS, Duration.ofMillis(140), () -> insightsClient.getInsights(accountId))
     .build();
@@ -99,22 +101,37 @@ This is useful when you want to inspect:
 
 ## Using fallback and approximate execution
 
-For tasks that need fallback or approximate behavior, build the `TaskSpec<T>` explicitly and add it with `.task(...)`:
+For common grouped-request patterns, use the named builder helpers:
+
+```java
+.importantWithFallback(REWARDS,
+    Duration.ofMillis(90),
+    () -> rewardsClient.getRewards(accountId),
+    () -> rewardsClient.getCachedRewards(accountId))
+
+.optionalWithFallbackAndApproximate(OFFERS,
+    Duration.ofMillis(110),
+    () -> offersClient.getOffers(accountId),
+    () -> offersClient.getCachedOffers(accountId),
+    () -> offersClient.getApproximateOffers(accountId))
+```
+
+If you want to stay closer to raw `TaskSpec<T>` construction, keyed factory methods are also available and still keep task names explicit:
 
 ```java
 // Important task with a fallback to cached data
 .task(REWARDS,
-    TaskSpec.important("rewards", Duration.ofMillis(90), () -> rewardsClient.getRewards(accountId))
+    TaskSpec.important(REWARDS, Duration.ofMillis(90), () -> rewardsClient.getRewards(accountId))
         .withFallback(() -> rewardsClient.getCachedRewards(accountId)))
 
 // Optional task with both a fallback and a cheaper approximate path
 .task(OFFERS,
-    TaskSpec.optional("offers", Duration.ofMillis(110), () -> offersClient.getOffers(accountId))
+    TaskSpec.optional(OFFERS, Duration.ofMillis(110), () -> offersClient.getOffers(accountId))
         .withFallback(() -> offersClient.getCachedOffers(accountId))
         .withApproximate(() -> offersClient.getApproximateOffers(accountId)))
 ```
 
-The planner will choose between primary, fallback, approximate, or omit based on the remaining budget and system pressure. The key's name must match the spec's task name.
+The planner will choose between primary, fallback, approximate, or omit based on the remaining budget and system pressure. The new helper methods reduce boilerplate, but task names, importance, and execution behavior remain explicit.
 
 ---
 

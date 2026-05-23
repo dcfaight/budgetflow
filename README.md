@@ -79,12 +79,14 @@ AdaptiveRequest request = AdaptiveRequest.builder()
     .mandatory(BALANCE,      Duration.ofMillis(40),  () -> balanceClient.getBalance(accountId))
     .mandatory(TRANSACTIONS, Duration.ofMillis(65),  () -> transactionClient.getTransactions(accountId))
     // Important — has a cheaper cached fallback
-    .task(REWARDS, TaskSpec.important("rewards", Duration.ofMillis(90), () -> rewardsClient.getRewards(accountId))
-        .withFallback(() -> rewardsClient.getCachedRewards(accountId)))
+    .importantWithFallback(REWARDS, Duration.ofMillis(90),
+        () -> rewardsClient.getRewards(accountId),
+        () -> rewardsClient.getCachedRewards(accountId))
     // Optional — accepts approximate results or a cached fallback
-    .task(OFFERS, TaskSpec.optional("offers", Duration.ofMillis(110), () -> offersClient.getOffers(accountId))
-        .withFallback(() -> offersClient.getCachedOffers(accountId))
-        .withApproximate(() -> offersClient.getApproximateOffers(accountId)))
+    .optionalWithFallbackAndApproximate(OFFERS, Duration.ofMillis(110),
+        () -> offersClient.getOffers(accountId),
+        () -> offersClient.getCachedOffers(accountId),
+        () -> offersClient.getApproximateOffers(accountId))
     // Optional — can be dropped entirely under pressure
     .optional(INSIGHTS, Duration.ofMillis(140), () -> insightsClient.getInsights(accountId))
     .build();
@@ -117,6 +119,7 @@ BudgetFlow currently includes:
 - `TaskSpec<T>` / `TaskResult<T>` execution model
 - request-scoped `executeRequest(...)`
 - higher-level grouped request composition via `AdaptiveRequest`
+- named grouped-request helpers such as `importantWithFallback(...)` and `optionalWithFallbackAndApproximate(...)`
 - typed task result access via `TaskKey<T>` and `AdaptiveRequestResult`
 - policy-driven execution mode selection
 - deterministic mandatory-first planning
@@ -124,21 +127,26 @@ BudgetFlow currently includes:
 - request-level execution diagnostics
 - pluggable pressure provider abstraction
 - fintech dashboard demo application
-- naive-vs-adaptive comparison harness for local scenario testing
+- naive-vs-adaptive comparison harness with scenario packs, grouped reporting, and optional JSON output
 
 ## Comparison harness output
 
 Running the harness across the three default scenarios produces output like:
 
-```
-Scenario | Strategy | Executed | Omitted | Fallback | Approximated | Degraded | Budget/Work | Pressure
--------- | -------- | -------- | ------- | -------- | ------------ | -------- | ----------- | --------
-generous_budget_low_pressure      | naive_parallel      | 5 | -               | -       | -      | false | 650ms/445ms | exec=0.15 db=0.10 down=0.20
-generous_budget_low_pressure      | budgetflow_adaptive | 5 | -               | -       | -      | false | 650ms/445ms | exec=0.15 db=0.10 down=0.20
-constrained_budget_low_pressure   | naive_parallel      | 5 | -               | -       | -      | true  | 430ms/445ms | exec=0.15 db=0.10 down=0.20
-constrained_budget_low_pressure   | budgetflow_adaptive | 4 | insights        | -       | offers | true  | 430ms/203ms | exec=0.15 db=0.10 down=0.20
-constrained_budget_elevated_press | naive_parallel      | 5 | -               | -       | -      | true  | 430ms/445ms | exec=0.90 db=0.88 down=0.92
-constrained_budget_elevated_press | budgetflow_adaptive | 3 | offers,insights | rewards | -      | true  | 430ms/115ms | exec=0.90 db=0.88 down=0.92
+```text
+BudgetFlow dashboard comparison
+Pack: default — Core scenarios for first-time comparison runs.
+Prototype comparison output only; not a rigorous benchmark suite.
+
+Scenario: constrained_budget_low_pressure — Constrained budget / low pressure
+Narrative: Budget is the binding constraint while infrastructure remains healthy.
+Budget profile: constrained_budget | Pressure profile: low_pressure
+Request budget: 430ms | Pressure: exec=0.15 db=0.10 down=0.20
+Strategy | Executed | Degraded | Work | Omitted | Fallback | Approx | Why
+-------- | -------- | -------- | ---- | ------- | -------- | ------ | ---
+budgetflow_adaptive | 4 | true | 430ms/203ms | insights | - | offers | offers=approximate_selected_by_policy[pressure=low:downstream,budget=available], insights=omitted_by_policy[pressure=low:downstream,budget=tight]
+naive_parallel | 5 | true | 430ms/445ms | - | - | - | projected_work_exceeds_request_budget_by_15ms
+Comparison: adaptive projected work delta=-242ms, executed_task_delta=-1, adaptive_changes=omit=insights; approx=offers
 ```
 
 ### How to read the output
@@ -149,7 +157,9 @@ constrained_budget_elevated_press | budgetflow_adaptive | 3 | offers,insights | 
 | **Omitted** | Tasks skipped entirely — their data is absent from the response |
 | **Fallback** | Tasks that ran a cheaper secondary path instead of the primary |
 | **Approximated** | Tasks that returned a lower-fidelity result (e.g., cached or estimated) |
-| **Budget/Work** | Request latency budget vs projected work under the chosen execution modes |
+| **Work** | Request latency budget vs projected work under the chosen execution modes |
+
+The latest formatter now also groups output by scenario, adds a narrative line, and emits a compact comparison summary showing projected work savings and adaptive changes side-by-side.
 
 **What the scenarios show:**
 - Under a generous budget and low pressure, naive and adaptive produce identical results — no degradation is needed.
@@ -184,10 +194,19 @@ Run it with:
 ./gradlew :budgetflow-demo-fintech:runDashboardComparison
 ```
 
-Built-in scenarios currently include:
-- generous budget / low pressure
-- constrained budget / low pressure
-- constrained budget / elevated pressure
+Optional harness arguments keep the tool lightweight while making demo output easier to compare:
+
+```bash
+./gradlew :budgetflow-demo-fintech:runDashboardComparison --args="--pack=extended"
+./gradlew :budgetflow-demo-fintech:runDashboardComparison --args="--pack=realism --json"
+```
+
+Available scenario packs:
+- `default` — the three core scenarios used in the basic comparison walkthrough
+- `extended` — adds generous-budget/elevated-pressure, DB-bound, and downstream-spike scenarios
+- `realism` — emphasizes richer pressure narratives while staying deterministic and explainable
+
+The optional JSON mode is intentionally simple and stable enough for demo automation or snapshot-style tests; it is not intended as a full benchmarking/reporting platform.
 
 See the [Comparison harness output](#comparison-harness-output) section above for example output and interpretation guidance.
 

@@ -52,16 +52,18 @@ public final class DashboardBenchmarkFormatter {
 
             DashboardBenchmarkSummary naive = summaryForStrategy(scenarioSummaries, "naive_parallel");
             DashboardBenchmarkSummary adaptive = summaryForStrategy(scenarioSummaries, "budgetflow_adaptive");
-            long savings = naive.projectedWork().minus(adaptive.projectedWork()).toMillis();
-            int executedDelta = adaptive.totalTasksExecuted() - naive.totalTasksExecuted();
-            builder.append("Comparison: adaptive projected work delta=")
-                .append(savings >= 0 ? "-" : "+")
-                .append(Math.abs(savings)).append("ms")
-                .append(", executed_task_delta=").append(executedDelta)
-                .append(", adaptive_changes=")
-                .append(compactAdaptiveChanges(adaptive))
-                .append(System.lineSeparator())
-                .append(System.lineSeparator());
+            if (naive != null && adaptive != null) {
+                long savings = naive.projectedWork().minus(adaptive.projectedWork()).toMillis();
+                int executedDelta = adaptive.totalTasksExecuted() - naive.totalTasksExecuted();
+                builder.append("Comparison: adaptive projected work delta=")
+                    .append(savings >= 0 ? "-" : "+")
+                    .append(Math.abs(savings)).append("ms")
+                    .append(", executed_task_delta=").append(executedDelta)
+                    .append(", adaptive_changes=")
+                    .append(compactAdaptiveChanges(adaptive))
+                    .append(System.lineSeparator());
+            }
+            builder.append(System.lineSeparator());
         }
         return builder.toString().trim();
     }
@@ -99,18 +101,11 @@ public final class DashboardBenchmarkFormatter {
                 .append("\"dbPressure\":").append(scenario.pressureSnapshot().dbPressure()).append(",")
                 .append("\"downstreamPressure\":").append(scenario.pressureSnapshot().downstreamPressure())
                 .append("},")
-                .append("\"strategies\":[")
-                .append(strategyJson(naive)).append(",")
-                .append(strategyJson(adaptive))
-                .append("],")
-                .append("\"comparison\":{")
-                .append("\"projectedWorkSavingsMs\":")
-                .append(naive.projectedWork().minus(adaptive.projectedWork()).toMillis()).append(",")
-                .append("\"executedTaskDelta\":")
-                .append(adaptive.totalTasksExecuted() - naive.totalTasksExecuted()).append(",")
-                .append("\"adaptiveChanges\":\"")
-                .append(escape(compactAdaptiveChanges(adaptive))).append("\"")
-                .append("}")
+                .append("\"strategies\":")
+                .append(jsonStrategies(scenarioSummaries))
+                .append(",")
+                .append("\"comparison\":")
+                .append(comparisonJson(naive, adaptive))
                 .append("}");
         }
 
@@ -137,7 +132,7 @@ public final class DashboardBenchmarkFormatter {
         return summaries.stream()
             .filter(summary -> summary.executionStrategy().equals(strategy))
             .findFirst()
-            .orElseThrow(() -> new IllegalArgumentException("Missing summary for strategy: " + strategy));
+            .orElse(null);
     }
 
     private static String strategyJson(DashboardBenchmarkSummary summary) {
@@ -157,13 +152,30 @@ public final class DashboardBenchmarkFormatter {
         if (!adaptive.degraded()) {
             return "none";
         }
-        return List.of(
+        return java.util.stream.Stream.of(
                 adaptive.omittedTasks().isEmpty() ? null : "omit=" + String.join(",", adaptive.omittedTasks()),
                 adaptive.fallbackTasks().isEmpty() ? null : "fallback=" + String.join(",", adaptive.fallbackTasks()),
                 adaptive.approximatedTasks().isEmpty() ? null : "approx=" + String.join(",", adaptive.approximatedTasks())
-            ).stream()
+            )
             .filter(value -> value != null && !value.isBlank())
             .collect(Collectors.joining("; "));
+    }
+
+    private static String jsonStrategies(List<DashboardBenchmarkSummary> summaries) {
+        return orderedStrategies(summaries).stream()
+            .map(DashboardBenchmarkFormatter::strategyJson)
+            .collect(Collectors.joining(",", "[", "]"));
+    }
+
+    private static String comparisonJson(DashboardBenchmarkSummary naive, DashboardBenchmarkSummary adaptive) {
+        if (naive == null || adaptive == null) {
+            return "null";
+        }
+        return "{"
+            + "\"projectedWorkSavingsMs\":" + naive.projectedWork().minus(adaptive.projectedWork()).toMillis() + ","
+            + "\"executedTaskDelta\":" + (adaptive.totalTasksExecuted() - naive.totalTasksExecuted()) + ","
+            + "\"adaptiveChanges\":\"" + escape(compactAdaptiveChanges(adaptive)) + "\""
+            + "}";
     }
 
     private static String formatList(List<String> values) {
