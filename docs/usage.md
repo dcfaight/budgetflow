@@ -22,41 +22,61 @@ This is the preferred style for normal service-layer application code.
 
 ---
 
-## Basic example
+## Realistic dashboard example
+
+This example shows a fintech dashboard service that groups five tasks — two mandatory, one important with fallback, one optional with fallback and approximate modes, and one optional that can be omitted entirely.
 
 ```java
-TaskKey<Balance> BALANCE = TaskKey.of("balance");
-TaskKey<List<Transaction>> TRANSACTIONS = TaskKey.of("transactions");
+// Define typed keys — one per task
+static final TaskKey<Balance>           BALANCE      = TaskKey.of("balance");
+static final TaskKey<List<Transaction>> TRANSACTIONS = TaskKey.of("transactions");
+static final TaskKey<RewardsSummary>    REWARDS      = TaskKey.of("rewards");
+static final TaskKey<List<Offer>>       OFFERS       = TaskKey.of("offers");
+static final TaskKey<SpendingInsights>  INSIGHTS     = TaskKey.of("insights");
 
+// Build the grouped request
 AdaptiveRequest request = AdaptiveRequest.builder()
-    .mandatory(BALANCE, Duration.ofMillis(40), () -> balanceClient.getBalance(accountId))
-    .mandatory(TRANSACTIONS, Duration.ofMillis(65), () -> transactionClient.getTransactions(accountId))
+    // Mandatory: must always complete
+    .mandatory(BALANCE,      Duration.ofMillis(40),  () -> balanceClient.getBalance(accountId))
+    .mandatory(TRANSACTIONS, Duration.ofMillis(65),  () -> transactionClient.getTransactions(accountId))
+    // Important: has a cached fallback for when the primary path is too slow
+    .task(REWARDS,
+        TaskSpec.important("rewards", Duration.ofMillis(90), () -> rewardsClient.getRewards(accountId))
+            .withFallback(() -> rewardsClient.getCachedRewards(accountId)))
+    // Optional: accepts approximate results or a cheap cached fallback
+    .task(OFFERS,
+        TaskSpec.optional("offers", Duration.ofMillis(110), () -> offersClient.getOffers(accountId))
+            .withFallback(() -> offersClient.getCachedOffers(accountId))
+            .withApproximate(() -> offersClient.getApproximateOffers(accountId)))
+    // Optional: can be dropped entirely under budget or pressure constraints
+    .optional(INSIGHTS, Duration.ofMillis(140), () -> insightsClient.getInsights(accountId))
     .build();
 
+// Execute and collect results
 AdaptiveRequestResult result = request.execute(adaptiveExecutor).toCompletableFuture().join();
-
-Balance balance = result.require(BALANCE);
-List<Transaction> transactions = result.require(TRANSACTIONS);
 ```
 
 ---
 
-## Required vs optional values
+## Retrieving results
 
 ### `require(...)`
 Use `require(...)` when a task must have produced a value:
 
 ```java
-Balance balance = result.require(BALANCE);
+Balance             balance      = result.require(BALANCE);
+List<Transaction>   transactions = result.require(TRANSACTIONS);
 ```
 
-If the task was omitted or has no value, this throws an exception.
+If the task was omitted or has no value, this throws an exception. Use this for mandatory tasks.
 
 ### `get(...)`
 Use `get(...)` when a task may be omitted or degraded:
 
 ```java
-Optional<RewardsSummary> rewards = result.get(REWARDS);
+RewardsSummary   rewards  = result.get(REWARDS).orElseGet(() -> new RewardsSummary(0));
+List<Offer>      offers   = result.get(OFFERS).orElseGet(List::of);
+SpendingInsights insights = result.get(INSIGHTS).orElseGet(() -> new SpendingInsights("unavailable"));
 ```
 
 This returns `Optional.empty()` when the task was omitted or produced no value.
@@ -82,18 +102,19 @@ This is useful when you want to inspect:
 For tasks that need fallback or approximate behavior, build the `TaskSpec<T>` explicitly and add it with `.task(...)`:
 
 ```java
-TaskKey<RewardsSummary> REWARDS = TaskKey.of("rewards");
+// Important task with a fallback to cached data
+.task(REWARDS,
+    TaskSpec.important("rewards", Duration.ofMillis(90), () -> rewardsClient.getRewards(accountId))
+        .withFallback(() -> rewardsClient.getCachedRewards(accountId)))
 
-AdaptiveRequest request = AdaptiveRequest.builder()
-    .task(
-        REWARDS,
-        TaskSpec.important("rewards", Duration.ofMillis(90), () -> rewardsClient.getRewards(accountId))
-            .withFallback(() -> rewardsClient.getCachedRewards(accountId))
-    )
-    .build();
+// Optional task with both a fallback and a cheaper approximate path
+.task(OFFERS,
+    TaskSpec.optional("offers", Duration.ofMillis(110), () -> offersClient.getOffers(accountId))
+        .withFallback(() -> offersClient.getCachedOffers(accountId))
+        .withApproximate(() -> offersClient.getApproximateOffers(accountId)))
 ```
 
-This keeps the grouped request API small while still allowing full task customization.
+The planner will choose between primary, fallback, approximate, or omit based on the remaining budget and system pressure. The key's name must match the spec's task name.
 
 ---
 
