@@ -198,6 +198,6 @@ public final class DashboardComparisonHarness implements AutoCloseable {
             rewardsClient,
             offersClient,
             insightsClient
-        );
+        ).taskSpecs();
     }
 }

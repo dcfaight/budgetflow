@@ -1,5 +1,7 @@
 package com.budgetflow.demo.fintech.dashboard;
 
+import com.budgetflow.core.api.AdaptiveRequest;
+import com.budgetflow.core.api.TaskKey;
 import com.budgetflow.core.api.TaskSpec;
 import com.budgetflow.core.classification.ExecutionMode;
 
@@ -13,6 +15,12 @@ public final class DashboardTaskSpecs {
     public static final String OFFERS_TASK = "offers";
     public static final String INSIGHTS_TASK = "insights";
 
+    public static final TaskKey<Balance> BALANCE_KEY = TaskKey.of(BALANCE_TASK);
+    public static final TaskKey<List<Transaction>> TRANSACTIONS_KEY = TaskKey.of(TRANSACTIONS_TASK);
+    public static final TaskKey<RewardsSummary> REWARDS_KEY = TaskKey.of(REWARDS_TASK);
+    public static final TaskKey<List<Offer>> OFFERS_KEY = TaskKey.of(OFFERS_TASK);
+    public static final TaskKey<SpendingInsights> INSIGHTS_KEY = TaskKey.of(INSIGHTS_TASK);
+
     public static final Duration BALANCE_PRIMARY_LATENCY = Duration.ofMillis(40);
     public static final Duration TRANSACTIONS_PRIMARY_LATENCY = Duration.ofMillis(65);
     public static final Duration REWARDS_PRIMARY_LATENCY = Duration.ofMillis(90);
@@ -25,7 +33,11 @@ public final class DashboardTaskSpecs {
     private DashboardTaskSpecs() {
     }
 
-    public static List<TaskSpec<?>> forAccount(
+    /**
+     * Builds an {@link AdaptiveRequest} for the given account, grouping all
+     * dashboard tasks for request-scoped adaptive planning.
+     */
+    public static AdaptiveRequest forAccount(
         String accountId,
         BalanceClient balanceClient,
         TransactionClient transactionClient,
@@ -33,35 +45,21 @@ public final class DashboardTaskSpecs {
         OffersClient offersClient,
         InsightsClient insightsClient
     ) {
-        TaskSpec<Balance> balanceTask = TaskSpec.mandatory(
-            BALANCE_TASK,
-            BALANCE_PRIMARY_LATENCY,
-            () -> balanceClient.getBalance(accountId)
-        );
-        TaskSpec<List<Transaction>> transactionsTask = TaskSpec.mandatory(
-            TRANSACTIONS_TASK,
-            TRANSACTIONS_PRIMARY_LATENCY,
-            () -> transactionClient.getTransactions(accountId)
-        );
-        TaskSpec<RewardsSummary> rewardsTask = TaskSpec.important(
-            REWARDS_TASK,
-            REWARDS_PRIMARY_LATENCY,
-            () -> rewardsClient.getRewards(accountId)
-        ).withFallback(() -> rewardsClient.getCachedRewards(accountId));
-        TaskSpec<List<Offer>> offersTask = TaskSpec.optional(
-            OFFERS_TASK,
-            OFFERS_PRIMARY_LATENCY,
-            () -> offersClient.getOffers(accountId)
-        )
-            .withFallback(() -> offersClient.getCachedOffers(accountId))
-            .withApproximate(() -> offersClient.getApproximateOffers(accountId));
-        TaskSpec<SpendingInsights> insightsTask = TaskSpec.optional(
-            INSIGHTS_TASK,
-            INSIGHTS_PRIMARY_LATENCY,
-            () -> insightsClient.getInsights(accountId)
-        );
-
-        return List.of(balanceTask, transactionsTask, rewardsTask, offersTask, insightsTask);
+        return AdaptiveRequest.builder()
+            .mandatory(BALANCE_KEY, BALANCE_PRIMARY_LATENCY,
+                () -> balanceClient.getBalance(accountId))
+            .mandatory(TRANSACTIONS_KEY, TRANSACTIONS_PRIMARY_LATENCY,
+                () -> transactionClient.getTransactions(accountId))
+            .task(REWARDS_KEY, TaskSpec.important(REWARDS_TASK, REWARDS_PRIMARY_LATENCY,
+                    () -> rewardsClient.getRewards(accountId))
+                .withFallback(() -> rewardsClient.getCachedRewards(accountId)))
+            .task(OFFERS_KEY, TaskSpec.optional(OFFERS_TASK, OFFERS_PRIMARY_LATENCY,
+                    () -> offersClient.getOffers(accountId))
+                .withFallback(() -> offersClient.getCachedOffers(accountId))
+                .withApproximate(() -> offersClient.getApproximateOffers(accountId)))
+            .optional(INSIGHTS_KEY, INSIGHTS_PRIMARY_LATENCY,
+                () -> insightsClient.getInsights(accountId))
+            .build();
     }
 
     public static Duration totalPrimaryLatency() {
