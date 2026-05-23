@@ -48,23 +48,25 @@ class DashboardComparisonHarnessTest {
 
     @Test
     void formatterIncludesRequestedComparisonFields() {
-        String output = DashboardBenchmarkFormatter.format(List.of(
+        DashboardBenchmarkScenario scenario = PressureScenarios.constrainedBudgetElevatedPressure();
+        String output = DashboardBenchmarkFormatter.format(PressureScenarios.defaultPack(), List.of(
             new DashboardBenchmarkSummary(
-                "scenario-a",
+                scenario,
                 "budgetflow_adaptive",
                 3,
                 List.of("insights"),
                 List.of("rewards"),
                 List.of("offers"),
                 true,
-                java.time.Duration.ofMillis(430),
                 java.time.Duration.ofMillis(115),
-                new com.budgetflow.core.policy.SystemPressureSnapshot(0.90, 0.88, 0.92)
+                List.of("offers=approximate_selected_by_policy[pressure=high:downstream,budget=tight,latency_ratio=0.49]")
             )
         ));
 
-        assertTrue(output.contains("Scenario | Strategy | Executed | Omitted | Fallback | Approximated | Degraded | Budget/Work | Pressure"));
-        assertTrue(output.contains("scenario-a | budgetflow_adaptive | 3 | insights | rewards | offers | true | 430ms/115ms | exec=0.90 db=0.88 down=0.92"));
+        assertTrue(output.contains("BudgetFlow dashboard comparison"));
+        assertTrue(output.contains("Scenario: constrained_budget_elevated_pressure — Constrained budget / elevated pressure"));
+        assertTrue(output.contains("Strategy | Executed | Degraded | Work | Omitted | Fallback | Approx | Why"));
+        assertTrue(output.contains("budgetflow_adaptive | 3 | true | 430ms/115ms | insights | rewards | offers | offers=approximate_selected_by_policy"));
     }
 
     @Test
@@ -92,19 +94,26 @@ class DashboardComparisonHarnessTest {
     @Test
     void extendedScenariosFromPressureScenariosAreRunnable() {
         try (DashboardComparisonHarness harness = new DashboardComparisonHarness(new NoDelaySimulationSupport())) {
-            List<DashboardBenchmarkScenario> extended = List.of(
-                PressureScenarios.generousBudgetLowPressure(),
-                PressureScenarios.constrainedBudgetLowPressure(),
-                PressureScenarios.constrainedBudgetElevatedPressure(),
-                PressureScenarios.generousBudgetElevatedPressure(),
-                PressureScenarios.tightBudgetModerateDbPressure()
-            );
+            List<DashboardBenchmarkScenario> extended = PressureScenarios.extendedPack().scenarios();
 
             List<DashboardBenchmarkSummary> summaries = harness.run(extended);
 
-            // 5 scenarios × 2 strategies = 10 summaries
-            assertEquals(10, summaries.size());
+            assertEquals(12, summaries.size());
             summaries.forEach(s -> assertTrue(s.totalTasksExecuted() >= 0));
+        }
+    }
+
+    @Test
+    void formatterCanEmitMachineReadableJson() {
+        try (DashboardComparisonHarness harness = new DashboardComparisonHarness(new NoDelaySimulationSupport())) {
+            DashboardScenarioPack pack = PressureScenarios.realismPack();
+            String json = DashboardBenchmarkFormatter.formatJson(pack, harness.run(pack.scenarios()));
+
+            assertTrue(json.contains("\"tool\":\"budgetflow_dashboard_comparison\""));
+            assertTrue(json.contains("\"scenarioPack\":{\"name\":\"realism\""));
+            assertTrue(json.contains("\"name\":\"budgetflow_adaptive\""));
+            assertTrue(json.contains("\"comparison\":{"));
+            assertTrue(json.contains("\"adaptiveChanges\":"));
         }
     }
 

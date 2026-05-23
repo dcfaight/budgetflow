@@ -75,7 +75,7 @@ class AdaptiveRequestTest {
 
     @Test
     void builderAcceptsPrebuiltTaskSpecViaTaskMethod() {
-        TaskSpec<String> spec = TaskSpec.important("rewards", Duration.ofMillis(90), () -> "primary")
+        TaskSpec<String> spec = TaskSpec.important(REWARDS_KEY, Duration.ofMillis(90), () -> "primary")
             .withFallback(() -> "fallback");
 
         AdaptiveRequest request = AdaptiveRequest.builder()
@@ -91,6 +91,27 @@ class AdaptiveRequestTest {
         TaskSpec<String> spec = TaskSpec.optional("other-name", Duration.ofMillis(40), () -> "v");
         assertThrows(IllegalArgumentException.class,
             () -> AdaptiveRequest.builder().task(BALANCE_KEY, spec).build());
+    }
+
+    @Test
+    void builderOffersNamedFallbackAndApproximateHelpers() {
+        AdaptiveRequest request = AdaptiveRequest.builder()
+            .importantWithFallback(REWARDS_KEY, Duration.ofMillis(90), () -> "primary", () -> "fallback")
+            .optionalWithFallbackAndApproximate(
+                INSIGHTS_KEY,
+                Duration.ofMillis(140),
+                () -> "primary",
+                () -> "fallback",
+                () -> "approx"
+            )
+            .build();
+
+        TaskSpec<?> important = request.taskSpecs().get(0);
+        TaskSpec<?> optional = request.taskSpecs().get(1);
+
+        assertTrue(important.fallbackSupplier().isPresent());
+        assertTrue(optional.fallbackSupplier().isPresent());
+        assertTrue(optional.approximateSupplier().isPresent());
     }
 
     @Test

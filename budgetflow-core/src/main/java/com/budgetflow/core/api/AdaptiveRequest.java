@@ -24,10 +24,12 @@ import java.util.function.Supplier;
  *
  * AdaptiveRequest request = AdaptiveRequest.builder()
  *     .mandatory(BALANCE, Duration.ofMillis(40), () -> balanceClient.getBalance(id))
- *     .task(REWARDS, TaskSpec.important("rewards", Duration.ofMillis(90), () -> ...)
- *                            .withFallback(() -> rewardsClient.getCached(id)))
- *     .task(OFFERS,  TaskSpec.optional("offers", Duration.ofMillis(110), () -> ...)
- *                            .withApproximate(() -> offersClient.getApproximate(id)))
+ *     .importantWithFallback(REWARDS, Duration.ofMillis(90),
+ *                            () -> rewardsClient.getRewards(id),
+ *                            () -> rewardsClient.getCached(id))
+ *     .optionalWithApproximate(OFFERS, Duration.ofMillis(110),
+ *                              () -> offersClient.getOffers(id),
+ *                              () -> offersClient.getApproximate(id))
  *     .build();
  *
  * AdaptiveRequestResult result = request.execute(adaptiveExecutor).toCompletableFuture().join();
@@ -117,6 +119,21 @@ public final class AdaptiveRequest {
         }
 
         /**
+         * Adds an {@link com.budgetflow.core.classification.Importance#IMPORTANT IMPORTANT}
+         * task with an explicit fallback path.
+         */
+        public <T> Builder importantWithFallback(
+            TaskKey<T> key,
+            Duration expectedLatency,
+            Supplier<T> supplier,
+            Supplier<T> fallbackSupplier
+        ) {
+            Objects.requireNonNull(fallbackSupplier, "fallbackSupplier must not be null");
+            specs.add(TaskSpec.important(key, expectedLatency, supplier).withFallback(fallbackSupplier));
+            return this;
+        }
+
+        /**
          * Adds an {@link com.budgetflow.core.classification.Importance#OPTIONAL OPTIONAL}
          * task.
          */
@@ -125,6 +142,55 @@ public final class AdaptiveRequest {
             Objects.requireNonNull(expectedLatency, "expectedLatency must not be null");
             Objects.requireNonNull(supplier, "supplier must not be null");
             specs.add(TaskSpec.optional(key.name(), expectedLatency, supplier));
+            return this;
+        }
+
+        /**
+         * Adds an {@link com.budgetflow.core.classification.Importance#OPTIONAL OPTIONAL}
+         * task with an explicit fallback path.
+         */
+        public <T> Builder optionalWithFallback(
+            TaskKey<T> key,
+            Duration expectedLatency,
+            Supplier<T> supplier,
+            Supplier<T> fallbackSupplier
+        ) {
+            Objects.requireNonNull(fallbackSupplier, "fallbackSupplier must not be null");
+            specs.add(TaskSpec.optional(key, expectedLatency, supplier).withFallback(fallbackSupplier));
+            return this;
+        }
+
+        /**
+         * Adds an {@link com.budgetflow.core.classification.Importance#OPTIONAL OPTIONAL}
+         * task with an explicit approximate path.
+         */
+        public <T> Builder optionalWithApproximate(
+            TaskKey<T> key,
+            Duration expectedLatency,
+            Supplier<T> supplier,
+            Supplier<T> approximateSupplier
+        ) {
+            Objects.requireNonNull(approximateSupplier, "approximateSupplier must not be null");
+            specs.add(TaskSpec.optional(key, expectedLatency, supplier).withApproximate(approximateSupplier));
+            return this;
+        }
+
+        /**
+         * Adds an {@link com.budgetflow.core.classification.Importance#OPTIONAL OPTIONAL}
+         * task with both fallback and approximate execution paths.
+         */
+        public <T> Builder optionalWithFallbackAndApproximate(
+            TaskKey<T> key,
+            Duration expectedLatency,
+            Supplier<T> supplier,
+            Supplier<T> fallbackSupplier,
+            Supplier<T> approximateSupplier
+        ) {
+            Objects.requireNonNull(fallbackSupplier, "fallbackSupplier must not be null");
+            Objects.requireNonNull(approximateSupplier, "approximateSupplier must not be null");
+            specs.add(TaskSpec.optional(key, expectedLatency, supplier)
+                .withFallback(fallbackSupplier)
+                .withApproximate(approximateSupplier));
             return this;
         }
 

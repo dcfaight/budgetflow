@@ -6,108 +6,177 @@ import java.time.Duration;
 import java.util.List;
 
 /**
- * Factory for reusable {@link DashboardBenchmarkScenario} instances used in the comparison harness.
- *
- * <p>Centralises scenario and pressure-snapshot definitions so they are easy to compose,
- * extend, and reason about without duplicating magic numbers across the codebase.
- *
- * <p>Named pressure snapshots can be used directly when constructing custom scenarios:
- * <pre>{@code
- * new DashboardBenchmarkScenario("my_scenario", Duration.ofMillis(500), PressureScenarios.MODERATE_PRESSURE);
- * }</pre>
+ * Factory for deterministic dashboard comparison scenarios and scenario packs.
  */
 public final class PressureScenarios {
-
-    /** Low pressure: all dimensions below 25%. */
     public static final SystemPressureSnapshot LOW_PRESSURE =
         new SystemPressureSnapshot(0.15, 0.10, 0.20);
 
-    /** Moderate pressure: all dimensions around 55–62%. */
     public static final SystemPressureSnapshot MODERATE_PRESSURE =
         new SystemPressureSnapshot(0.55, 0.62, 0.58);
 
-    /** Elevated pressure: all dimensions above 85%. */
     public static final SystemPressureSnapshot ELEVATED_PRESSURE =
         new SystemPressureSnapshot(0.90, 0.88, 0.92);
 
-    /**
-     * Moderate database pressure: executor and downstream are low, but DB is elevated.
-     * Models a scenario where a slow database query queue is the primary bottleneck.
-     */
     public static final SystemPressureSnapshot MODERATE_DB_PRESSURE =
         new SystemPressureSnapshot(0.20, 0.65, 0.15);
+
+    public static final SystemPressureSnapshot DOWNSTREAM_SPIKE_PRESSURE =
+        new SystemPressureSnapshot(0.30, 0.22, 0.84);
 
     private PressureScenarios() {
     }
 
-    /**
-     * Generous budget (650 ms) under low pressure — the system has headroom on both
-     * dimensions. Adaptive and naïve results should be identical.
-     */
     public static DashboardBenchmarkScenario generousBudgetLowPressure() {
-        return new DashboardBenchmarkScenario(
+        return scenario(
+            "default",
             "generous_budget_low_pressure",
+            "Generous budget / low pressure",
+            "Healthy system headroom. Adaptive and naive should converge on the same plan.",
+            "generous_budget",
+            "low_pressure",
             Duration.ofMillis(650),
             LOW_PRESSURE
         );
     }
 
-    /**
-     * Constrained budget (430 ms) under low pressure — budget is the binding constraint;
-     * the adaptive executor should shed optional work the naïve approach cannot.
-     */
     public static DashboardBenchmarkScenario constrainedBudgetLowPressure() {
-        return new DashboardBenchmarkScenario(
+        return scenario(
+            "default",
             "constrained_budget_low_pressure",
+            "Constrained budget / low pressure",
+            "Budget is the binding constraint while infrastructure remains healthy.",
+            "constrained_budget",
+            "low_pressure",
             Duration.ofMillis(430),
             LOW_PRESSURE
         );
     }
 
-    /**
-     * Constrained budget (430 ms) with elevated pressure — both budget and system load
-     * are high; the adaptive executor should shed more aggressively than under low pressure.
-     */
     public static DashboardBenchmarkScenario constrainedBudgetElevatedPressure() {
-        return new DashboardBenchmarkScenario(
+        return scenario(
+            "default",
             "constrained_budget_elevated_pressure",
+            "Constrained budget / elevated pressure",
+            "Both the request budget and system pressure are tight, so adaptive planning should degrade more aggressively.",
+            "constrained_budget",
+            "elevated_pressure",
             Duration.ofMillis(430),
             ELEVATED_PRESSURE
         );
     }
 
-    /**
-     * Generous budget (650 ms) with elevated pressure — budget is not the constraint but
-     * high system load should still cause the adaptive executor to degrade non-essential work.
-     */
     public static DashboardBenchmarkScenario generousBudgetElevatedPressure() {
-        return new DashboardBenchmarkScenario(
+        return scenario(
+            "extended",
             "generous_budget_elevated_pressure",
+            "Generous budget / elevated pressure",
+            "Budget is available, but system pressure alone should still trigger graceful degradation.",
+            "generous_budget",
+            "elevated_pressure",
             Duration.ofMillis(650),
             ELEVATED_PRESSURE
         );
     }
 
-    /**
-     * Tight budget (300 ms) with moderate database pressure — DB load is above the moderate
-     * threshold while executor and downstream are low; models a DB-bound degradation scenario.
-     */
     public static DashboardBenchmarkScenario tightBudgetModerateDbPressure() {
-        return new DashboardBenchmarkScenario(
+        return scenario(
+            "extended",
             "tight_budget_moderate_db_pressure",
+            "Tight budget / moderate DB pressure",
+            "A slow database is the dominant bottleneck, simulating query queue pressure rather than global platform overload.",
+            "tight_budget",
+            "moderate_db_pressure",
             Duration.ofMillis(300),
             MODERATE_DB_PRESSURE
         );
     }
 
-    /**
-     * Returns all default scenarios used by {@link DashboardComparisonHarness#runDefaultScenarios()}.
-     */
+    public static DashboardBenchmarkScenario moderateBudgetDownstreamSpike() {
+        return scenario(
+            "extended",
+            "moderate_budget_downstream_spike",
+            "Moderate budget / downstream spike",
+            "A downstream dependency spikes while the rest of the platform stays relatively healthy.",
+            "moderate_budget",
+            "downstream_spike",
+            Duration.ofMillis(500),
+            DOWNSTREAM_SPIKE_PRESSURE
+        );
+    }
+
+    public static DashboardScenarioPack defaultPack() {
+        return new DashboardScenarioPack(
+            "default",
+            "Core scenarios for first-time comparison runs.",
+            List.of(
+                generousBudgetLowPressure(),
+                constrainedBudgetLowPressure(),
+                constrainedBudgetElevatedPressure()
+            )
+        );
+    }
+
+    public static DashboardScenarioPack extendedPack() {
+        return new DashboardScenarioPack(
+            "extended",
+            "Broader demo scenarios covering budget-only, DB-bound, and downstream-spike pressure conditions.",
+            List.of(
+                generousBudgetLowPressure(),
+                constrainedBudgetLowPressure(),
+                constrainedBudgetElevatedPressure(),
+                generousBudgetElevatedPressure(),
+                tightBudgetModerateDbPressure(),
+                moderateBudgetDownstreamSpike()
+            )
+        );
+    }
+
+    public static DashboardScenarioPack realismPack() {
+        return new DashboardScenarioPack(
+            "realism",
+            "Scenario pack emphasizing more varied pressure narratives while remaining deterministic and explainable.",
+            List.of(
+                constrainedBudgetLowPressure(),
+                tightBudgetModerateDbPressure(),
+                moderateBudgetDownstreamSpike(),
+                constrainedBudgetElevatedPressure()
+            )
+        );
+    }
+
+    public static DashboardScenarioPack packNamed(String packName) {
+        return switch (packName) {
+            case "default" -> defaultPack();
+            case "extended" -> extendedPack();
+            case "realism" -> realismPack();
+            default -> throw new IllegalArgumentException("Unknown dashboard scenario pack: " + packName);
+        };
+    }
+
     public static List<DashboardBenchmarkScenario> defaultScenarios() {
-        return List.of(
-            generousBudgetLowPressure(),
-            constrainedBudgetLowPressure(),
-            constrainedBudgetElevatedPressure()
+        return defaultPack().scenarios();
+    }
+
+    private static DashboardBenchmarkScenario scenario(
+        String packName,
+        String name,
+        String displayName,
+        String narrative,
+        String budgetProfile,
+        String pressureProfile,
+        Duration requestBudget,
+        SystemPressureSnapshot pressureSnapshot
+    ) {
+        return new DashboardBenchmarkScenario(
+            packName,
+            name,
+            displayName,
+            narrative,
+            budgetProfile,
+            pressureProfile,
+            requestBudget,
+            pressureSnapshot
         );
     }
 }
