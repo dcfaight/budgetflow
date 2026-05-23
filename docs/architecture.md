@@ -164,6 +164,11 @@ The default policy now also emits deterministic reason strings that include:
 - budget band
 - latency ratio at planning time
 
+For optional work, the planner uses a deterministic degradation ladder under stress:
+- prefer approximate execution when supported
+- otherwise prefer fallback when supported
+- omit primarily under severe budget/pressure or extreme latency-ratio conditions
+
 That keeps degradation decisions explainable without introducing opaque heuristics.
 
 ---

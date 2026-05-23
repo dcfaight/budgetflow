@@ -137,7 +137,11 @@ If you want to stay closer to raw `TaskSpec<T>` construction, keyed factory meth
         .withApproximate(() -> offersClient.getApproximateOffers(accountId)))
 ```
 
-The planner will choose between primary, fallback, approximate, or omit based on the remaining budget and system pressure. The new helper methods reduce boilerplate, but task names, importance, and execution behavior remain explicit.
+The planner will choose between primary, fallback, approximate, or omit based on the remaining budget and system pressure.
+
+For optional tasks, the default policy now prefers a degraded execution path (approximate first, then fallback when available) before full omission in many stressed conditions, and reserves omission for more severe pressure/budget situations.
+
+The helper methods reduce boilerplate, but task names, importance, and execution behavior remain explicit and inspectable through diagnostics and decision trace.
 
 ---
 
