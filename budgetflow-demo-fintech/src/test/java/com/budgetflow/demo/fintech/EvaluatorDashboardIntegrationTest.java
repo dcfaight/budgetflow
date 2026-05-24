@@ -38,7 +38,7 @@ class EvaluatorDashboardIntegrationTest {
                 .param("compareProfiles", "balanced,continuity,efficiency"))
             .andExpect(status().isOk())
             .andExpect(content().string(containsString("Moderate budget / elevated pressure")))
-            .andExpect(content().string(containsString("Selected profile intent: Favors preserving optional response coverage")))
+                .andExpect(content().string(containsString("Selected profile intent: Favors preserving optional signal coverage")))
             .andExpect(content().string(containsString("<th>pressure</th><th>layer</th><th>fit</th><th>savings</th>")))
             .andExpect(content().string(containsString("budgetflow_adaptive")))
             .andExpect(content().string(containsString("continuity")))
