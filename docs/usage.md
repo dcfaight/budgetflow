@@ -153,7 +153,7 @@ The planner now also interprets stacked runtime stress more explicitly: when mul
 
 Mixed-constraint behavior is budget-fit aware: if a primary path overruns remaining budget but a degraded path fits, the planner can prefer degradation over omission so request quality remains as high as constraints allow.
 
-Decision reasons now also include `mixed=<band>` and `degrade_pref=<mode>` so profile behavior remains visible in traces.
+Decision reasons now also include `mixed=<band>`, `degrade_pref=<mode>`, `fit=<primary|degraded|none>`, and `savings=<low|medium|high>` so policy/scoring interplay stays visible in traces.
 
 The helper methods reduce boilerplate, but task names, importance, and execution behavior remain explicit and inspectable through diagnostics and decision trace.
 

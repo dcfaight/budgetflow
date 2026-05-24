@@ -37,6 +37,7 @@ BudgetFlow separates planner responsibilities on purpose:
 - request-budget fit, pressure analysis, and degraded-path cost signals are computed first
 - `OptionalTaskModeSelector` decides **optional-task mode only**
 - orchestration order, diagnostics, and decision trace formatting stay in the default planner
+- reason strings expose key planner signals (`mixed`, `degrade_pref`, `fit`, `savings`) so profile or custom-selector behavior is still auditable
 
 That means custom selectors can change optional-task behavior without losing centralized trace semantics.
 

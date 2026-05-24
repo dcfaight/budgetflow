@@ -59,6 +59,21 @@ class DefaultBudgetPolicyEngineTest {
     }
 
     @Test
+    void optionalTaskStaysOnPrimaryPathWhenModerateStressSavingsAreMarginal() {
+        DefaultBudgetPolicyEngine engine = new DefaultBudgetPolicyEngine();
+
+        PolicyDecision decision = engine.evaluate(new PolicyEvaluationInput(
+            Duration.ofMillis(200),
+            List.of(descriptorWithApproximate("tips", Importance.OPTIONAL, 70, 65)),
+            new SystemPressureSnapshot(0.62, 0.20, 0.20)
+        ));
+
+        assertEquals(ExecutionMode.EXECUTE, decision.directives().get(0).executionMode());
+        assertTrue(decision.directives().get(0).reason().contains("savings=low"));
+        assertTrue(decision.directives().get(0).reason().contains("fit=primary"));
+    }
+
+    @Test
     void optionalTaskWithoutDegradedPathIsOmittedUnderHighPressure() {
         DefaultBudgetPolicyEngine engine = new DefaultBudgetPolicyEngine();
 
@@ -193,6 +208,8 @@ class DefaultBudgetPolicyEngineTest {
         assertTrue(reason.contains("active_signals=1"));
         assertTrue(reason.contains("mixed=low"));
         assertTrue(reason.contains("budget=available"));
+        assertTrue(reason.contains("fit=primary"));
+        assertTrue(reason.contains("savings=high"));
         assertFalse(reason.isBlank());
     }
 

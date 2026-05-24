@@ -171,6 +171,8 @@ The default policy now also emits deterministic reason strings that include:
 - mixed-constraint band
 - budget band
 - degraded-path preference signal
+- budget-fit classification (`fit=primary|degraded|none`)
+- degraded-path savings band (`savings=low|medium|high`)
 - latency ratio at planning time
 
 For optional work, the planner uses deterministic profile-aware degradation selection under stress:
@@ -182,6 +184,8 @@ For optional work, the planner uses deterministic profile-aware degradation sele
 The latest planner pass keeps this selection deterministic while adding dynamic latency-ratio thresholds based on pressure/budget bands, so moderate pressure no longer forces blanket degradation for very low-latency discretionary tasks.
 
 Planner decisions are also path-fit aware under mixed constraints: when a primary path does not fit the remaining request budget but a degraded path does, degradation is preferred before omission where possible.
+
+Under moderate (non-severe) stress, the default balanced selector now also avoids degrading optional tasks when degraded-path savings are marginal and the primary path already fits budget. This keeps response fidelity stable unless degradation provides meaningful budget headroom.
 
 When a task supplies explicit fallback/approximate latency hints, the planner now also carries those reduced costs forward into rolling request-budget allocation and decision trace.
 

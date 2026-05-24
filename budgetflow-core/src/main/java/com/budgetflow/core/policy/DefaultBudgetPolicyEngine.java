@@ -211,7 +211,8 @@ public class DefaultBudgetPolicyEngine implements BudgetPolicyEngine {
                     latencyRatio,
                     planningSignals.stressedSignalCount(),
                     planningSignals.mixedConstraintBand(),
-                    planningSignals.suggestedDegradedMode()
+                    planningSignals.suggestedDegradedMode(),
+                    costSignals
                 )
             );
         }
@@ -248,7 +249,8 @@ public class DefaultBudgetPolicyEngine implements BudgetPolicyEngine {
                     latencyRatio,
                     planningSignals.stressedSignalCount(),
                     planningSignals.mixedConstraintBand(),
-                    planningSignals.suggestedDegradedMode()
+                    planningSignals.suggestedDegradedMode(),
+                    costSignals
                 )
             );
         }
@@ -270,7 +272,8 @@ public class DefaultBudgetPolicyEngine implements BudgetPolicyEngine {
                 latencyRatio,
                 planningSignals.stressedSignalCount(),
                 planningSignals.mixedConstraintBand(),
-                planningSignals.suggestedDegradedMode()
+                planningSignals.suggestedDegradedMode(),
+                costSignals
             )
         );
     }

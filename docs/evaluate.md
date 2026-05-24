@@ -30,6 +30,7 @@ If this path is not clear yet, stop here and review `docs/quickstart.md` before 
 
 ```bash
 ./gradlew :budgetflow-demo-fintech:runDashboardComparison --args="--pack=default"
+./gradlew :budgetflow-demo-fintech:runDashboardComparison --args="--pack=adoption"
 ./gradlew :budgetflow-demo-fintech:runDashboardComparison --args="--pack=realism --json"
 ./gradlew :budgetflow-demo-fintech:runDashboardComparison --args="--pack=policy --policies=balanced,continuity,efficiency"
 ```
@@ -45,6 +46,7 @@ Observe per scenario:
 
 Suggested progression:
 - `default` first for the control case and the core constrained scenarios
+- `adoption` next for a compact, realistic storyline (control -> commuter mixed spike -> dominant DB bottleneck)
 - `realism` next for broader scenario evidence, including the clean budget-only path-aware case
 - `policy` when you need to choose a planner profile deliberately
 
@@ -63,6 +65,7 @@ If none of the built-in profiles fit your endpoint class well, review `docs/plan
 - Baseline convergence under generous budget + low pressure.
 - Explainable degradation under constrained/mixed stress.
 - Stable, deterministic trace semantics across repeated runs.
+- Decision-trace reason fields (`fit=...`, `savings=...`) that align with observed degradation choices.
 - Profile deltas that match intended tradeoffs for your workload.
 - Sample-app and harness observations that tell the same story instead of diverging.
 - Tight-budget/path-aware scenarios that show degraded-path latency hints matter even when runtime pressure is calm.
