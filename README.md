@@ -11,6 +11,8 @@ BudgetFlow is a prototype Java/Spring framework for request-scoped orchestration
 
 > **Prototype status:** ready to share, demo, and explore in realistic Spring Boot integrations; not production-hardened or benchmarked as a platform claim.
 
+> **Public milestone snapshot (May 2026):** see [docs/milestone-public-prototype.md](docs/milestone-public-prototype.md) for a release-note-style summary of what changed, how to evaluate quickly, and how to interpret results conservatively.
+
 ## Start here in order
 
 If you are exploring the repository for the first time, use this sequence:
@@ -25,7 +27,7 @@ If you are exploring the repository for the first time, use this sequence:
 
 - **Request-scoped planning:** related work is planned together instead of timing out independently.
 - **Explainable degradation:** decision trace shows *why* work executed, fell back, approximated, or was omitted.
-- **Transparent planner semantics:** reason strings now surface budget-fit (`fit=...`) and degraded-path savings band (`savings=...`) to make policy/scoring interplay easier to review.
+- **Transparent planner semantics:** reason strings now surface decision layer (`layer=...`), budget-fit (`fit=...`), and degraded-path savings band (`savings=...`) to make policy/scoring interplay easier to review.
 - **Tryable Spring Boot story:** starter wiring, demo app, and comparison harness make the behavior easy to inspect locally.
 
 ## Quickstart first (5 minutes)
@@ -300,6 +302,7 @@ Example (trimmed):
 | **Work** | Request latency budget vs projected work under the chosen execution modes |
 
 The latest formatter now also groups output by scenario, adds a narrative line, emits compact comparison deltas, includes a `comparisonTakeaway`, and finishes with a richer `confidenceSummary` so profile and scenario tradeoffs are easier to interpret quickly.
+Degradation reasons are also compacted with pressure/layer/fit/savings markers so the planner decision path is easier to scan quickly.
 
 The constrained-budget scenarios are the clearest before/after showcase:
 - `naive_parallel` still attempts all work using primary-path assumptions.

@@ -22,6 +22,7 @@ Observe:
 - `diagnostics.degraded`
 - omitted/fallback/approximated task lists
 - decision trace reasons and `plannedExecutionLatency`
+- decision layer + fit/savings markers in reasons (`layer=...`, `fit=...`, `savings=...`)
 - `executionSummary` for a compact human-readable interpretation of the response
 
 If this path is not clear yet, stop here and review `docs/quickstart.md` before moving into harness output.

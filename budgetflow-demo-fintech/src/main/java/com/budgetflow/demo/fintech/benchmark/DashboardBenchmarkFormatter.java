@@ -29,6 +29,8 @@ public final class DashboardBenchmarkFormatter {
         builder.append("Pack: ").append(pack.name()).append(" — ").append(pack.description()).append(System.lineSeparator());
         builder.append("Best for: ").append(pack.bestFor()).append(System.lineSeparator());
         builder.append("Suggested run: ").append(pack.suggestedCommand()).append(System.lineSeparator());
+        builder.append("Evaluation entry: ./gradlew :budgetflow-demo-fintech:runDashboardWalkthrough")
+            .append(System.lineSeparator());
         builder.append("Prototype comparison output only; not a rigorous benchmark suite.")
             .append(System.lineSeparator())
             .append(System.lineSeparator());
@@ -62,7 +64,7 @@ public final class DashboardBenchmarkFormatter {
                     .append(formatList(summary.omittedTasks())).append(" | ")
                     .append(formatList(summary.fallbackTasks())).append(" | ")
                     .append(formatList(summary.approximatedTasks())).append(" | ")
-                    .append(formatList(summary.degradationReasons()))
+                    .append(formatReasons(summary.degradationReasons()))
                     .append(System.lineSeparator());
             }
 
@@ -112,6 +114,9 @@ public final class DashboardBenchmarkFormatter {
                 .append(System.lineSeparator());
             builder.append("Profile guidance: ")
                 .append(profileGuidance(adaptiveVariants))
+                .append(System.lineSeparator());
+            builder.append("Evaluator next step: ")
+                .append(evaluatorNextStep(scenario, adaptiveVariants))
                 .append(System.lineSeparator());
             builder.append(System.lineSeparator());
         }
@@ -183,6 +188,15 @@ public final class DashboardBenchmarkFormatter {
                     .filter(summary -> summary.executionStrategy().equals("budgetflow_adaptive"))
                     .sorted(Comparator.comparing(DashboardBenchmarkSummary::policyProfile))
                     .toList())))
+                .append("\",")
+                .append("\"evaluatorNextStep\":\"")
+                .append(escape(evaluatorNextStep(
+                    scenario,
+                    scenarioSummaries.stream()
+                        .filter(summary -> summary.executionStrategy().equals("budgetflow_adaptive"))
+                        .sorted(Comparator.comparing(DashboardBenchmarkSummary::policyProfile))
+                        .toList()
+                )))
                 .append("\"")
                 .append("}");
         }
@@ -383,6 +397,77 @@ public final class DashboardBenchmarkFormatter {
             + summary.scenariosCompared()
             + ", profile_comparison_scenarios="
             + summary.profileComparisonScenarioCount();
+    }
+
+    private static String evaluatorNextStep(
+        DashboardBenchmarkScenario scenario,
+        List<DashboardBenchmarkSummary> adaptiveVariants
+    ) {
+        DashboardBenchmarkSummary balanced = adaptiveVariants.stream()
+            .filter(summary -> summary.policyProfile().equals("balanced"))
+            .findFirst()
+            .orElse(null);
+        if (balanced == null) {
+            return "Run the policy pack to compare balanced, continuity, and efficiency before changing defaults.";
+        }
+        DashboardBenchmarkSummary continuity = adaptiveVariants.stream()
+            .filter(summary -> summary.policyProfile().equals("continuity"))
+            .findFirst()
+            .orElse(null);
+        DashboardBenchmarkSummary efficiency = adaptiveVariants.stream()
+            .filter(summary -> summary.policyProfile().equals("efficiency"))
+            .findFirst()
+            .orElse(null);
+        if (continuity == null || efficiency == null) {
+            return "Keep balanced for now and run --pack=policy when you need profile-selection evidence.";
+        }
+        int continuityCoverageDelta = continuity.totalTasksExecuted() - balanced.totalTasksExecuted();
+        long efficiencyHeadroomDelta = balanced.projectedWork().minus(efficiency.projectedWork()).toMillis();
+        return "For "
+            + scenario.name()
+            + ", keep balanced unless your endpoint requires continuity (+"
+            + continuityCoverageDelta
+            + " executed tasks vs balanced) or stricter headroom (efficiency saves "
+            + efficiencyHeadroomDelta
+            + "ms projected work).";
+    }
+
+    private static String formatReasons(List<String> reasons) {
+        if (reasons.isEmpty()) {
+            return "-";
+        }
+        return reasons.stream()
+            .map(DashboardBenchmarkFormatter::compactReason)
+            .collect(Collectors.joining(", "));
+    }
+
+    private static String compactReason(String reason) {
+        int bracketStart = reason.indexOf('[');
+        int bracketEnd = reason.lastIndexOf(']');
+        if (bracketStart < 0 || bracketEnd <= bracketStart) {
+            return reason;
+        }
+        String taskPrefix = "";
+        int separator = reason.indexOf('=');
+        if (separator > 0 && separator < bracketStart) {
+            taskPrefix = reason.substring(0, separator + 1);
+            reason = reason.substring(separator + 1);
+            bracketStart = reason.indexOf('[');
+            bracketEnd = reason.lastIndexOf(']');
+        }
+        String mode = reason.substring(0, bracketStart);
+        Map<String, String> fields = java.util.Arrays.stream(reason.substring(bracketStart + 1, bracketEnd).split(","))
+            .map(String::trim)
+            .filter(token -> !token.isBlank())
+            .map(token -> token.split("=", 2))
+            .filter(parts -> parts.length == 2)
+            .collect(Collectors.toMap(parts -> parts[0], parts -> parts[1], (first, second) -> first, LinkedHashMap::new));
+        String pressure = fields.getOrDefault("pressure", "unknown");
+        String layer = fields.getOrDefault("layer", "unknown");
+        String fit = fields.getOrDefault("fit", "unknown");
+        String savings = fields.getOrDefault("savings", "unknown");
+        return "%s%s[%s|%s|fit=%s|savings=%s]"
+            .formatted(taskPrefix, mode, pressure, layer, fit, savings);
     }
 
     private static String confidenceSummaryJson(ConfidenceSummary summary) {

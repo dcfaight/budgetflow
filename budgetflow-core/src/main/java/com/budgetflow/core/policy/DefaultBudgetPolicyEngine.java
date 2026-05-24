@@ -206,6 +206,7 @@ public class DefaultBudgetPolicyEngine implements BudgetPolicyEngine {
                 reasonFormatter.format(
                     policyProfileName,
                     ExecutionMode.EXECUTE,
+                    "mandatory_guardrail",
                     snapshot,
                     remainingBudget,
                     latencyRatio,
@@ -244,6 +245,7 @@ public class DefaultBudgetPolicyEngine implements BudgetPolicyEngine {
                 reasonFormatter.format(
                     policyProfileName,
                     mode,
+                    importantDecisionLayer(mode, planningSignals, costSignals),
                     snapshot,
                     remainingBudget,
                     latencyRatio,
@@ -267,6 +269,7 @@ public class DefaultBudgetPolicyEngine implements BudgetPolicyEngine {
             reasonFormatter.format(
                 policyProfileName,
                 mode,
+                optionalDecisionLayer(mode, planningSignals, costSignals),
                 snapshot,
                 remainingBudget,
                 latencyRatio,
@@ -292,6 +295,56 @@ public class DefaultBudgetPolicyEngine implements BudgetPolicyEngine {
             : lowBudget ? -0.10 : 0.04;
         double adjusted = baseThreshold + pressureAdjustment + budgetAdjustment;
         return Math.max(MIN_DYNAMIC_LATENCY_RATIO, Math.min(MAX_DYNAMIC_LATENCY_RATIO, adjusted));
+    }
+
+    private String importantDecisionLayer(
+        ExecutionMode mode,
+        PolicyPlanningSignals planningSignals,
+        TaskCostSignals costSignals
+    ) {
+        if (mode == ExecutionMode.EXECUTE) {
+            return "important_primary";
+        }
+        if (!costSignals.primaryFitsBudget() && costSignals.fallbackFitsBudget()) {
+            return "important_budget_recovery";
+        }
+        if (planningSignals.highPressure() || planningSignals.stressedSignalCount() > 0) {
+            return "important_runtime_relief";
+        }
+        return "important_latency_guardrail";
+    }
+
+    private String optionalDecisionLayer(
+        ExecutionMode mode,
+        PolicyPlanningSignals planningSignals,
+        TaskCostSignals costSignals
+    ) {
+        if (mode == ExecutionMode.EXECUTE) {
+            return "optional_primary";
+        }
+        if (mode == ExecutionMode.OMIT) {
+            if (planningSignals.mixedConstraintScore() >= 1.0
+                || (planningSignals.highPressure() && planningSignals.lowBudget())) {
+                return "optional_mixed_omit";
+            }
+            if (planningSignals.highPressure() || planningSignals.stressedSignalCount() > 0) {
+                return "optional_runtime_omit";
+            }
+            if (!costSignals.primaryFitsBudget() && !costSignals.cheapestDegradedFitsBudget()) {
+                return "optional_no_path_fit";
+            }
+            return "optional_budget_omit";
+        }
+        if (planningSignals.mixedConstraintScore() >= 0.85) {
+            return "optional_mixed_degrade";
+        }
+        if (planningSignals.highPressure() || planningSignals.stressedSignalCount() > 0) {
+            return "optional_runtime_degrade";
+        }
+        if (!costSignals.primaryFitsBudget() || planningSignals.lowBudget()) {
+            return "optional_budget_degrade";
+        }
+        return "optional_selector_degrade";
     }
 
     private Duration minPositive(Duration first, Duration second) {
