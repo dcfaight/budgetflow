@@ -154,7 +154,9 @@ public class DefaultAdaptiveExecutor implements AdaptiveExecutor {
             taskSpec.importance(),
             taskSpec.expectedLatency(),
             taskSpec.fallbackSupplier().isPresent(),
-            taskSpec.approximateSupplier().isPresent()
+            taskSpec.approximateSupplier().isPresent(),
+            taskSpec.fallbackExpectedLatency().orElse(taskSpec.expectedLatency()),
+            taskSpec.approximateExpectedLatency().orElse(taskSpec.expectedLatency())
         );
     }
 

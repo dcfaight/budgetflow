@@ -134,6 +134,7 @@ class DefaultAdaptiveExecutorTest {
                         "normal",
                         Duration.ofMillis(40),
                         Duration.ofMillis(40),
+                        Duration.ofMillis(40),
                         input.remainingBudget()
                     ),
                     new DecisionTraceEntry(
@@ -142,6 +143,7 @@ class DefaultAdaptiveExecutorTest {
                         ExecutionMode.OMIT,
                         "omitted_by_policy",
                         Duration.ofMillis(120),
+                        Duration.ZERO,
                         Duration.ZERO,
                         input.remainingBudget()
                     )
@@ -175,6 +177,7 @@ class DefaultAdaptiveExecutorTest {
             ExecutionMode.EXECUTE_APPROXIMATE,
             "approximate_selected_by_policy",
             Duration.ofMillis(80),
+            Duration.ofMillis(20),
             Duration.ofMillis(40),
             Duration.ofMillis(100)
         );
@@ -219,6 +222,7 @@ class DefaultAdaptiveExecutorTest {
                     "normal",
                     Duration.ofMillis(40),
                     Duration.ofMillis(40),
+                    Duration.ofMillis(40),
                     input.remainingBudget()
                 ),
                 new DecisionTraceEntry(
@@ -228,6 +232,7 @@ class DefaultAdaptiveExecutorTest {
                     "approximate_selected_by_policy",
                     Duration.ofMillis(120),
                     Duration.ofMillis(20),
+                    Duration.ofMillis(20),
                     input.remainingBudget()
                 ),
                 new DecisionTraceEntry(
@@ -236,6 +241,7 @@ class DefaultAdaptiveExecutorTest {
                     ExecutionMode.OMIT,
                     "omitted_by_policy",
                     Duration.ofMillis(140),
+                    Duration.ZERO,
                     Duration.ZERO,
                     input.remainingBudget()
                 )
@@ -274,6 +280,7 @@ class DefaultAdaptiveExecutorTest {
                     ExecutionMode.EXECUTE_WITH_FALLBACK,
                     "fallback_selected_by_policy",
                     Duration.ofMillis(90),
+                    Duration.ofMillis(30),
                     Duration.ofMillis(50),
                     input.remainingBudget()
                 ),
@@ -283,6 +290,7 @@ class DefaultAdaptiveExecutorTest {
                     ExecutionMode.EXECUTE_APPROXIMATE,
                     "approximate_selected_by_policy",
                     Duration.ofMillis(110),
+                    Duration.ofMillis(20),
                     Duration.ofMillis(30),
                     input.remainingBudget()
                 ),
@@ -292,6 +300,7 @@ class DefaultAdaptiveExecutorTest {
                     ExecutionMode.OMIT,
                     "omitted_by_policy",
                     Duration.ofMillis(140),
+                    Duration.ZERO,
                     Duration.ZERO,
                     input.remainingBudget()
                 )

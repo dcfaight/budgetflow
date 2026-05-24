@@ -1,0 +1,10 @@
+spring:
+  application:
+    name: budgetflow-demo-fintech
+
+budgetflow:
+  enabled: true
+  default-budget: 250ms
+  runtime-signals:
+    enabled: false
+    include-default-provider: true

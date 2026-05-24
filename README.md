@@ -8,6 +8,14 @@
 
 BudgetFlow is a prototype Java/Spring framework for request-scoped orchestration under latency pressure. It helps APIs stay inside request budgets by classifying work by importance, planning tasks together under a shared budget, and surfacing how execution degraded through decision trace and request-level diagnostics.
 
+> **Prototype status:** ready to share, demo, and explore in realistic Spring Boot integrations; not production-hardened or benchmarked as a platform claim.
+
+## Why this matters in the first minute
+
+- **Request-scoped planning:** related work is planned together instead of timing out independently.
+- **Explainable degradation:** decision trace shows *why* work executed, fell back, approximated, or was omitted.
+- **Tryable Spring Boot story:** starter wiring, demo app, and comparison harness make the behavior easy to inspect locally.
+
 ## Quickstart first (5 minutes)
 
 If you are new to the repository, start here:
@@ -120,11 +128,14 @@ AdaptiveRequest request = AdaptiveRequest.builder()
     // Important — has a cheaper cached fallback
     .importantWithFallback(REWARDS, Duration.ofMillis(90),
         () -> rewardsClient.getRewards(accountId),
+        Duration.ofMillis(10),
         () -> rewardsClient.getCachedRewards(accountId))
     // Optional — accepts approximate results or a cached fallback
     .optionalWithFallbackAndApproximate(OFFERS, Duration.ofMillis(110),
         () -> offersClient.getOffers(accountId),
+        Duration.ofMillis(12),
         () -> offersClient.getCachedOffers(accountId),
+        Duration.ofMillis(8),
         () -> offersClient.getApproximateOffers(accountId))
     // Optional — can be dropped entirely under pressure
     .optional(INSIGHTS, Duration.ofMillis(140), () -> insightsClient.getInsights(accountId))
@@ -159,6 +170,7 @@ BudgetFlow currently includes:
 - request-scoped `executeRequest(...)`
 - higher-level grouped request composition via `AdaptiveRequest`
 - named grouped-request helpers such as `importantWithFallback(...)` and `optionalWithFallbackAndApproximate(...)`
+- optional degraded-path latency hints so fallback/approximate execution can participate in planning more realistically
 - typed task result access via `TaskKey<T>` and `AdaptiveRequestResult`
 - policy-driven execution mode selection
 - deterministic mandatory-first planning
@@ -245,6 +257,43 @@ The latest formatter now also groups output by scenario, adds a narrative line, 
 ./gradlew build
 ./gradlew :budgetflow-demo-fintech:bootRun
 curl http://localhost:8080/api/accounts/acc-123/dashboard
+```
+
+The demo ships with a small, explicit config baseline in
+`budgetflow-demo-fintech/src/main/resources/application.yml`.
+
+Example response (trimmed):
+
+```json
+{
+  "rewards": { "points": 2450 },
+  "offers": [
+    { "title": "Approximate: personalized offers unavailable" }
+  ],
+  "insights": {
+    "summary": "Insights omitted due to budget constraints."
+  },
+  "diagnostics": {
+    "degraded": true,
+    "omittedTaskNames": ["insights"],
+    "fallbackTaskNames": [],
+    "approximatedTaskNames": ["offers"]
+  },
+  "decisionTrace": [
+    {
+      "taskName": "offers",
+      "selectedExecutionMode": "EXECUTE_APPROXIMATE",
+      "expectedLatency": "PT0.11S",
+      "plannedExecutionLatency": "PT0.008S"
+    },
+    {
+      "taskName": "insights",
+      "selectedExecutionMode": "OMIT",
+      "expectedLatency": "PT0.14S",
+      "plannedExecutionLatency": "PT0S"
+    }
+  ]
+}
 ```
 
 ### Optional runtime pressure + lifecycle wiring (Spring Boot)

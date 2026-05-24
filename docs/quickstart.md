@@ -38,10 +38,14 @@ AdaptiveRequest request = AdaptiveRequest.builder()
         OFFERS,
         Duration.ofMillis(110),
         () -> offersClient.getOffers(accountId),
+        Duration.ofMillis(12),
         () -> offersClient.getCachedOffers(accountId),
+        Duration.ofMillis(8),
         () -> offersClient.getApproximateOffers(accountId))
     .build();
 ```
+
+When you know the cheaper fallback/approximate path cost, pass that latency hint too. It keeps request-scoped planning explainable while letting the planner reserve less budget for degraded work.
 
 ## 4) Execute and read results
 
@@ -83,6 +87,17 @@ RuntimePressureSignals runtimePressureSignals() {
 ```
 
 If present, `ExecutionLifecycleListener` beans are auto-wired into `AdaptiveExecutor`.
+
+You can also make the starter defaults visible in `application.yml`:
+
+```yaml
+budgetflow:
+  enabled: true
+  default-budget: 250ms
+  runtime-signals:
+    enabled: false
+    include-default-provider: true
+```
 
 ## Fastest way to see it running
 

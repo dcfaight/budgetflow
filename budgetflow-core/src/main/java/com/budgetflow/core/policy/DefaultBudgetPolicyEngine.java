@@ -82,7 +82,8 @@ public class DefaultBudgetPolicyEngine implements BudgetPolicyEngine {
             Duration budgetAtPlanningTime = rollingRemainingBudget;
             PolicySelection selection = chooseExecutionMode(task, snapshot, budgetAtPlanningTime);
             ExecutionMode mode = selection.mode();
-            Duration allocated = mode == ExecutionMode.OMIT ? Duration.ZERO : minPositive(expectedLatencyOrZero(task), perTaskBudget);
+            Duration plannedLatency = plannedLatency(task, mode);
+            Duration allocated = mode == ExecutionMode.OMIT ? Duration.ZERO : minPositive(plannedLatency, perTaskBudget);
             boolean omitted = mode == ExecutionMode.OMIT;
             boolean degraded = mode != ExecutionMode.EXECUTE;
             String reason = selection.reason();
@@ -105,6 +106,7 @@ public class DefaultBudgetPolicyEngine implements BudgetPolicyEngine {
                 mode,
                 reason,
                 expectedLatencyOrZero(task),
+                plannedLatency,
                 allocated,
                 budgetAtPlanningTime
             ));
@@ -277,6 +279,22 @@ public class DefaultBudgetPolicyEngine implements BudgetPolicyEngine {
 
     private Duration expectedLatencyOrZero(TaskDescriptor task) {
         return task.expectedLatency() == null || task.expectedLatency().isNegative() ? Duration.ZERO : task.expectedLatency();
+    }
+
+    private Duration plannedLatency(TaskDescriptor task, ExecutionMode executionMode) {
+        return switch (executionMode) {
+            case EXECUTE -> expectedLatencyOrZero(task);
+            case EXECUTE_WITH_FALLBACK -> latencyOrPrimary(task.fallbackExpectedLatency(), task);
+            case EXECUTE_APPROXIMATE -> latencyOrPrimary(task.approximateExpectedLatency(), task);
+            case OMIT -> Duration.ZERO;
+        };
+    }
+
+    private Duration latencyOrPrimary(Duration candidate, TaskDescriptor task) {
+        if (candidate == null || candidate.isNegative() || candidate.isZero()) {
+            return expectedLatencyOrZero(task);
+        }
+        return candidate;
     }
 
     private Duration nonNegative(Duration value) {

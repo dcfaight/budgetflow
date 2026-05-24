@@ -113,12 +113,15 @@ For common grouped-request patterns, use the named builder helpers:
 .importantWithFallback(REWARDS,
     Duration.ofMillis(90),
     () -> rewardsClient.getRewards(accountId),
+    Duration.ofMillis(10),
     () -> rewardsClient.getCachedRewards(accountId))
 
 .optionalWithFallbackAndApproximate(OFFERS,
     Duration.ofMillis(110),
     () -> offersClient.getOffers(accountId),
+    Duration.ofMillis(12),
     () -> offersClient.getCachedOffers(accountId),
+    Duration.ofMillis(8),
     () -> offersClient.getApproximateOffers(accountId))
 ```
 
@@ -128,16 +131,18 @@ If you want to stay closer to raw `TaskSpec<T>` construction, keyed factory meth
 // Important task with a fallback to cached data
 .task(REWARDS,
     TaskSpec.important(REWARDS, Duration.ofMillis(90), () -> rewardsClient.getRewards(accountId))
-        .withFallback(() -> rewardsClient.getCachedRewards(accountId)))
+        .withFallback(() -> rewardsClient.getCachedRewards(accountId), Duration.ofMillis(10)))
 
 // Optional task with both a fallback and a cheaper approximate path
 .task(OFFERS,
     TaskSpec.optional(OFFERS, Duration.ofMillis(110), () -> offersClient.getOffers(accountId))
-        .withFallback(() -> offersClient.getCachedOffers(accountId))
-        .withApproximate(() -> offersClient.getApproximateOffers(accountId)))
+        .withFallback(() -> offersClient.getCachedOffers(accountId), Duration.ofMillis(12))
+        .withApproximate(() -> offersClient.getApproximateOffers(accountId), Duration.ofMillis(8)))
 ```
 
 The planner will choose between primary, fallback, approximate, or omit based on the remaining budget and system pressure.
+
+When available, degraded-path latency hints are folded into planning and decision trace so the framework can reserve less budget for a 10 ms cached fallback than for a 90 ms primary call.
 
 For optional tasks, the default policy now prefers a degraded execution path (approximate first, then fallback when available) before full omission in many stressed conditions, and reserves omission for more severe pressure/budget situations.
 
@@ -164,6 +169,7 @@ Use diagnostics to inspect:
 Use decision trace to inspect:
 - per-task execution mode
 - planning reason
+- planned execution latency for the selected path
 - allocated budget
 - remaining budget at planning time
 
@@ -246,6 +252,40 @@ budgetflow:
 Then provide one `RuntimePressureSignals` bean to bridge your app/runtime metrics into BudgetFlow.
 
 When `ExecutionLifecycleListener` beans are present, starter auto-configuration now wires them into the default `AdaptiveExecutor`.
+
+### Spring Boot configuration example
+
+```yaml
+budgetflow:
+  enabled: true
+  default-budget: 250ms
+  runtime-signals:
+    enabled: true
+    include-default-provider: true
+```
+
+```java
+@Bean
+RuntimePressureSignals runtimePressureSignals(MeterRegistry meterRegistry) {
+    return new RuntimePressureSignals() {
+        @Override public double executorUtilization() { return readExecutorUtilization(meterRegistry); }
+        @Override public double dbPressure()          { return readDbPressure(meterRegistry); }
+        @Override public double downstreamPressure()  { return readDownstreamPressure(meterRegistry); }
+    };
+}
+```
+
+```java
+@Bean
+ExecutionLifecycleListener loggingLifecycleListener() {
+    return new ExecutionLifecycleListener() {
+        @Override
+        public void afterRequestExecution(RequestExecutionResult result) {
+            LOGGER.info("budgetflow diagnostics={}", result.diagnostics());
+        }
+    };
+}
+```
 
 ### Typical wiring pattern
 

@@ -127,6 +127,7 @@ class DashboardServiceTest {
                     "normal",
                     Duration.ofMillis(40),
                     Duration.ofMillis(40),
+                    Duration.ofMillis(40),
                     Duration.ofMillis(250)
                 ),
                 new DecisionTraceEntry(
@@ -135,6 +136,7 @@ class DashboardServiceTest {
                     ExecutionMode.EXECUTE_WITH_FALLBACK,
                     "fallback_selected_by_policy",
                     Duration.ofMillis(90),
+                    Duration.ofMillis(10),
                     Duration.ofMillis(60),
                     Duration.ofMillis(210)
                 ),
@@ -144,6 +146,7 @@ class DashboardServiceTest {
                     ExecutionMode.EXECUTE_APPROXIMATE,
                     "approximate_selected_by_policy",
                     Duration.ofMillis(110),
+                    Duration.ofMillis(8),
                     Duration.ofMillis(40),
                     Duration.ofMillis(150)
                 ),
@@ -153,6 +156,7 @@ class DashboardServiceTest {
                     ExecutionMode.OMIT,
                     "omitted_by_policy",
                     Duration.ofMillis(140),
+                    Duration.ZERO,
                     Duration.ZERO,
                     Duration.ofMillis(60)
                 )

@@ -115,6 +115,35 @@ class AdaptiveRequestTest {
     }
 
     @Test
+    void builderCanCaptureLatencyHintsForDegradedPaths() {
+        AdaptiveRequest request = AdaptiveRequest.builder()
+            .importantWithFallback(
+                REWARDS_KEY,
+                Duration.ofMillis(90),
+                () -> "primary",
+                Duration.ofMillis(12),
+                () -> "fallback"
+            )
+            .optionalWithFallbackAndApproximate(
+                INSIGHTS_KEY,
+                Duration.ofMillis(140),
+                () -> "primary",
+                Duration.ofMillis(18),
+                () -> "fallback",
+                Duration.ofMillis(7),
+                () -> "approx"
+            )
+            .build();
+
+        TaskSpec<?> important = request.taskSpecs().get(0);
+        TaskSpec<?> optional = request.taskSpecs().get(1);
+
+        assertEquals(Duration.ofMillis(12), important.fallbackExpectedLatency().orElseThrow());
+        assertEquals(Duration.ofMillis(18), optional.fallbackExpectedLatency().orElseThrow());
+        assertEquals(Duration.ofMillis(7), optional.approximateExpectedLatency().orElseThrow());
+    }
+
+    @Test
     void builderRejectsEmptyRequest() {
         assertThrows(IllegalStateException.class,
             () -> AdaptiveRequest.builder().build());
@@ -227,7 +256,7 @@ class AdaptiveRequestTest {
         );
         DecisionTraceEntry traceEntry = new DecisionTraceEntry(
             "insights", Importance.OPTIONAL, ExecutionMode.OMIT,
-            "omitted_by_policy", Duration.ofMillis(140), Duration.ZERO, Duration.ofMillis(60)
+            "omitted_by_policy", Duration.ofMillis(140), Duration.ZERO, Duration.ZERO, Duration.ofMillis(60)
         );
 
         RequestExecutionResult raw = new RequestExecutionResult(
