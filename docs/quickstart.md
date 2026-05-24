@@ -138,3 +138,6 @@ Then run the side-by-side scenario comparison:
 ```
 
 `budgetflow.planner.profile` is the recommended property name. `budgetflow.planner.policy-profile` remains supported for compatibility.
+
+For a complete evaluator workflow (including what to observe and how to interpret profile tradeoffs), continue with:
+`docs/evaluate.md`.

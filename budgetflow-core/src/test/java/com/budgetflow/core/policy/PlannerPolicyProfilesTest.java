@@ -58,11 +58,17 @@ class PlannerPolicyProfilesTest {
             true,
             true,
             true,
+            true,
+            true,
+            0,
+            0,
             0,
             0,
             false,
             false,
             true,
+            "moderate",
+            ExecutionMode.EXECUTE_APPROXIMATE,
             0.50,
             0.74
         );

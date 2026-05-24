@@ -23,12 +23,8 @@ public final class ContinuityOptionalTaskModeSelector implements OptionalTaskMod
             return ExecutionMode.OMIT;
         }
 
-        if (stressConditions && task.approximateSupported()) {
-            return ExecutionMode.EXECUTE_APPROXIMATE;
-        }
-
-        if (stressConditions && task.fallbackSupported()) {
-            return ExecutionMode.EXECUTE_WITH_FALLBACK;
+        if (stressConditions) {
+            return context.degradedMode(task, true);
         }
 
         if (context.primaryLatencyRatio() >= context.optionalOmitThreshold()

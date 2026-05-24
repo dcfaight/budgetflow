@@ -39,12 +39,15 @@ public final class DefaultOptionalTaskModeSelector implements OptionalTaskModeSe
             return ExecutionMode.OMIT;
         }
 
-        if (degradeUnderStress && task.approximateSupported()) {
-            return ExecutionMode.EXECUTE_APPROXIMATE;
-        }
-
-        if (degradeUnderStress && task.fallbackSupported()) {
-            return ExecutionMode.EXECUTE_WITH_FALLBACK;
+        if (degradeUnderStress) {
+            if (!context.degradedPathAvailable()
+                && (context.highPressure()
+                || context.multiSignalStress()
+                || context.veryLowBudget()
+                || context.primaryLatencyRatio() >= context.optionalOmitThreshold())) {
+                return ExecutionMode.OMIT;
+            }
+            return context.suggestedDegradedMode(task);
         }
 
         if ((severeBudgetOrPressure || context.primaryLatencyRatio() >= context.optionalOmitThreshold())

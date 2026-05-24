@@ -11,6 +11,8 @@ public record DashboardBenchmarkScenario(
     String narrative,
     String evaluationFocus,
     String interpretationGuidance,
+    String realWorldPattern,
+    String whatToObserve,
     String budgetProfile,
     String pressureProfile,
     Duration requestBudget,

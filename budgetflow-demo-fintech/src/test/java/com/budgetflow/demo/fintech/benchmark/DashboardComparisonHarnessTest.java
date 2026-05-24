@@ -72,6 +72,8 @@ class DashboardComparisonHarnessTest {
         assertTrue(output.contains("Scenario: constrained_budget_elevated_pressure — Constrained budget / elevated pressure"));
         assertTrue(output.contains("Focus: Mixed-constraint stress: validates combined budget + runtime pressure behavior."));
         assertTrue(output.contains("Interpretation: Interpret differences conservatively: this demonstrates policy reaction shape, not production throughput ceilings."));
+        assertTrue(output.contains("Pattern: Traffic surge plus dependency stress during peak payment windows."));
+        assertTrue(output.contains("Observe: Look for important-task fallback and optional-task approximation/omission with clear trace reasons."));
         assertTrue(output.contains("Strategy | Policy | Executed | Degraded | Work | Omitted | Fallback | Approx | Why"));
         assertTrue(output.contains("budgetflow_adaptive | balanced | 4 | true | 430ms/123ms | insights | rewards | offers | offers=approximate_selected_by_policy"));
     }
@@ -152,6 +154,8 @@ class DashboardComparisonHarnessTest {
             assertTrue(json.contains("\"profileGuidance\":"));
             assertTrue(json.contains("\"evaluationFocus\":"));
             assertTrue(json.contains("\"interpretationGuidance\":"));
+            assertTrue(json.contains("\"realWorldPattern\":"));
+            assertTrue(json.contains("\"whatToObserve\":"));
         }
     }
 

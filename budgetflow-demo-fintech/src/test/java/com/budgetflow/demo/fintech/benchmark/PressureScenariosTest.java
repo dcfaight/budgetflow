@@ -69,6 +69,10 @@ class PressureScenariosTest {
             "Sanity baseline: verifies no unnecessary degradation under comfortable constraints.",
             scenario.evaluationFocus()
         );
+        assertEquals(
+            "Steady weekday traffic with healthy dependencies.",
+            scenario.realWorldPattern()
+        );
         assertEquals(Duration.ofMillis(650), scenario.requestBudget());
         assertEquals(PressureScenarios.LOW_PRESSURE, scenario.pressureSnapshot());
     }
@@ -114,6 +118,10 @@ class PressureScenariosTest {
         assertEquals(Duration.ofMillis(500), scenario.requestBudget());
         assertEquals(PressureScenarios.DOWNSTREAM_SPIKE_PRESSURE, scenario.pressureSnapshot());
         assertEquals("downstream_spike", scenario.pressureProfile());
+        assertEquals(
+            "Promotions service instability during campaign launch.",
+            scenario.realWorldPattern()
+        );
     }
 
     @Test

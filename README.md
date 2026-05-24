@@ -5,6 +5,7 @@
 [![Java 17](https://img.shields.io/badge/java-17-437291.svg)](https://adoptium.net/)
 [![Spring Boot 3.5](https://img.shields.io/badge/spring--boot-3.5.x-6DB33F.svg)](https://spring.io/projects/spring-boot)
 [![Status: Prototype](https://img.shields.io/badge/status-prototype-orange.svg)](#current-status)
+[![Version: 0.x](https://img.shields.io/badge/version-0.x-lightgrey.svg)](#current-status)
 
 BudgetFlow is a prototype Java/Spring framework for request-scoped orchestration under latency pressure. It helps APIs stay inside request budgets by classifying work by importance, planning tasks together under a shared budget, and surfacing how execution degraded through decision trace and request-level diagnostics.
 
@@ -27,6 +28,9 @@ If you are new to the repository, start here:
 5. **Result:** read typed values from `AdaptiveRequestResult` plus diagnostics/trace.
 
 See the concise guide: [docs/quickstart.md](docs/quickstart.md)
+
+If you are evaluating BudgetFlow for potential adoption, use the opinionated walkthrough:
+[docs/evaluate.md](docs/evaluate.md)
 
 ## Package consumption at a glance
 
@@ -191,6 +195,7 @@ BudgetFlow currently includes:
 - named grouped-request helpers such as `importantWithFallback(...)` and `optionalWithFallbackAndApproximate(...)`
 - optional degraded-path latency hints so fallback/approximate execution can participate in planning more realistically
 - lightweight optional-task strategy extension via `OptionalTaskModeSelector` (default behavior remains deterministic)
+- mixed-constraint optional-path preference signals (`degrade_pref`) so moderate stress can preserve response fidelity while severe stress still prioritizes cheaper paths
 - named planner policy profiles (`balanced`/`default`, `continuity`, `efficiency`) with deterministic semantics and balanced default behavior
 - Spring Boot planner profile selection via `budgetflow.planner.profile` (legacy alias: `budgetflow.planner.policy-profile`)
 - typed task result access via `TaskKey<T>` and `AdaptiveRequestResult`
@@ -438,6 +443,9 @@ Use harness output as scenario evidence, not benchmark certification:
 
 See the [Comparison harness output](#comparison-harness-output) section above for example output and interpretation guidance.
 
+For a complete runbook (what to run, what to observe, and how to interpret profile tradeoffs), see:
+[docs/evaluate.md](docs/evaluate.md)
+
 ## Current status
 
 BudgetFlow is an **early prototype / design exploration**, not a production-ready framework.
@@ -465,6 +473,13 @@ Near-term priorities include:
 - expanding lightweight runtime integration hooks for pressure and observability-style callbacks
 - expanding scenario realism and comparison depth
 - exploring richer planning and orchestration strategies
+
+See [docs/status-roadmap.md](docs/status-roadmap.md) for current maturity focus areas and conservative next steps.
+
+## Release notes (prototype)
+
+Recent maturity updates are tracked in:
+[CHANGELOG.md](CHANGELOG.md)
 
 ## Project motivation
 

@@ -144,11 +144,16 @@ The planner will choose between primary, fallback, approximate, or omit based on
 
 When available, degraded-path latency hints are folded into planning and decision trace so the framework can reserve less budget for a 10 ms cached fallback than for a 90 ms primary call.
 
-For optional tasks, the default policy now prefers a degraded execution path (approximate first, then fallback when available) before full omission in many stressed conditions, and reserves omission for more severe pressure/budget situations.
+For optional tasks, the default `balanced` policy now uses a mixed-constraint preference:
+- under moderate stress, it can preserve response fidelity by preferring fallback paths when they fit,
+- under severe stress (or tight budget pressure), it can prefer cheaper degraded paths to protect headroom,
+- omission remains primarily for severe pressure/budget conditions or when no workable path fits.
 
 The planner now also interprets stacked runtime stress more explicitly: when multiple pressure signals are elevated together, optional work is treated more conservatively than in single-signal spikes. Decision reasons include `active_signals=<n>` to keep this behavior transparent.
 
 Mixed-constraint behavior is budget-fit aware: if a primary path overruns remaining budget but a degraded path fits, the planner can prefer degradation over omission so request quality remains as high as constraints allow.
+
+Decision reasons now also include `mixed=<band>` and `degrade_pref=<mode>` so profile behavior remains visible in traces.
 
 The helper methods reduce boilerplate, but task names, importance, and execution behavior remain explicit and inspectable through diagnostics and decision trace.
 
