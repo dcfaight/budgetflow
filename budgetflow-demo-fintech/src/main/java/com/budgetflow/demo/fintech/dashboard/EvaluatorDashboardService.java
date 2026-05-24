@@ -554,8 +554,8 @@ public class EvaluatorDashboardService {
     private String modeClass(ExecutionMode mode) {
         return switch (mode) {
             case EXECUTE -> "mode-execute";
-            case FALLBACK -> "mode-fallback";
-            case APPROXIMATE -> "mode-approximate";
+            case EXECUTE_WITH_FALLBACK -> "mode-fallback";
+            case EXECUTE_APPROXIMATE -> "mode-approximate";
             case OMIT -> "mode-omit";
         };
     }
