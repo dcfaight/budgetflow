@@ -11,6 +11,7 @@ import java.util.Objects;
 public class DefaultBudgetPolicyEngine implements BudgetPolicyEngine {
     private static final double HIGH_PRESSURE = 0.85;
     private static final double MODERATE_PRESSURE = 0.60;
+    private static final double STACKED_SIGNAL_PRESSURE = 0.70;
     private static final double IMPORTANT_FALLBACK_LATENCY_RATIO = 0.52;
     private static final double OPTIONAL_DEGRADE_LATENCY_RATIO = 0.58;
     private static final double OPTIONAL_OMIT_LATENCY_RATIO = 0.78;
@@ -172,11 +173,16 @@ public class DefaultBudgetPolicyEngine implements BudgetPolicyEngine {
         double latencyRatio = costSignals.primaryLatencyRatio();
 
         double pressureLevel = snapshot.peakPressure();
+        int stressedSignalCount = snapshot.signalsAtOrAbove(STACKED_SIGNAL_PRESSURE);
+        boolean multiSignalStress = stressedSignalCount >= 2;
         if (task.importance() == Importance.MANDATORY) {
-            return new PolicySelection(ExecutionMode.EXECUTE, explainReason(ExecutionMode.EXECUTE, snapshot, remainingBudget, latencyRatio));
+            return new PolicySelection(
+                ExecutionMode.EXECUTE,
+                explainReason(ExecutionMode.EXECUTE, snapshot, remainingBudget, latencyRatio, stressedSignalCount)
+            );
         }
 
-        boolean highPressure = pressureLevel >= HIGH_PRESSURE;
+        boolean highPressure = pressureLevel >= HIGH_PRESSURE || multiSignalStress;
         boolean lowBudget = remainingBudget.compareTo(LOW_BUDGET_THRESHOLD) < 0;
         boolean veryLowBudget = remainingBudget.compareTo(VERY_LOW_BUDGET_THRESHOLD) < 0;
 
@@ -195,7 +201,7 @@ public class DefaultBudgetPolicyEngine implements BudgetPolicyEngine {
             ExecutionMode mode = importantStress && task.fallbackSupported() && (fallbackClearlyCheaper || highPressure || lowBudget)
                 ? ExecutionMode.EXECUTE_WITH_FALLBACK
                 : ExecutionMode.EXECUTE;
-            return new PolicySelection(mode, explainReason(mode, snapshot, remainingBudget, latencyRatio));
+            return new PolicySelection(mode, explainReason(mode, snapshot, remainingBudget, latencyRatio, stressedSignalCount));
         }
 
         double optionalDegradeThreshold = adjustedLatencyThreshold(
@@ -216,6 +222,9 @@ public class DefaultBudgetPolicyEngine implements BudgetPolicyEngine {
                 new OptionalTaskPlanningContext(
                     snapshot,
                     remainingBudget,
+                    stressedSignalCount,
+                    multiSignalStress,
+                    snapshot.averagePressure(),
                     latencyRatio,
                     costSignals.cheapestDegradedLatencyRatio(),
                     costSignals.degradedSavingsRatio(),
@@ -230,27 +239,44 @@ public class DefaultBudgetPolicyEngine implements BudgetPolicyEngine {
             ),
             "optionalTaskModeSelector must return a mode"
         );
-        return new PolicySelection(mode, explainReason(mode, snapshot, remainingBudget, latencyRatio));
+        return new PolicySelection(mode, explainReason(mode, snapshot, remainingBudget, latencyRatio, stressedSignalCount));
     }
 
     private String explainReason(
         ExecutionMode mode,
         SystemPressureSnapshot snapshot,
         Duration remainingBudget,
-        double latencyRatio
+        double latencyRatio,
+        int stressedSignalCount
     ) {
         String pressureBand = pressureBand(snapshot.peakPressure());
         String budgetBand = budgetBand(remainingBudget);
         String ratio = String.format("%.2f", latencyRatio);
         return switch (mode) {
-            case EXECUTE -> "normal[policy=%s,pressure=%s:%s,budget=%s,latency_ratio=%s]"
-                .formatted(policyProfileName, pressureBand, snapshot.dominantSignal(), budgetBand, ratio);
-            case EXECUTE_WITH_FALLBACK -> "fallback_selected_by_policy[policy=%s,pressure=%s:%s,budget=%s,latency_ratio=%s]"
-                .formatted(policyProfileName, pressureBand, snapshot.dominantSignal(), budgetBand, ratio);
-            case EXECUTE_APPROXIMATE -> "approximate_selected_by_policy[policy=%s,pressure=%s:%s,budget=%s,latency_ratio=%s]"
-                .formatted(policyProfileName, pressureBand, snapshot.dominantSignal(), budgetBand, ratio);
-            case OMIT -> "omitted_by_policy[policy=%s,pressure=%s:%s,budget=%s,latency_ratio=%s]"
-                .formatted(policyProfileName, pressureBand, snapshot.dominantSignal(), budgetBand, ratio);
+            case EXECUTE -> "normal[policy=%s,pressure=%s:%s,active_signals=%d,budget=%s,latency_ratio=%s]"
+                .formatted(policyProfileName, pressureBand, snapshot.dominantSignal(), stressedSignalCount, budgetBand, ratio);
+            case EXECUTE_WITH_FALLBACK ->
+                "fallback_selected_by_policy[policy=%s,pressure=%s:%s,active_signals=%d,budget=%s,latency_ratio=%s]"
+                    .formatted(
+                        policyProfileName,
+                        pressureBand,
+                        snapshot.dominantSignal(),
+                        stressedSignalCount,
+                        budgetBand,
+                        ratio
+                    );
+            case EXECUTE_APPROXIMATE ->
+                "approximate_selected_by_policy[policy=%s,pressure=%s:%s,active_signals=%d,budget=%s,latency_ratio=%s]"
+                    .formatted(
+                        policyProfileName,
+                        pressureBand,
+                        snapshot.dominantSignal(),
+                        stressedSignalCount,
+                        budgetBand,
+                        ratio
+                    );
+            case OMIT -> "omitted_by_policy[policy=%s,pressure=%s:%s,active_signals=%d,budget=%s,latency_ratio=%s]"
+                .formatted(policyProfileName, pressureBand, snapshot.dominantSignal(), stressedSignalCount, budgetBand, ratio);
         };
     }
 

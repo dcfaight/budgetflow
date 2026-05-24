@@ -35,6 +35,21 @@
       "type": "java.lang.Boolean",
       "defaultValue": true,
       "description": "Compose live runtime signals with the default budget-derived pressure provider instead of replacing it."
+    },
+    {
+      "name": "budgetflow.runtime-signals.executor-utilization",
+      "type": "java.lang.Double",
+      "description": "Optional static runtime signal value (0.0-1.0) used when RuntimePressureSignals bean is not provided."
+    },
+    {
+      "name": "budgetflow.runtime-signals.db-pressure",
+      "type": "java.lang.Double",
+      "description": "Optional static runtime signal value (0.0-1.0) used when RuntimePressureSignals bean is not provided."
+    },
+    {
+      "name": "budgetflow.runtime-signals.downstream-pressure",
+      "type": "java.lang.Double",
+      "description": "Optional static runtime signal value (0.0-1.0) used when RuntimePressureSignals bean is not provided."
     }
   ]
 }

@@ -56,25 +56,47 @@ public class BudgetFlowAutoConfiguration {
         ObjectProvider<RuntimePressureSignals> runtimePressureSignals
     ) {
         SystemPressureProvider defaultProvider = new DefaultSystemPressureProvider();
-        RuntimePressureSignals signalAdapter = runtimePressureSignals.getIfAvailable();
         boolean runtimeSignalsEnabled = properties.getRuntimeSignals() != null
             && properties.getRuntimeSignals().isEnabled();
 
-        if (!runtimeSignalsEnabled || signalAdapter == null) {
+        if (!runtimeSignalsEnabled) {
             return defaultProvider;
         }
 
-        SystemPressureProvider runtimeProvider = new RuntimeSignalPressureProvider(
-            signalAdapter::executorUtilization,
-            signalAdapter::dbPressure,
-            signalAdapter::downstreamPressure
-        );
+        SystemPressureProvider runtimeProvider = runtimeProvider(properties, runtimePressureSignals.getIfAvailable());
+        if (runtimeProvider == null) {
+            return defaultProvider;
+        }
 
         if (!properties.getRuntimeSignals().isIncludeDefaultProvider()) {
             return runtimeProvider;
         }
 
         return CompositeSystemPressureProvider.of(defaultProvider, runtimeProvider);
+    }
+
+    private SystemPressureProvider runtimeProvider(
+        BudgetFlowProperties properties,
+        RuntimePressureSignals signalAdapter
+    ) {
+        if (signalAdapter != null) {
+            return new RuntimeSignalPressureProvider(
+                signalAdapter::executorUtilization,
+                signalAdapter::dbPressure,
+                signalAdapter::downstreamPressure
+            );
+        }
+
+        BudgetFlowProperties.RuntimeSignals runtimeSignals = properties.getRuntimeSignals();
+        if (runtimeSignals == null || !runtimeSignals.hasConfiguredSnapshot()) {
+            return null;
+        }
+
+        return new RuntimeSignalPressureProvider(
+            runtimeSignals::configuredExecutorUtilization,
+            runtimeSignals::configuredDbPressure,
+            runtimeSignals::configuredDownstreamPressure
+        );
     }
 
     @Bean

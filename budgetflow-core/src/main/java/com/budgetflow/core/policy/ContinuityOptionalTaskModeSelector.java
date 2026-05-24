@@ -8,6 +8,7 @@ public final class ContinuityOptionalTaskModeSelector implements OptionalTaskMod
     @Override
     public ExecutionMode chooseMode(TaskDescriptor task, OptionalTaskPlanningContext context) {
         boolean stressConditions = context.highPressure()
+            || context.multiSignalStress()
             || context.lowBudget()
             || context.primaryLatencyRatio() >= context.optionalDegradeThreshold();
         boolean omitDueToNoDegradedPath = context.primaryLatencyRatio() >= OPTIONAL_EXTREME_OMIT_LATENCY_RATIO

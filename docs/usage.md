@@ -146,6 +146,8 @@ When available, degraded-path latency hints are folded into planning and decisio
 
 For optional tasks, the default policy now prefers a degraded execution path (approximate first, then fallback when available) before full omission in many stressed conditions, and reserves omission for more severe pressure/budget situations.
 
+The planner now also interprets stacked runtime stress more explicitly: when multiple pressure signals are elevated together, optional work is treated more conservatively than in single-signal spikes. Decision reasons include `active_signals=<n>` to keep this behavior transparent.
+
 The helper methods reduce boilerplate, but task names, importance, and execution behavior remain explicit and inspectable through diagnostics and decision trace.
 
 ---
@@ -270,6 +272,18 @@ budgetflow:
 ```
 
 Then provide one `RuntimePressureSignals` bean to bridge your app/runtime metrics into BudgetFlow.
+
+If you want a zero-code setup for demos, you can configure static runtime signal values directly:
+
+```yaml
+budgetflow:
+  runtime-signals:
+    enabled: true
+    include-default-provider: false
+    executor-utilization: 0.72
+    db-pressure: 0.64
+    downstream-pressure: 0.48
+```
 
 `budgetflow.planner.profile` accepts `default`/`balanced`, `continuity`, or `efficiency`.  
 `budgetflow.planner.policy-profile` remains available as a legacy alias.

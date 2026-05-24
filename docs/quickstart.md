@@ -90,6 +90,18 @@ RuntimePressureSignals runtimePressureSignals() {
 
 If present, `ExecutionLifecycleListener` beans are auto-wired into `AdaptiveExecutor`.
 
+For quick local evaluation, runtime signals can also be provided via properties only (no adapter bean):
+
+```yaml
+budgetflow:
+  runtime-signals:
+    enabled: true
+    include-default-provider: false
+    executor-utilization: 0.72
+    db-pressure: 0.64
+    downstream-pressure: 0.48
+```
+
 You can also make the starter defaults visible in `application.yml`:
 
 ```yaml
