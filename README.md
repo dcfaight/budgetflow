@@ -189,6 +189,7 @@ BudgetFlow currently includes:
 - request-level execution diagnostics
 - pluggable pressure provider abstraction
 - optional runtime pressure adapters (`RuntimeSignalPressureProvider`, `CompositeSystemPressureProvider`)
+- optional property-only runtime signal inputs (`budgetflow.runtime-signals.*`) for quick starter/demo setup without custom beans
 - optional execution lifecycle hooks (`ExecutionLifecycleListener`)
 - fintech dashboard demo application
 - naive-vs-adaptive comparison harness with scenario packs, grouped reporting, and optional JSON output
@@ -208,7 +209,7 @@ Budget profile: constrained_budget | Pressure profile: low_pressure
 Request budget: 430ms | Pressure: exec=0.15 db=0.10 down=0.20
 Strategy | Policy | Executed | Degraded | Work | Omitted | Fallback | Approx | Why
 -------- | ------ | -------- | -------- | ---- | ------- | -------- | ------ | ---
-budgetflow_adaptive | balanced | 4 | true | 430ms/203ms | insights | - | offers | offers=approximate_selected_by_policy[policy=balanced,pressure=low:downstream,budget=available], insights=omitted_by_policy[policy=balanced,pressure=low:downstream,budget=tight]
+budgetflow_adaptive | balanced | 4 | true | 430ms/203ms | insights | - | offers | offers=approximate_selected_by_policy[policy=balanced,pressure=low:downstream,active_signals=0,budget=available], insights=omitted_by_policy[policy=balanced,pressure=low:downstream,active_signals=0,budget=tight]
 naive_parallel | - | 5 | true | 430ms/445ms | - | - | - | projected_work_exceeds_request_budget_by_15ms
 Comparison: adaptive projected work delta=-140ms, executed_task_delta=-1, adaptive_changes=omit=insights
 ```
@@ -325,13 +326,14 @@ Enable runtime signal adapter support in configuration:
 ```yaml
 budgetflow:
   planner:
-    policy-profile: balanced
+    profile: default
   runtime-signals:
     enabled: true
     include-default-provider: true
 ```
 
-`budgetflow.planner.policy-profile` accepts `balanced` (default), `continuity`, or `efficiency`.
+`budgetflow.planner.profile` accepts `default`/`balanced`, `continuity`, or `efficiency`.
+`budgetflow.planner.policy-profile` remains supported as a legacy alias.
 
 Provide a `RuntimePressureSignals` bean (for example from Micrometer or custom gauges):
 
@@ -349,6 +351,18 @@ RuntimePressureSignals runtimePressureSignals(
 ```
 
 `ExecutionLifecycleListener` beans are now auto-detected by the starter and attached to the adaptive executor automatically.
+
+For quick demos without wiring a bean, you can also provide static runtime-signal values directly:
+
+```yaml
+budgetflow:
+  runtime-signals:
+    enabled: true
+    include-default-provider: false
+    executor-utilization: 0.72
+    db-pressure: 0.64
+    downstream-pressure: 0.48
+```
 
 ## Running the comparison harness
 
@@ -397,6 +411,8 @@ Available adaptive policy profiles:
 | `moderate_budget_elevated_pressure` | policy | Policy-profile comparison focus: same pressure + budget setup used to contrast balanced, continuity, and efficiency behavior. |
 
 The optional JSON mode is intentionally simple and stable enough for demo automation or snapshot-style tests; it is not intended as a full benchmarking/reporting platform.
+
+Recent formatter output also includes a small confidence summary at the end of text output (and as `confidenceSummary` in JSON) so readers can quickly see how often adaptive planning reduced projected work in the selected scenario pack.
 
 See the [Comparison harness output](#comparison-harness-output) section above for example output and interpretation guidance.
 

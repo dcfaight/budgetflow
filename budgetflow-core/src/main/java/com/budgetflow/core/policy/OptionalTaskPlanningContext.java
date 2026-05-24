@@ -5,6 +5,9 @@ import java.time.Duration;
 public record OptionalTaskPlanningContext(
     SystemPressureSnapshot pressureSnapshot,
     Duration remainingBudget,
+    int stressedSignalCount,
+    boolean multiSignalStress,
+    double averagePressure,
     double primaryLatencyRatio,
     double cheapestDegradedLatencyRatio,
     double degradedSavingsRatio,

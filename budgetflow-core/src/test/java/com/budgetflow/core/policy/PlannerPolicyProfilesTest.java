@@ -47,6 +47,9 @@ class PlannerPolicyProfilesTest {
         OptionalTaskPlanningContext context = new OptionalTaskPlanningContext(
             new SystemPressureSnapshot(0.90, 0.20, 0.20),
             Duration.ofMillis(260),
+            1,
+            false,
+            0.433,
             0.46,
             0.07,
             0.93,

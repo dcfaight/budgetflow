@@ -167,6 +167,7 @@ Key planner invariants:
 The default policy now also emits deterministic reason strings that include:
 - pressure band
 - dominant pressure source
+- active stressed-signal count
 - budget band
 - latency ratio at planning time
 
@@ -301,7 +302,7 @@ It includes:
 
 This is the main request-level observability summary.
 
-For the demo harness, these diagnostics are paired with grouped scenario reporting and optional JSON output so a reader can compare naïve and adaptive behavior side-by-side. This reporting remains intentionally lightweight and should be treated as a prototype demonstration aid rather than a rigorous benchmark/reporting stack.
+For the demo harness, these diagnostics are paired with grouped scenario reporting and optional JSON output so a reader can compare naïve and adaptive behavior side-by-side. This reporting remains intentionally lightweight and should be treated as a prototype demonstration aid rather than a rigorous benchmark/reporting stack. The formatter also emits a concise confidence summary (text + JSON) for quick evaluation of whether adaptive planning reduced projected work across the selected pack.
 
 ---
 
@@ -314,6 +315,7 @@ BudgetFlow’s Spring integration currently includes:
 - auto-configuration
 - starter dependency
 - optional `RuntimePressureSignals` adapter bean support
+- optional static runtime-signal property values for quick starter/demo usage when no `RuntimePressureSignals` bean is provided
 - optional planner profile selection via `budgetflow.planner.profile` (legacy alias: `budgetflow.planner.policy-profile`)
 - auto-wiring of optional `ExecutionLifecycleListener` beans into the default executor
 

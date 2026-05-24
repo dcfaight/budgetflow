@@ -12,16 +12,20 @@ public final class DefaultOptionalTaskModeSelector implements OptionalTaskModeSe
             && !context.highPressure()
             && context.cheapestDegradedLatencyRatio() < context.optionalOmitThreshold();
         boolean stressConditions = severeBudgetOrPressure
+            || context.multiSignalStress()
             || context.lowBudget()
             || context.primaryLatencyRatio() >= context.optionalDegradeThreshold();
         boolean omitDueToExtremeRatio = severeBudgetOrPressure
             && context.primaryLatencyRatio() >= context.optionalOmitThreshold()
             && !degradedPathProtectsHeadroom;
+        boolean omitDueToStackedSignals = context.multiSignalStress()
+            && context.primaryLatencyRatio() >= context.optionalOmitThreshold()
+            && !context.degradedPathAvailable();
         boolean omitDueToNoDegradedPath = context.primaryLatencyRatio() >= OPTIONAL_EXTREME_OMIT_LATENCY_RATIO
             && !task.approximateSupported()
             && !task.fallbackSupported();
 
-        if (omitDueToExtremeRatio || omitDueToNoDegradedPath) {
+        if (omitDueToExtremeRatio || omitDueToStackedSignals || omitDueToNoDegradedPath) {
             return ExecutionMode.OMIT;
         }
 

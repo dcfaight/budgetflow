@@ -176,8 +176,23 @@ class DefaultBudgetPolicyEngineTest {
         String reason = decision.directives().get(0).reason();
         assertTrue(reason.startsWith("approximate_selected_by_policy["));
         assertTrue(reason.contains("pressure=moderate:downstream"));
+        assertTrue(reason.contains("active_signals=1"));
         assertTrue(reason.contains("budget=available"));
         assertFalse(reason.isBlank());
+    }
+
+    @Test
+    void optionalTaskTreatsStackedRuntimeSignalsAsHighStressInput() {
+        DefaultBudgetPolicyEngine engine = new DefaultBudgetPolicyEngine();
+
+        PolicyDecision decision = engine.evaluate(new PolicyEvaluationInput(
+            Duration.ofMillis(400),
+            List.of(descriptor("insights", Importance.OPTIONAL, 150)),
+            new SystemPressureSnapshot(0.72, 0.74, 0.20)
+        ));
+
+        assertEquals(ExecutionMode.OMIT, decision.directives().get(0).executionMode());
+        assertTrue(decision.directives().get(0).reason().contains("active_signals=2"));
     }
 
     @Test

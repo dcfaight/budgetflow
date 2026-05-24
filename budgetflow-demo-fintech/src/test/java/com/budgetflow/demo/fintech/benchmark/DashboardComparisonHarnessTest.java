@@ -163,6 +163,20 @@ class DashboardComparisonHarnessTest {
             assertTrue(elevatedIndex > constrainedIndex);
             assertTrue(output.contains("Comparison: adaptive projected work delta="));
             assertTrue(output.contains("adaptive_changes="));
+            assertTrue(output.contains("Confidence summary: scenarios_compared="));
+            assertTrue(output.contains("Prototype reminder: comparison output is for exploratory evaluation, not benchmark certification."));
+        }
+    }
+
+    @Test
+    void formatterConfidenceSummaryAppearsInJsonOutput() {
+        try (DashboardComparisonHarness harness = new DashboardComparisonHarness(new NoDelaySimulationSupport())) {
+            DashboardScenarioPack pack = PressureScenarios.defaultPack();
+            String json = DashboardBenchmarkFormatter.formatJson(pack, harness.run(pack.scenarios()));
+
+            assertTrue(json.contains("\"confidenceSummary\":{"));
+            assertTrue(json.contains("\"scenariosCompared\":"));
+            assertTrue(json.contains("\"adaptiveLowerProjectedWorkCount\":"));
         }
     }
 

@@ -97,10 +97,16 @@ public final class DashboardBenchmarkFormatter {
                 .append(System.lineSeparator());
             builder.append(System.lineSeparator());
         }
+
+        builder.append("Confidence summary: ")
+            .append(confidenceSummaryText(summaries))
+            .append(System.lineSeparator())
+            .append("Prototype reminder: comparison output is for exploratory evaluation, not benchmark certification.");
         return builder.toString().trim();
     }
 
     public static String formatJson(DashboardScenarioPack pack, List<DashboardBenchmarkSummary> summaries) {
+        ConfidenceSummary confidenceSummary = confidenceSummary(summaries);
         StringBuilder builder = new StringBuilder();
         builder.append("{")
             .append("\"tool\":\"budgetflow_dashboard_comparison\",")
@@ -110,6 +116,9 @@ public final class DashboardBenchmarkFormatter {
             .append("\"name\":\"").append(escape(pack.name())).append("\",")
             .append("\"description\":\"").append(escape(pack.description())).append("\"")
             .append("},")
+            .append("\"confidenceSummary\":")
+            .append(confidenceSummaryJson(confidenceSummary))
+            .append(",")
             .append("\"scenarios\":[");
 
         List<List<DashboardBenchmarkSummary>> grouped = List.copyOf(summariesByScenario(summaries).values());
@@ -301,6 +310,49 @@ public final class DashboardBenchmarkFormatter {
             .collect(Collectors.joining(",", "[", "]"));
     }
 
+    private static String confidenceSummaryText(List<DashboardBenchmarkSummary> summaries) {
+        ConfidenceSummary summary = confidenceSummary(summaries);
+        return "scenarios_compared="
+            + summary.scenariosCompared()
+            + ", adaptive_lower_projected_work="
+            + summary.adaptiveLowerProjectedWorkCount()
+            + "/"
+            + summary.scenariosCompared()
+            + ", adaptive_degraded="
+            + summary.adaptiveDegradedCount()
+            + "/"
+            + summary.scenariosCompared();
+    }
+
+    private static String confidenceSummaryJson(ConfidenceSummary summary) {
+        return "{"
+            + "\"scenariosCompared\":" + summary.scenariosCompared() + ","
+            + "\"adaptiveLowerProjectedWorkCount\":" + summary.adaptiveLowerProjectedWorkCount() + ","
+            + "\"adaptiveDegradedCount\":" + summary.adaptiveDegradedCount()
+            + "}";
+    }
+
+    private static ConfidenceSummary confidenceSummary(List<DashboardBenchmarkSummary> summaries) {
+        int scenariosCompared = 0;
+        int adaptiveLowerProjectedWorkCount = 0;
+        int adaptiveDegradedCount = 0;
+        for (List<DashboardBenchmarkSummary> scenarioSummaries : summariesByScenario(summaries).values()) {
+            DashboardBenchmarkSummary naive = summaryForStrategy(scenarioSummaries, "naive_parallel", "-");
+            DashboardBenchmarkSummary adaptive = summaryForStrategy(scenarioSummaries, "budgetflow_adaptive", "balanced");
+            if (naive == null || adaptive == null) {
+                continue;
+            }
+            scenariosCompared++;
+            if (adaptive.projectedWork().compareTo(naive.projectedWork()) < 0) {
+                adaptiveLowerProjectedWorkCount++;
+            }
+            if (adaptive.degraded()) {
+                adaptiveDegradedCount++;
+            }
+        }
+        return new ConfidenceSummary(scenariosCompared, adaptiveLowerProjectedWorkCount, adaptiveDegradedCount);
+    }
+
     private static String formatList(List<String> values) {
         return values.isEmpty() ? "-" : String.join(", ", values);
     }
@@ -315,5 +367,12 @@ public final class DashboardBenchmarkFormatter {
         return value
             .replace("\\", "\\\\")
             .replace("\"", "\\\"");
+    }
+
+    private record ConfidenceSummary(
+        int scenariosCompared,
+        int adaptiveLowerProjectedWorkCount,
+        int adaptiveDegradedCount
+    ) {
     }
 }

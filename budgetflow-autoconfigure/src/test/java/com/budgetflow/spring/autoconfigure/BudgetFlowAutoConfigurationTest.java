@@ -78,6 +78,27 @@ class BudgetFlowAutoConfigurationTest {
     }
 
     @Test
+    void runtimeSignalProviderCanUseStaticConfiguredSignalsWithoutAdapterBean() {
+        contextRunner
+            .withPropertyValues(
+                "budgetflow.runtime-signals.enabled=true",
+                "budgetflow.runtime-signals.include-default-provider=false",
+                "budgetflow.runtime-signals.executor-utilization=0.72",
+                "budgetflow.runtime-signals.db-pressure=0.64",
+                "budgetflow.runtime-signals.downstream-pressure=0.48"
+            )
+            .run(context -> {
+                SystemPressureProvider provider = context.getBean(SystemPressureProvider.class);
+                assertInstanceOf(RuntimeSignalPressureProvider.class, provider);
+
+                SystemPressureSnapshot snapshot = provider.currentPressure();
+                assertEquals(0.72, snapshot.executorUtilization());
+                assertEquals(0.64, snapshot.dbPressure());
+                assertEquals(0.48, snapshot.downstreamPressure());
+            });
+    }
+
+    @Test
     void lifecycleListenersAreWiredIntoAdaptiveExecutor() {
         contextRunner
             .withUserConfiguration(LifecycleListenerConfig.class)
