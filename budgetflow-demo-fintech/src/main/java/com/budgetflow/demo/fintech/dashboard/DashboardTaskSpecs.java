@@ -2,7 +2,6 @@ package com.budgetflow.demo.fintech.dashboard;
 
 import com.budgetflow.core.api.AdaptiveRequest;
 import com.budgetflow.core.api.TaskKey;
-import com.budgetflow.core.classification.ExecutionMode;
 
 import java.time.Duration;
 import java.util.List;
@@ -57,10 +56,13 @@ public final class DashboardTaskSpecs {
                 () -> transactionClient.getTransactions(accountId))
             .importantWithFallback(REWARDS_KEY, REWARDS_PRIMARY_LATENCY,
                 () -> rewardsClient.getRewards(accountId),
+                REWARDS_FALLBACK_LATENCY,
                 () -> rewardsClient.getCachedRewards(accountId))
             .optionalWithFallbackAndApproximate(OFFERS_KEY, OFFERS_PRIMARY_LATENCY,
                 () -> offersClient.getOffers(accountId),
+                OFFERS_FALLBACK_LATENCY,
                 () -> offersClient.getCachedOffers(accountId),
+                OFFERS_APPROXIMATE_LATENCY,
                 () -> offersClient.getApproximateOffers(accountId))
             .optional(INSIGHTS_KEY, INSIGHTS_PRIMARY_LATENCY,
                 () -> insightsClient.getInsights(accountId))
@@ -73,23 +75,5 @@ public final class DashboardTaskSpecs {
             .plus(REWARDS_PRIMARY_LATENCY)
             .plus(OFFERS_PRIMARY_LATENCY)
             .plus(INSIGHTS_PRIMARY_LATENCY);
-    }
-
-    public static Duration expectedLatency(String taskName, ExecutionMode executionMode) {
-        return switch (taskName) {
-            case BALANCE_TASK -> BALANCE_PRIMARY_LATENCY;
-            case TRANSACTIONS_TASK -> TRANSACTIONS_PRIMARY_LATENCY;
-            case REWARDS_TASK -> executionMode == ExecutionMode.EXECUTE_WITH_FALLBACK
-                ? REWARDS_FALLBACK_LATENCY
-                : executionMode == ExecutionMode.OMIT ? Duration.ZERO : REWARDS_PRIMARY_LATENCY;
-            case OFFERS_TASK -> switch (executionMode) {
-                case EXECUTE_WITH_FALLBACK -> OFFERS_FALLBACK_LATENCY;
-                case EXECUTE_APPROXIMATE -> OFFERS_APPROXIMATE_LATENCY;
-                case OMIT -> Duration.ZERO;
-                case EXECUTE -> OFFERS_PRIMARY_LATENCY;
-            };
-            case INSIGHTS_TASK -> executionMode == ExecutionMode.OMIT ? Duration.ZERO : INSIGHTS_PRIMARY_LATENCY;
-            default -> throw new IllegalArgumentException("Unknown dashboard task: " + taskName);
-        };
     }
 }

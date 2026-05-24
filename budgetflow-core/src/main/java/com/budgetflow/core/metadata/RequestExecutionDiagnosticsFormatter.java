@@ -11,7 +11,13 @@ public final class RequestExecutionDiagnosticsFormatter {
 
     public static String formatSummary(RequestExecutionDiagnostics diagnostics, List<DecisionTraceEntry> decisionTrace) {
         String traceSummary = decisionTrace.stream()
-            .map(entry -> entry.taskName() + "=" + entry.selectedExecutionMode() + "(" + entry.reason() + ")")
+            .map(entry -> entry.taskName()
+                + "=" + entry.selectedExecutionMode()
+                + "@"
+                + entry.plannedExecutionLatency().toMillis()
+                + "ms("
+                + entry.reason()
+                + ")")
             .collect(Collectors.joining(", "));
         return String.format(
             "budget[totalMs=%d,remainingMs=%d] degraded=%s omitted=%s fallback=%s approximated=%s trace=[%s]",

@@ -11,6 +11,7 @@ public record DecisionTraceEntry(
     ExecutionMode selectedExecutionMode,
     String reason,
     Duration expectedLatency,
+    Duration plannedExecutionLatency,
     Duration allocatedBudget,
     Duration remainingBudgetAtPlanningTime
 ) {

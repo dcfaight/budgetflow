@@ -136,8 +136,8 @@ public final class DashboardComparisonHarness implements AutoCloseable {
                 scenario::pressureSnapshot
             ).executeRequest(taskSpecs()).toCompletableFuture().join();
 
-            Duration projectedWork = result.taskResults().entrySet().stream()
-                .map(entry -> DashboardTaskSpecs.expectedLatency(entry.getKey(), entry.getValue().executionMode()))
+            Duration projectedWork = result.decisionTrace().stream()
+                .map(com.budgetflow.core.policy.DecisionTraceEntry::plannedExecutionLatency)
                 .reduce(Duration.ZERO, Duration::plus);
 
             List<String> degradationReasons = result.decisionTrace().stream()

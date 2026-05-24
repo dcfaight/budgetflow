@@ -94,6 +94,7 @@ A task spec includes:
 - task name
 - importance
 - expected latency
+- optional fallback/approximate latency hints for degraded paths
 - primary supplier
 - optional fallback supplier
 - optional approximate supplier
@@ -170,6 +171,8 @@ For optional work, the planner uses a deterministic degradation ladder under str
 - omit primarily under severe budget/pressure or extreme latency-ratio conditions
 
 The latest planner pass keeps this ladder deterministic while adding dynamic latency-ratio thresholds based on pressure/budget bands, so moderate pressure no longer forces blanket degradation for very low-latency discretionary tasks.
+
+When a task supplies explicit fallback/approximate latency hints, the planner now also carries those reduced costs forward into rolling request-budget allocation and decision trace.
 
 That keeps degradation decisions explainable without introducing opaque heuristics.
 
@@ -255,6 +258,7 @@ Each `DecisionTraceEntry` includes:
 - selected execution mode
 - reason
 - expected latency
+- planned execution latency for the selected path
 - allocated budget
 - remaining budget at planning time
 

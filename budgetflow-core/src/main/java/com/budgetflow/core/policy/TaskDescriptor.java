@@ -9,6 +9,8 @@ public record TaskDescriptor(
     Importance importance,
     Duration expectedLatency,
     boolean fallbackSupported,
-    boolean approximateSupported
+    boolean approximateSupported,
+    Duration fallbackExpectedLatency,
+    Duration approximateExpectedLatency
 ) {
 }

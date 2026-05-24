@@ -20,7 +20,7 @@ class DefaultBudgetPolicyEngineTest {
 
         PolicyDecision decision = engine.evaluate(new PolicyEvaluationInput(
             Duration.ofMillis(100),
-            List.of(new TaskDescriptor("insights", Importance.OPTIONAL, Duration.ofMillis(140), false, false)),
+            List.of(descriptor("insights", Importance.OPTIONAL, 140)),
             new SystemPressureSnapshot(0.1, 0.1, 0.1)
         ));
 
@@ -34,7 +34,7 @@ class DefaultBudgetPolicyEngineTest {
 
         PolicyDecision decision = engine.evaluate(new PolicyEvaluationInput(
             Duration.ofMillis(200),
-            List.of(new TaskDescriptor("offers", Importance.OPTIONAL, Duration.ofMillis(100), false, true)),
+            List.of(descriptorWithApproximate("offers", Importance.OPTIONAL, 100, 20)),
             new SystemPressureSnapshot(0.86, 0.20, 0.20)
         ));
 
@@ -49,7 +49,7 @@ class DefaultBudgetPolicyEngineTest {
 
         PolicyDecision decision = engine.evaluate(new PolicyEvaluationInput(
             Duration.ofMillis(1000),
-            List.of(new TaskDescriptor("offers", Importance.OPTIONAL, Duration.ofMillis(80), false, true)),
+            List.of(descriptorWithApproximate("offers", Importance.OPTIONAL, 80, 20)),
             new SystemPressureSnapshot(0.62, 0.20, 0.20)
         ));
 
@@ -64,7 +64,7 @@ class DefaultBudgetPolicyEngineTest {
 
         PolicyDecision decision = engine.evaluate(new PolicyEvaluationInput(
             Duration.ofMillis(200),
-            List.of(new TaskDescriptor("insights", Importance.OPTIONAL, Duration.ofMillis(100), false, false)),
+            List.of(descriptor("insights", Importance.OPTIONAL, 100)),
             new SystemPressureSnapshot(0.86, 0.20, 0.20)
         ));
 
@@ -78,7 +78,7 @@ class DefaultBudgetPolicyEngineTest {
 
         PolicyDecision decision = engine.evaluate(new PolicyEvaluationInput(
             Duration.ofSeconds(2),
-            List.of(new TaskDescriptor("offers", Importance.OPTIONAL, Duration.ofMillis(50), false, true)),
+            List.of(descriptorWithApproximate("offers", Importance.OPTIONAL, 50, 15)),
             new SystemPressureSnapshot(0.1, 0.1, 0.1)
         ));
 
@@ -91,7 +91,7 @@ class DefaultBudgetPolicyEngineTest {
 
         PolicyDecision decision = engine.evaluate(new PolicyEvaluationInput(
             Duration.ofMillis(1000),
-            List.of(new TaskDescriptor("rewards", Importance.IMPORTANT, Duration.ofMillis(120), true, false)),
+            List.of(descriptorWithFallback("rewards", Importance.IMPORTANT, 120, 30)),
             new SystemPressureSnapshot(0.15, 0.10, 0.10)
         ));
 
@@ -106,9 +106,9 @@ class DefaultBudgetPolicyEngineTest {
         PolicyDecision decision = engine.evaluate(new PolicyEvaluationInput(
             Duration.ofMillis(100),
             List.of(
-                new TaskDescriptor("balance", Importance.MANDATORY, Duration.ofMillis(40), false, false),
-                new TaskDescriptor("transactions", Importance.MANDATORY, Duration.ofMillis(60), false, false),
-                new TaskDescriptor("insights", Importance.OPTIONAL, Duration.ofMillis(140), false, false)
+                descriptor("balance", Importance.MANDATORY, 40),
+                descriptor("transactions", Importance.MANDATORY, 60),
+                descriptor("insights", Importance.OPTIONAL, 140)
             ),
             new SystemPressureSnapshot(0.2, 0.2, 0.2)
         ));
@@ -127,8 +127,8 @@ class DefaultBudgetPolicyEngineTest {
         PolicyDecision decision = engine.evaluate(new PolicyEvaluationInput(
             Duration.ofMillis(80),
             List.of(
-                new TaskDescriptor("optional-first", Importance.OPTIONAL, Duration.ofMillis(100), false, false),
-                new TaskDescriptor("mandatory-core", Importance.MANDATORY, Duration.ofMillis(80), false, false)
+                descriptor("optional-first", Importance.OPTIONAL, 100),
+                descriptor("mandatory-core", Importance.MANDATORY, 80)
             ),
             new SystemPressureSnapshot(0.1, 0.1, 0.1)
         ));
@@ -147,12 +147,12 @@ class DefaultBudgetPolicyEngineTest {
         PolicyDecision decision = engine.evaluate(new PolicyEvaluationInput(
             Duration.ofMillis(400),
             List.of(
-                new TaskDescriptor("optional-a", Importance.OPTIONAL, Duration.ofMillis(60), false, true),
-                new TaskDescriptor("mandatory-a", Importance.MANDATORY, Duration.ofMillis(70), false, false),
-                new TaskDescriptor("important-a", Importance.IMPORTANT, Duration.ofMillis(70), true, false),
-                new TaskDescriptor("optional-b", Importance.OPTIONAL, Duration.ofMillis(60), false, true),
-                new TaskDescriptor("mandatory-b", Importance.MANDATORY, Duration.ofMillis(70), false, false),
-                new TaskDescriptor("important-b", Importance.IMPORTANT, Duration.ofMillis(70), true, false)
+                descriptorWithApproximate("optional-a", Importance.OPTIONAL, 60, 20),
+                descriptor("mandatory-a", Importance.MANDATORY, 70),
+                descriptorWithFallback("important-a", Importance.IMPORTANT, 70, 25),
+                descriptorWithApproximate("optional-b", Importance.OPTIONAL, 60, 20),
+                descriptor("mandatory-b", Importance.MANDATORY, 70),
+                descriptorWithFallback("important-b", Importance.IMPORTANT, 70, 25)
             ),
             new SystemPressureSnapshot(0.1, 0.1, 0.1)
         ));
@@ -169,7 +169,7 @@ class DefaultBudgetPolicyEngineTest {
 
         PolicyDecision decision = engine.evaluate(new PolicyEvaluationInput(
             Duration.ofMillis(300),
-            List.of(new TaskDescriptor("offers", Importance.OPTIONAL, Duration.ofMillis(160), true, true)),
+            List.of(descriptorWithFallbackAndApproximate("offers", Importance.OPTIONAL, 160, 20, 12)),
             new SystemPressureSnapshot(0.30, 0.22, 0.84)
         ));
 
@@ -178,5 +178,57 @@ class DefaultBudgetPolicyEngineTest {
         assertTrue(reason.contains("pressure=moderate:downstream"));
         assertTrue(reason.contains("budget=available"));
         assertFalse(reason.isBlank());
+    }
+
+    @Test
+    void optionalApproximateLatencyHintPreservesBudgetForLaterTasks() {
+        DefaultBudgetPolicyEngine engine = new DefaultBudgetPolicyEngine();
+
+        PolicyDecision decision = engine.evaluate(new PolicyEvaluationInput(
+            Duration.ofMillis(150),
+            List.of(
+                descriptorWithApproximate("offers", Importance.OPTIONAL, 110, 8),
+                descriptor("insights", Importance.OPTIONAL, 70)
+            ),
+            new SystemPressureSnapshot(0.1, 0.1, 0.1)
+        ));
+
+        assertEquals(ExecutionMode.EXECUTE_APPROXIMATE, decision.directives().get(0).executionMode());
+        assertEquals(Duration.ofMillis(8), decision.decisionTrace().get(0).plannedExecutionLatency());
+        assertEquals(ExecutionMode.EXECUTE, decision.directives().get(1).executionMode());
+    }
+
+    private TaskDescriptor descriptor(String taskName, Importance importance, long expectedLatencyMs) {
+        Duration latency = Duration.ofMillis(expectedLatencyMs);
+        return new TaskDescriptor(taskName, importance, latency, false, false, latency, latency);
+    }
+
+    private TaskDescriptor descriptorWithFallback(String taskName, Importance importance, long expectedLatencyMs, long fallbackLatencyMs) {
+        Duration latency = Duration.ofMillis(expectedLatencyMs);
+        return new TaskDescriptor(taskName, importance, latency, true, false, Duration.ofMillis(fallbackLatencyMs), latency);
+    }
+
+    private TaskDescriptor descriptorWithApproximate(String taskName, Importance importance, long expectedLatencyMs, long approximateLatencyMs) {
+        Duration latency = Duration.ofMillis(expectedLatencyMs);
+        return new TaskDescriptor(taskName, importance, latency, false, true, latency, Duration.ofMillis(approximateLatencyMs));
+    }
+
+    private TaskDescriptor descriptorWithFallbackAndApproximate(
+        String taskName,
+        Importance importance,
+        long expectedLatencyMs,
+        long fallbackLatencyMs,
+        long approximateLatencyMs
+    ) {
+        Duration latency = Duration.ofMillis(expectedLatencyMs);
+        return new TaskDescriptor(
+            taskName,
+            importance,
+            latency,
+            true,
+            true,
+            Duration.ofMillis(fallbackLatencyMs),
+            Duration.ofMillis(approximateLatencyMs)
+        );
     }
 }

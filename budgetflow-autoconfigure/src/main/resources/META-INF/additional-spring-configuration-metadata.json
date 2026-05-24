@@ -1,0 +1,28 @@
+{
+  "properties": [
+    {
+      "name": "budgetflow.enabled",
+      "type": "java.lang.Boolean",
+      "defaultValue": true,
+      "description": "Enable BudgetFlow auto-configuration, including the latency budget aspect."
+    },
+    {
+      "name": "budgetflow.default-budget",
+      "type": "java.time.Duration",
+      "defaultValue": "250ms",
+      "description": "Default request budget used by the latency budget aspect when an explicit annotation value is not provided."
+    },
+    {
+      "name": "budgetflow.runtime-signals.enabled",
+      "type": "java.lang.Boolean",
+      "defaultValue": false,
+      "description": "Enable RuntimePressureSignals integration for supplying live executor, database, and downstream pressure."
+    },
+    {
+      "name": "budgetflow.runtime-signals.include-default-provider",
+      "type": "java.lang.Boolean",
+      "defaultValue": true,
+      "description": "Compose live runtime signals with the default budget-derived pressure provider instead of replacing it."
+    }
+  ]
+}

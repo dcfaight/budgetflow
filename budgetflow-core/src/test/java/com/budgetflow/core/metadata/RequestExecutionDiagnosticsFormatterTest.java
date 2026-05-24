@@ -29,6 +29,7 @@ class RequestExecutionDiagnosticsFormatterTest {
                 ExecutionMode.EXECUTE_WITH_FALLBACK,
                 "fallback_selected_by_policy[pressure=high:downstream,budget=tight]",
                 Duration.ofMillis(90),
+                Duration.ofMillis(10),
                 Duration.ofMillis(60),
                 Duration.ofMillis(210)
             ),
@@ -38,6 +39,7 @@ class RequestExecutionDiagnosticsFormatterTest {
                 ExecutionMode.EXECUTE_APPROXIMATE,
                 "approximate_selected_by_policy[pressure=high:downstream,budget=tight]",
                 Duration.ofMillis(110),
+                Duration.ofMillis(8),
                 Duration.ofMillis(40),
                 Duration.ofMillis(150)
             ),
@@ -48,6 +50,7 @@ class RequestExecutionDiagnosticsFormatterTest {
                 "omitted_by_policy[pressure=high:downstream,budget=tight]",
                 Duration.ofMillis(140),
                 Duration.ZERO,
+                Duration.ZERO,
                 Duration.ofMillis(60)
             )
         );
@@ -55,9 +58,9 @@ class RequestExecutionDiagnosticsFormatterTest {
         String formatted = RequestExecutionDiagnosticsFormatter.formatSummary(diagnostics, trace);
         assertEquals(
             "budget[totalMs=430,remainingMs=60] degraded=true omitted=[insights] fallback=[rewards] approximated=[offers] "
-                + "trace=[rewards=EXECUTE_WITH_FALLBACK(fallback_selected_by_policy[pressure=high:downstream,budget=tight]), "
-                + "offers=EXECUTE_APPROXIMATE(approximate_selected_by_policy[pressure=high:downstream,budget=tight]), "
-                + "insights=OMIT(omitted_by_policy[pressure=high:downstream,budget=tight])]",
+                + "trace=[rewards=EXECUTE_WITH_FALLBACK@10ms(fallback_selected_by_policy[pressure=high:downstream,budget=tight]), "
+                + "offers=EXECUTE_APPROXIMATE@8ms(approximate_selected_by_policy[pressure=high:downstream,budget=tight]), "
+                + "insights=OMIT@0ms(omitted_by_policy[pressure=high:downstream,budget=tight])]",
             formatted
         );
     }
