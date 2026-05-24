@@ -234,6 +234,19 @@ These hooks are intentionally lightweight and optional:
 - no mandatory telemetry platform setup
 - core planner semantics remain unchanged
 
+For Spring Boot starter usage, enable runtime-signal adapter composition with:
+
+```yaml
+budgetflow:
+  runtime-signals:
+    enabled: true
+    include-default-provider: true
+```
+
+Then provide one `RuntimePressureSignals` bean to bridge your app/runtime metrics into BudgetFlow.
+
+When `ExecutionLifecycleListener` beans are present, starter auto-configuration now wires them into the default `AdaptiveExecutor`.
+
 ### Typical wiring pattern
 
 ```mermaid

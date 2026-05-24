@@ -169,6 +169,8 @@ For optional work, the planner uses a deterministic degradation ladder under str
 - otherwise prefer fallback when supported
 - omit primarily under severe budget/pressure or extreme latency-ratio conditions
 
+The latest planner pass keeps this ladder deterministic while adding dynamic latency-ratio thresholds based on pressure/budget bands, so moderate pressure no longer forces blanket degradation for very low-latency discretionary tasks.
+
 That keeps degradation decisions explainable without introducing opaque heuristics.
 
 ---
@@ -286,6 +288,8 @@ BudgetFlow’s Spring integration currently includes:
 - request budget aspect
 - auto-configuration
 - starter dependency
+- optional `RuntimePressureSignals` adapter bean support
+- auto-wiring of optional `ExecutionLifecycleListener` beans into the default executor
 
 This allows applications to establish a request budget declaratively and use the adaptive executor inside normal Spring services.
 

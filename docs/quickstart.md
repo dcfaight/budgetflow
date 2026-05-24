@@ -60,6 +60,30 @@ What you get back:
 - degradation summary (`RequestExecutionDiagnostics`)
 - per-task planning reasons and modes (`DecisionTraceEntry`)
 
+## 5) Optional: wire runtime pressure + lifecycle hooks
+
+BudgetFlow stays usable without extra wiring, but starter integration now supports a lightweight runtime adapter flow:
+
+```yaml
+budgetflow:
+  runtime-signals:
+    enabled: true
+    include-default-provider: true
+```
+
+```java
+@Bean
+RuntimePressureSignals runtimePressureSignals() {
+    return new RuntimePressureSignals() {
+        @Override public double executorUtilization() { return 0.55; }
+        @Override public double dbPressure()          { return 0.40; }
+        @Override public double downstreamPressure()  { return 0.65; }
+    };
+}
+```
+
+If present, `ExecutionLifecycleListener` beans are auto-wired into `AdaptiveExecutor`.
+
 ## Fastest way to see it running
 
 From the repository root:
