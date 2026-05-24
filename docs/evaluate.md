@@ -34,12 +34,17 @@ http://localhost:8080/dashboard/evaluator
 ```
 
 Use it to browse scenarios, switch profiles, inspect request-level outcomes, and review planner trace reasoning in a visual prototype surface.
+The page now provides a first-time evaluator “Start here” section, guided pack progression, and conservative interpretation callouts.
 
 Observe:
+- guided progression and profile-chooser recommendations (`default` then `adoption`/`realism`, `balanced` first)
 - `diagnostics.degraded`
 - omitted/fallback/approximated task lists
+- budget-fit bars (planned work vs request budget, remaining headroom)
 - decision trace reasons and `plannedExecutionLatency`
+- decision-path summary chips for quick path reading before table inspection
 - decision layer + fit/savings markers in reasons (`layer=...`, `fit=...`, `savings=...`)
+- profile comparison deltas vs balanced (`Δwork`, `Δexec`, `Δdegrade`) as directional evidence
 - `executionSummary` for a compact human-readable interpretation of the response
 
 If this path is not clear yet, stop here and review `docs/quickstart.md` before moving into harness output.
