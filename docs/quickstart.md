@@ -2,6 +2,12 @@
 
 BudgetFlow is an early prototype; this quickstart is optimized for trying the core flow quickly, not production hardening.
 
+If you want the repository’s preferred guided local tour instead of just the API path, run:
+
+```bash
+./gradlew :budgetflow-demo-fintech:runDashboardWalkthrough
+```
+
 ## 1) Add the dependency
 
 In this repository’s multi-module setup, depend on the starter module:
@@ -125,6 +131,7 @@ budgetflow:
 From the repository root:
 
 ```bash
+./gradlew :budgetflow-demo-fintech:runDashboardWalkthrough
 ./gradlew :budgetflow-demo-fintech:bootRun
 curl http://localhost:8080/api/accounts/acc-123/dashboard
 ```

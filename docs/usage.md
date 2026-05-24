@@ -251,6 +251,13 @@ These hooks are intentionally lightweight and optional:
 - no mandatory telemetry platform setup
 - default planner semantics remain unchanged unless you explicitly choose a different profile or provide a custom selector
 
+Extension responsibility split:
+- the core planner derives request-budget fit, latency-ratio, and pressure signals first
+- `OptionalTaskModeSelector` decides optional-task policy from that context
+- orchestration, diagnostics, and decision-trace formatting stay centralized in the default planner
+
+That split keeps customization targeted while preserving explainability.
+
 Built-in profiles:
 - `balanced` / `default` (recommended default): middle-ground behavior for most teams
 - `continuity`: favors degraded optional execution paths before omission

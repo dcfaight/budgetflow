@@ -247,8 +247,10 @@ The policy engine returns `PolicyDecision`, which contains:
   - `balanced` / `default` (recommended default)
   - `continuity` (degraded-path-first)
   - `efficiency` (earlier optional omission under stress)
-- `OptionalTaskModeSelector` chooses optional-task execution mode (`EXECUTE`, `EXECUTE_WITH_FALLBACK`, `EXECUTE_APPROXIMATE`, `OMIT`)
+- planner signal analysis computes cost, budget-fit, and mixed-constraint inputs before optional policy selection
+- `OptionalTaskModeSelector` chooses optional-task execution mode (`EXECUTE`, `EXECUTE_WITH_FALLBACK`, `EXECUTE_APPROXIMATE`, `OMIT`) from that precomputed context
 - `DefaultOptionalTaskModeSelector` preserves the current default ladder and stress behavior
+- reason formatting stays centralized so diagnostics and decision trace remain coherent even when selector behavior changes
 
 This keeps extension localized to policy variation without introducing a heavyweight plugin system.
 

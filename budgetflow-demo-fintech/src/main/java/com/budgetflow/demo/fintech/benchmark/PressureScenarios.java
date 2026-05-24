@@ -150,6 +150,8 @@ public final class PressureScenarios {
         return new DashboardScenarioPack(
             "default",
             "Core scenarios for first-time comparison runs.",
+            "first-time repo evaluation and baseline adaptive-vs-naive comparison",
+            "./gradlew :budgetflow-demo-fintech:runDashboardComparison --args=\"--pack=default\"",
             List.of(
                 generousBudgetLowPressure(),
                 constrainedBudgetLowPressure(),
@@ -162,6 +164,8 @@ public final class PressureScenarios {
         return new DashboardScenarioPack(
             "extended",
             "Broader demo scenarios covering budget-only, DB-bound, and downstream-spike pressure conditions.",
+            "broader scenario exploration after the default pack",
+            "./gradlew :budgetflow-demo-fintech:runDashboardComparison --args=\"--pack=extended\"",
             List.of(
                 generousBudgetLowPressure(),
                 constrainedBudgetLowPressure(),
@@ -177,6 +181,8 @@ public final class PressureScenarios {
         return new DashboardScenarioPack(
             "realism",
             "Scenario pack emphasizing more varied pressure narratives while remaining deterministic and explainable.",
+            "recognizable real-world pressure patterns and JSON-friendly sharing",
+            "./gradlew :budgetflow-demo-fintech:runDashboardComparison --args=\"--pack=realism --json\"",
             List.of(
                 constrainedBudgetLowPressure(),
                 tightBudgetModerateDbPressure(),
@@ -190,6 +196,8 @@ public final class PressureScenarios {
         return new DashboardScenarioPack(
             "policy",
             "Profile-comparison scenarios that highlight planner-policy trade-offs under the same workload.",
+            "choosing between balanced, continuity, and efficiency planner profiles",
+            "./gradlew :budgetflow-demo-fintech:runDashboardComparison --args=\"--pack=policy --policies=balanced,continuity,efficiency\"",
             List.of(
                 constrainedBudgetLowPressure(),
                 constrainedBudgetElevatedPressure(),

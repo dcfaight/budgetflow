@@ -11,13 +11,24 @@ public final class DashboardBenchmarkFormatter {
     }
 
     public static String format(List<DashboardBenchmarkSummary> summaries) {
-        return format(new DashboardScenarioPack("custom", "Ad hoc scenario selection.", List.of()), summaries);
+        return format(
+            new DashboardScenarioPack(
+                "custom",
+                "Ad hoc scenario selection.",
+                "targeted local exploration with your own scenario subset",
+                "./gradlew :budgetflow-demo-fintech:runDashboardComparison",
+                List.of()
+            ),
+            summaries
+        );
     }
 
     public static String format(DashboardScenarioPack pack, List<DashboardBenchmarkSummary> summaries) {
         StringBuilder builder = new StringBuilder();
         builder.append("BudgetFlow dashboard comparison").append(System.lineSeparator());
         builder.append("Pack: ").append(pack.name()).append(" — ").append(pack.description()).append(System.lineSeparator());
+        builder.append("Best for: ").append(pack.bestFor()).append(System.lineSeparator());
+        builder.append("Suggested run: ").append(pack.suggestedCommand()).append(System.lineSeparator());
         builder.append("Prototype comparison output only; not a rigorous benchmark suite.")
             .append(System.lineSeparator())
             .append(System.lineSeparator());
@@ -118,7 +129,9 @@ public final class DashboardBenchmarkFormatter {
             .append("\"benchmark\":false,")
             .append("\"scenarioPack\":{")
             .append("\"name\":\"").append(escape(pack.name())).append("\",")
-            .append("\"description\":\"").append(escape(pack.description())).append("\"")
+            .append("\"description\":\"").append(escape(pack.description())).append("\",")
+            .append("\"bestFor\":\"").append(escape(pack.bestFor())).append("\",")
+            .append("\"suggestedCommand\":\"").append(escape(pack.suggestedCommand())).append("\"")
             .append("},")
             .append("\"confidenceSummary\":")
             .append(confidenceSummaryJson(confidenceSummary))

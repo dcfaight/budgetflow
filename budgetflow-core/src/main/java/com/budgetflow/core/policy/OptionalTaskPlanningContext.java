@@ -4,6 +4,13 @@ import com.budgetflow.core.classification.ExecutionMode;
 
 import java.time.Duration;
 
+/**
+ * Request-scoped planning signals passed to {@link OptionalTaskModeSelector}.
+ * <p>
+ * The planner computes this context before selector invocation so selectors can
+ * focus on policy choice rather than recomputing cost, budget-fit, or pressure
+ * analysis.
+ */
 public record OptionalTaskPlanningContext(
     SystemPressureSnapshot pressureSnapshot,
     Duration remainingBudget,
