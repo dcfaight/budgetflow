@@ -28,7 +28,7 @@ public final class DashboardWalkthrough {
                Observe: continuity keeps more response coverage, efficiency protects more headroom, balanced stays conservative.
 
             4) Export a shareable JSON report
-               %s --out=/tmp/budgetflow-realism.json
+               ./gradlew :budgetflow-demo-fintech:runDashboardComparison --args="--pack=realism --json --out=/tmp/budgetflow-realism.json"
                Why: %s.
                Observe: scenario narratives, real-world pattern mapping, and confidenceSummary before drawing conclusions.
 
@@ -43,7 +43,6 @@ public final class DashboardWalkthrough {
             defaultPack.bestFor(),
             policyPack.suggestedCommand(),
             policyPack.bestFor(),
-            realismPack.suggestedCommand().replace(" --json", " --json"),
             realismPack.bestFor()
         ));
     }
