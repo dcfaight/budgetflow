@@ -55,6 +55,14 @@ class PressureScenariosTest {
         assertEquals(0.84, p.downstreamPressure());
     }
 
+    @Test
+    void commuterSpikePressureConstantIsElevatedAcrossAllSignals() {
+        SystemPressureSnapshot p = PressureScenarios.COMMUTER_SPIKE_PRESSURE;
+        assertEquals(0.68, p.executorUtilization());
+        assertEquals(0.74, p.dbPressure());
+        assertEquals(0.70, p.downstreamPressure());
+    }
+
     // -----------------------------------------------------------------------
     // Scenario factory methods — name, budget, pressure
     // -----------------------------------------------------------------------
@@ -150,6 +158,16 @@ class PressureScenariosTest {
         assertEquals(PressureScenarios.ELEVATED_PRESSURE, scenario.pressureSnapshot());
     }
 
+    @Test
+    void commuterSpikeMixedPressureScenarioIsConsistent() {
+        DashboardBenchmarkScenario scenario = PressureScenarios.commuterSpikeMixedPressure();
+        assertEquals("adoption", scenario.packName());
+        assertEquals("commuter_spike_mixed_pressure", scenario.name());
+        assertEquals(Duration.ofMillis(360), scenario.requestBudget());
+        assertEquals("mixed_spike", scenario.pressureProfile());
+        assertEquals(PressureScenarios.COMMUTER_SPIKE_PRESSURE, scenario.pressureSnapshot());
+    }
+
     // -----------------------------------------------------------------------
     // Scenario factories are deterministic
     // -----------------------------------------------------------------------
@@ -172,6 +190,8 @@ class PressureScenariosTest {
             PressureScenarios.moderateBudgetDownstreamSpike());
         assertEquals(PressureScenarios.moderateBudgetElevatedPressure(),
             PressureScenarios.moderateBudgetElevatedPressure());
+        assertEquals(PressureScenarios.commuterSpikeMixedPressure(),
+            PressureScenarios.commuterSpikeMixedPressure());
     }
 
     // -----------------------------------------------------------------------
@@ -208,7 +228,9 @@ class PressureScenariosTest {
         DashboardScenarioPack extended = PressureScenarios.extendedPack();
         DashboardScenarioPack realism = PressureScenarios.realismPack();
         DashboardScenarioPack policy = PressureScenarios.policyPack();
+        DashboardScenarioPack adoption = PressureScenarios.adoptionPack();
         DashboardScenarioPack policyFromLookup = PressureScenarios.packNamed("policy");
+        DashboardScenarioPack adoptionFromLookup = PressureScenarios.packNamed("adoption");
 
         assertEquals("extended", extended.name());
         assertEquals(7, extended.scenarios().size());
@@ -216,6 +238,9 @@ class PressureScenariosTest {
         assertEquals(5, realism.scenarios().size());
         assertEquals("policy", policy.name());
         assertEquals(4, policy.scenarios().size());
+        assertEquals("adoption", adoption.name());
+        assertEquals(3, adoption.scenarios().size());
         assertEquals(policy, policyFromLookup);
+        assertEquals(adoption, adoptionFromLookup);
     }
 }

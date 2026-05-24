@@ -1,20 +1,32 @@
-# BudgetFlow concept
+# BudgetFlow concept (prototype)
 
-BudgetFlow is a Spring Boot-oriented framework for latency-budget-aware adaptive execution.
+BudgetFlow is a Spring Boot-oriented prototype for latency-budget-aware adaptive execution.
 
 ## Core claim
 
-A request-level latency budget can drive execution decisions so mandatory work always completes first while important and optional work degrade gracefully under pressure.
+A request-level latency budget can drive deterministic planning decisions so:
+- mandatory work is preserved first,
+- important/optional work degrades explicitly when needed,
+- and every change stays explainable through diagnostics + decision trace.
 
-## v1 scope
+## Current scope
 
-- Multi-module Gradle Kotlin DSL scaffold.
-- Core contracts and policy model for adaptive execution decisions.
-- Spring Boot auto-configuration with method-level `@LatencyBudget`.
-- Fintech dashboard demo skeleton with async fan-out and degraded response metadata.
+- request-scoped grouped planning (`AdaptiveRequest`/`AdaptiveRequestResult`)
+- deterministic optional-task policy profiles (`balanced`, `continuity`, `efficiency`)
+- mixed-constraint planning with path-aware latency hints (fallback/approximate)
+- runtime pressure integration hooks (`RuntimeSignalPressureProvider`, `ExecutionLifecycleListener`)
+- transparent reason semantics (`mixed`, `degrade_pref`, `fit`, `savings`, `latency_ratio`)
+- realistic but compact fintech sample app + scenario comparison packs
 
-## Next steps
+## Prototype boundaries
 
-- Integrate policy engine directives into runtime orchestration.
-- Enforce omission/fallback directives directly in executor behavior.
-- Add observability and benchmarking to compare naive versus adaptive modes.
+- not production hardened
+- not benchmark-certified
+- not a heavyweight optimization or plugin platform
+
+## Evaluation-first path
+
+1. `./gradlew :budgetflow-demo-fintech:runDashboardWalkthrough`
+2. `./gradlew :budgetflow-demo-fintech:runDashboardComparison --args="--pack=default"`
+3. `./gradlew :budgetflow-demo-fintech:runDashboardComparison --args="--pack=adoption"`
+4. `./gradlew :budgetflow-demo-fintech:runDashboardComparison --args="--pack=policy --policies=balanced,continuity,efficiency"`

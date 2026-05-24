@@ -4,6 +4,8 @@ import com.budgetflow.core.classification.ExecutionMode;
 
 public final class DefaultOptionalTaskModeSelector implements OptionalTaskModeSelector {
     private static final double OPTIONAL_EXTREME_OMIT_LATENCY_RATIO = 0.90;
+    private static final double MARGINAL_SAVINGS_RATIO_THRESHOLD = 0.15;
+    private static final long MARGINAL_SAVINGS_MILLIS_THRESHOLD = 20L;
 
     @Override
     public ExecutionMode chooseMode(TaskDescriptor task, OptionalTaskPlanningContext context) {
@@ -40,6 +42,16 @@ public final class DefaultOptionalTaskModeSelector implements OptionalTaskModeSe
         }
 
         if (degradeUnderStress) {
+            boolean mildStress = !context.highPressure()
+                && !context.multiSignalStress()
+                && !context.lowBudget()
+                && !context.veryLowBudget();
+            boolean marginalDegradedSavings = context.degradedPathAvailable()
+                && context.degradedSavingsRatio() < MARGINAL_SAVINGS_RATIO_THRESHOLD
+                && context.degradedSavingsMillis() < MARGINAL_SAVINGS_MILLIS_THRESHOLD;
+            if (mildStress && context.primaryFitsBudget() && marginalDegradedSavings) {
+                return ExecutionMode.EXECUTE;
+            }
             if (!context.degradedPathAvailable()
                 && (context.highPressure()
                 || context.multiSignalStress()

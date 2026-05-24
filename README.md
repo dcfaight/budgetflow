@@ -25,6 +25,7 @@ If you are exploring the repository for the first time, use this sequence:
 
 - **Request-scoped planning:** related work is planned together instead of timing out independently.
 - **Explainable degradation:** decision trace shows *why* work executed, fell back, approximated, or was omitted.
+- **Transparent planner semantics:** reason strings now surface budget-fit (`fit=...`) and degraded-path savings band (`savings=...`) to make policy/scoring interplay easier to review.
 - **Tryable Spring Boot story:** starter wiring, demo app, and comparison harness make the behavior easy to inspect locally.
 
 ## Quickstart first (5 minutes)
@@ -432,12 +433,14 @@ For the preferred first-time evaluator flow, start with:
 ```bash
 ./gradlew :budgetflow-demo-fintech:runDashboardWalkthrough
 ./gradlew :budgetflow-demo-fintech:runDashboardComparison --args="--pack=default"
+./gradlew :budgetflow-demo-fintech:runDashboardComparison --args="--pack=adoption"
 ```
 
 Optional harness arguments keep the tool lightweight while making demo output easier to compare:
 
 ```bash
 ./gradlew :budgetflow-demo-fintech:runDashboardComparison --args="--pack=extended"
+./gradlew :budgetflow-demo-fintech:runDashboardComparison --args="--pack=adoption"
 ./gradlew :budgetflow-demo-fintech:runDashboardComparison --args="--pack=realism --json"
 ./gradlew :budgetflow-demo-fintech:runDashboardComparison --args="--pack=policy --policies=balanced,continuity,efficiency"
 ./gradlew :budgetflow-demo-fintech:runDashboardComparison --args="--pack=default --json --out=/tmp/budgetflow-report.json"
@@ -448,6 +451,7 @@ Optional harness arguments keep the tool lightweight while making demo output ea
 Available scenario packs:
 - `default` — the three core scenarios used in the basic comparison walkthrough; best for first-time repo evaluation
 - `extended` — adds tight-budget/path-aware, generous-budget/elevated-pressure, DB-bound, and downstream-spike scenarios; best for broader local exploration
+- `adoption` — compact, reusable end-to-end evaluator storyline (control -> commuter mixed spike -> DB-bound bottleneck); best for realistic first-pass adoption confidence checks
 - `realism` — emphasizes richer pressure narratives while staying deterministic and explainable, including a clean budget-only path-aware scenario; best for recognizable scenario sharing and JSON export
 - `policy` — profile-comparison scenarios that make planner policy differences easier to inspect; best for deliberate planner-profile selection
 
@@ -468,6 +472,7 @@ Available adaptive policy profiles:
 | `tight_budget_moderate_db_pressure` | extended, realism, policy | Dominant DB pressure path: demonstrates policy behavior when one pressure dimension (DB) is the main bottleneck. |
 | `moderate_budget_downstream_spike` | extended, realism | Downstream dependency instability: shows degradation decisions when downstream pressure dominates. |
 | `moderate_budget_elevated_pressure` | policy | Policy-profile comparison focus: same pressure + budget setup used to contrast balanced, continuity, and efficiency behavior. |
+| `commuter_spike_mixed_pressure` | adoption | Recognizable multi-signal traffic burst: validates deterministic mixed-constraint behavior where degraded paths should be preferred before omission when they still fit budget. |
 
 The optional JSON mode is intentionally simple and stable enough for demo automation or snapshot-style tests; it is not intended as a full benchmarking/reporting platform.
 
@@ -478,6 +483,7 @@ Recent formatter output also includes a small confidence summary at the end of t
 Use harness output as scenario evidence, not benchmark certification:
 
 - Start with `default` pack to validate baseline + constrained behavior.
+- Use `adoption` pack for a compact control -> realistic stress -> bottleneck story.
 - Use `extended` or `realism` to inspect dominant-signal and mixed-constraint cases.
 - Use `policy` pack when choosing between `balanced`, `continuity`, and `efficiency`.
 - Prefer reading **decision trace reasons + scenario narratives** before drawing conclusions from single deltas.

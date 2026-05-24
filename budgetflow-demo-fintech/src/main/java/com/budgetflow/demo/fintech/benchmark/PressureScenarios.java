@@ -24,6 +24,9 @@ public final class PressureScenarios {
     public static final SystemPressureSnapshot DOWNSTREAM_SPIKE_PRESSURE =
         new SystemPressureSnapshot(0.30, 0.22, 0.84);
 
+    public static final SystemPressureSnapshot COMMUTER_SPIKE_PRESSURE =
+        new SystemPressureSnapshot(0.68, 0.74, 0.70);
+
     private PressureScenarios() {
     }
 
@@ -163,6 +166,23 @@ public final class PressureScenarios {
         );
     }
 
+    public static DashboardBenchmarkScenario commuterSpikeMixedPressure() {
+        return scenario(
+            "adoption",
+            "commuter_spike_mixed_pressure",
+            "Commuter spike / mixed pressure",
+            "Request budget is moderate while executor, DB, and downstream pressure all rise together.",
+            "Realistic multi-signal stress: validates deterministic mixed-constraint behavior in recognizable traffic spikes.",
+            "Use this to verify that adaptive planning keeps mandatory data stable while optional fidelity shifts are explicit and explainable.",
+            "Morning commute burst where account refreshes, card notifications, and partner APIs all contend at once.",
+            "Expect fallback/approximate optional decisions before omission where degraded paths still fit the request budget.",
+            "moderate_budget",
+            "mixed_spike",
+            Duration.ofMillis(360),
+            COMMUTER_SPIKE_PRESSURE
+        );
+    }
+
     public static DashboardScenarioPack defaultPack() {
         return new DashboardScenarioPack(
             "default",
@@ -226,12 +246,27 @@ public final class PressureScenarios {
         );
     }
 
+    public static DashboardScenarioPack adoptionPack() {
+        return new DashboardScenarioPack(
+            "adoption",
+            "Compact end-to-end evaluator flow that mirrors recognizable traffic phases.",
+            "responsible first-pass adoption evaluation with realistic but maintainable scenarios",
+            "./gradlew :budgetflow-demo-fintech:runDashboardComparison --args=\"--pack=adoption\"",
+            List.of(
+                generousBudgetLowPressure(),
+                commuterSpikeMixedPressure(),
+                tightBudgetModerateDbPressure()
+            )
+        );
+    }
+
     public static DashboardScenarioPack packNamed(String packName) {
         return switch (packName) {
             case "default" -> defaultPack();
             case "extended" -> extendedPack();
             case "realism" -> realismPack();
             case "policy" -> policyPack();
+            case "adoption" -> adoptionPack();
             default -> throw new IllegalArgumentException("Unknown dashboard scenario pack: " + packName);
         };
     }

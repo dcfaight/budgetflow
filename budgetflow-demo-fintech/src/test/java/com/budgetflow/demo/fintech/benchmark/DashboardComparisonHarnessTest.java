@@ -243,6 +243,7 @@ class DashboardComparisonHarnessTest {
         assertTrue(output.contains("BudgetFlow prototype walkthrough"));
         assertTrue(output.contains("./gradlew :budgetflow-demo-fintech:bootRun"));
         assertTrue(output.contains("./gradlew :budgetflow-demo-fintech:runDashboardComparison --args=\"--pack=default\""));
+        assertTrue(output.contains("./gradlew :budgetflow-demo-fintech:runDashboardComparison --args=\"--pack=adoption\""));
         assertTrue(output.contains("./gradlew :budgetflow-demo-fintech:runDashboardComparison --args=\"--pack=policy --policies=balanced,continuity,efficiency\""));
         assertTrue(output.contains("/tmp/budgetflow-realism.json"));
         assertTrue(output.contains("docs/planner-customization.md"));

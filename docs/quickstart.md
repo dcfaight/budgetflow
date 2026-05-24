@@ -142,6 +142,7 @@ Then run the side-by-side scenario comparison:
 
 ```bash
 ./gradlew :budgetflow-demo-fintech:runDashboardComparison
+./gradlew :budgetflow-demo-fintech:runDashboardComparison --args="--pack=adoption"
 ./gradlew :budgetflow-demo-fintech:runDashboardComparison --args="--pack=policy --policies=balanced,continuity,efficiency"
 ./gradlew :budgetflow-demo-fintech:runDashboardComparison --args="--pack=default --json --out=/tmp/budgetflow-report.json"
 ```

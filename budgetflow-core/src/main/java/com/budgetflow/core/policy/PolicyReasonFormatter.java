@@ -18,15 +18,18 @@ final class PolicyReasonFormatter {
         double latencyRatio,
         int stressedSignalCount,
         String mixedConstraintBand,
-        ExecutionMode suggestedDegradedMode
+        ExecutionMode suggestedDegradedMode,
+        TaskCostSignals costSignals
     ) {
         String pressureBand = pressureBand(snapshot.peakPressure());
         String budgetBand = budgetBand(remainingBudget);
         String ratio = String.format("%.2f", latencyRatio);
         String degradedPreference = degradedPreferenceLabel(suggestedDegradedMode);
+        String fitLabel = fitLabel(costSignals);
+        String savingsBand = savingsBand(costSignals.degradedSavingsRatio(), costSignals.degradedSavingsMillis());
         return switch (mode) {
             case EXECUTE ->
-                "normal[policy=%s,pressure=%s:%s,active_signals=%d,mixed=%s,budget=%s,degrade_pref=%s,latency_ratio=%s]"
+                "normal[policy=%s,pressure=%s:%s,active_signals=%d,mixed=%s,budget=%s,degrade_pref=%s,fit=%s,savings=%s,latency_ratio=%s]"
                     .formatted(
                         policyProfileName,
                         pressureBand,
@@ -35,10 +38,12 @@ final class PolicyReasonFormatter {
                         mixedConstraintBand,
                         budgetBand,
                         degradedPreference,
+                        fitLabel,
+                        savingsBand,
                         ratio
                     );
             case EXECUTE_WITH_FALLBACK ->
-                "fallback_selected_by_policy[policy=%s,pressure=%s:%s,active_signals=%d,mixed=%s,budget=%s,degrade_pref=%s,latency_ratio=%s]"
+                "fallback_selected_by_policy[policy=%s,pressure=%s:%s,active_signals=%d,mixed=%s,budget=%s,degrade_pref=%s,fit=%s,savings=%s,latency_ratio=%s]"
                     .formatted(
                         policyProfileName,
                         pressureBand,
@@ -47,10 +52,12 @@ final class PolicyReasonFormatter {
                         mixedConstraintBand,
                         budgetBand,
                         degradedPreference,
+                        fitLabel,
+                        savingsBand,
                         ratio
                     );
             case EXECUTE_APPROXIMATE ->
-                "approximate_selected_by_policy[policy=%s,pressure=%s:%s,active_signals=%d,mixed=%s,budget=%s,degrade_pref=%s,latency_ratio=%s]"
+                "approximate_selected_by_policy[policy=%s,pressure=%s:%s,active_signals=%d,mixed=%s,budget=%s,degrade_pref=%s,fit=%s,savings=%s,latency_ratio=%s]"
                     .formatted(
                         policyProfileName,
                         pressureBand,
@@ -59,10 +66,12 @@ final class PolicyReasonFormatter {
                         mixedConstraintBand,
                         budgetBand,
                         degradedPreference,
+                        fitLabel,
+                        savingsBand,
                         ratio
                     );
             case OMIT ->
-                "omitted_by_policy[policy=%s,pressure=%s:%s,active_signals=%d,mixed=%s,budget=%s,degrade_pref=%s,latency_ratio=%s]"
+                "omitted_by_policy[policy=%s,pressure=%s:%s,active_signals=%d,mixed=%s,budget=%s,degrade_pref=%s,fit=%s,savings=%s,latency_ratio=%s]"
                     .formatted(
                         policyProfileName,
                         pressureBand,
@@ -71,6 +80,8 @@ final class PolicyReasonFormatter {
                         mixedConstraintBand,
                         budgetBand,
                         degradedPreference,
+                        fitLabel,
+                        savingsBand,
                         ratio
                     );
         };
@@ -102,5 +113,25 @@ final class PolicyReasonFormatter {
             case EXECUTE_APPROXIMATE -> "approximate";
             default -> "none";
         };
+    }
+
+    private String fitLabel(TaskCostSignals costSignals) {
+        if (costSignals.primaryFitsBudget()) {
+            return "primary";
+        }
+        if (costSignals.cheapestDegradedFitsBudget()) {
+            return "degraded";
+        }
+        return "none";
+    }
+
+    private String savingsBand(double degradedSavingsRatio, long degradedSavingsMillis) {
+        if (degradedSavingsRatio >= 0.45 || degradedSavingsMillis >= 60) {
+            return "high";
+        }
+        if (degradedSavingsRatio >= 0.20 || degradedSavingsMillis >= 25) {
+            return "medium";
+        }
+        return "low";
     }
 }

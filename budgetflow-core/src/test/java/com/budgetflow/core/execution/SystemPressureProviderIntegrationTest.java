@@ -184,7 +184,7 @@ class SystemPressureProviderIntegrationTest {
     }
 
     @Test
-    void requestScopedExecutionUsesFallbackAndApproximationUnderModeratePressure() {
+    void requestScopedExecutionUsesFallbackAndKeepsMarginalOptionalSavingsOnPrimaryPath() {
         DefaultAdaptiveExecutor executor = new DefaultAdaptiveExecutor(
             new DefaultBudgetPolicyEngine(),
             FixedPressureProvider.of(0.55, 0.62, 0.58)
@@ -197,11 +197,11 @@ class SystemPressureProviderIntegrationTest {
 
         assertEquals("fallback", response.taskResult("rewards").value().orElseThrow());
         assertEquals(ExecutionMode.EXECUTE_WITH_FALLBACK, response.taskResult("rewards").executionMode());
-        assertEquals("approx-offers", response.taskResult("offers").value().orElseThrow());
-        assertEquals(ExecutionMode.EXECUTE_APPROXIMATE, response.taskResult("offers").executionMode());
+        assertEquals("primary-offers", response.taskResult("offers").value().orElseThrow());
+        assertEquals(ExecutionMode.EXECUTE, response.taskResult("offers").executionMode());
         assertTrue(response.diagnostics().degraded());
         assertEquals(List.of("rewards"), response.diagnostics().fallbackTaskNames());
-        assertEquals(List.of("offers"), response.diagnostics().approximatedTaskNames());
+        assertEquals(List.of(), response.diagnostics().approximatedTaskNames());
         assertEquals(List.of(), response.diagnostics().omittedTaskNames());
     }
 
