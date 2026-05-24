@@ -78,6 +78,9 @@ public final class DashboardBenchmarkFormatter {
                     .append(", adaptive_changes=")
                     .append(compactAdaptiveChanges(adaptive))
                     .append(System.lineSeparator());
+                builder.append("Comparison takeaway: ")
+                    .append(comparisonTakeaway(naive, adaptive))
+                    .append(System.lineSeparator());
             }
 
             DashboardBenchmarkSummary balanced = summaryForStrategy(scenarioSummaries, "budgetflow_adaptive", "balanced");
@@ -169,6 +172,9 @@ public final class DashboardBenchmarkFormatter {
                 .append("\"comparison\":")
                 .append(comparisonJson(naive, adaptive))
                 .append(",")
+                .append("\"comparisonTakeaway\":\"")
+                .append(escape(comparisonTakeaway(naive, adaptive)))
+                .append("\",")
                 .append("\"profileSummary\":")
                 .append(profileSummaryJson(scenarioSummaries))
                 .append(",")
@@ -257,6 +263,30 @@ public final class DashboardBenchmarkFormatter {
             + "}";
     }
 
+    private static String comparisonTakeaway(DashboardBenchmarkSummary naive, DashboardBenchmarkSummary adaptive) {
+        if (naive == null || adaptive == null) {
+            return "Balanced adaptive summary unavailable for this scenario.";
+        }
+        long projectedDelta = naive.projectedWork().minus(adaptive.projectedWork()).toMillis();
+        if (!adaptive.degraded() && !naive.degraded() && projectedDelta == 0) {
+            return "Adaptive and naive stayed aligned here, which is the expected control-case signal.";
+        }
+        if (!adaptive.degraded() && projectedDelta > 0) {
+            return "Adaptive reduced projected work without degrading the response shape.";
+        }
+        if (adaptive.degraded() && projectedDelta > 0) {
+            return "Adaptive traded optional fidelity for "
+                + projectedDelta
+                + "ms of projected work savings while keeping the change set explicit ("
+                + compactAdaptiveChanges(adaptive)
+                + ").";
+        }
+        if (adaptive.degraded()) {
+            return "Adaptive degraded response shape even though projected work did not fall below naive; inspect scenario guidance and trace reasons.";
+        }
+        return "Adaptive kept the response intact; inspect trace reasons if you expected a stronger divergence.";
+    }
+
     private static String scenarioSummary(DashboardBenchmarkSummary naive, DashboardBenchmarkSummary balanced) {
         if (naive == null || balanced == null) {
             return "balanced profile summary unavailable for this scenario.";
@@ -342,14 +372,27 @@ public final class DashboardBenchmarkFormatter {
             + ", adaptive_degraded="
             + summary.adaptiveDegradedCount()
             + "/"
-            + summary.scenariosCompared();
+            + summary.scenariosCompared()
+            + ", baseline_convergence="
+            + summary.baselineConvergenceCount()
+            + "/"
+            + summary.scenariosCompared()
+            + ", adaptive_plan_changes="
+            + summary.adaptivePlanChangeCount()
+            + "/"
+            + summary.scenariosCompared()
+            + ", profile_comparison_scenarios="
+            + summary.profileComparisonScenarioCount();
     }
 
     private static String confidenceSummaryJson(ConfidenceSummary summary) {
         return "{"
             + "\"scenariosCompared\":" + summary.scenariosCompared() + ","
             + "\"adaptiveLowerProjectedWorkCount\":" + summary.adaptiveLowerProjectedWorkCount() + ","
-            + "\"adaptiveDegradedCount\":" + summary.adaptiveDegradedCount()
+            + "\"adaptiveDegradedCount\":" + summary.adaptiveDegradedCount() + ","
+            + "\"baselineConvergenceCount\":" + summary.baselineConvergenceCount() + ","
+            + "\"adaptivePlanChangeCount\":" + summary.adaptivePlanChangeCount() + ","
+            + "\"profileComparisonScenarioCount\":" + summary.profileComparisonScenarioCount()
             + "}";
     }
 
@@ -357,9 +400,18 @@ public final class DashboardBenchmarkFormatter {
         int scenariosCompared = 0;
         int adaptiveLowerProjectedWorkCount = 0;
         int adaptiveDegradedCount = 0;
+        int baselineConvergenceCount = 0;
+        int adaptivePlanChangeCount = 0;
+        int profileComparisonScenarioCount = 0;
         for (List<DashboardBenchmarkSummary> scenarioSummaries : summariesByScenario(summaries).values()) {
             DashboardBenchmarkSummary naive = summaryForStrategy(scenarioSummaries, "naive_parallel", "-");
             DashboardBenchmarkSummary adaptive = summaryForStrategy(scenarioSummaries, "budgetflow_adaptive", "balanced");
+            long adaptiveVariantCount = scenarioSummaries.stream()
+                .filter(summary -> summary.executionStrategy().equals("budgetflow_adaptive"))
+                .count();
+            if (adaptiveVariantCount > 1) {
+                profileComparisonScenarioCount++;
+            }
             if (naive == null || adaptive == null) {
                 continue;
             }
@@ -370,8 +422,26 @@ public final class DashboardBenchmarkFormatter {
             if (adaptive.degraded()) {
                 adaptiveDegradedCount++;
             }
+            if (!adaptive.degraded()
+                && !naive.degraded()
+                && adaptive.projectedWork().equals(naive.projectedWork())
+                && adaptive.totalTasksExecuted() == naive.totalTasksExecuted()) {
+                baselineConvergenceCount++;
+            }
+            if (adaptive.degraded()
+                || adaptive.projectedWork().compareTo(naive.projectedWork()) != 0
+                || adaptive.totalTasksExecuted() != naive.totalTasksExecuted()) {
+                adaptivePlanChangeCount++;
+            }
         }
-        return new ConfidenceSummary(scenariosCompared, adaptiveLowerProjectedWorkCount, adaptiveDegradedCount);
+        return new ConfidenceSummary(
+            scenariosCompared,
+            adaptiveLowerProjectedWorkCount,
+            adaptiveDegradedCount,
+            baselineConvergenceCount,
+            adaptivePlanChangeCount,
+            profileComparisonScenarioCount
+        );
     }
 
     private static String formatList(List<String> values) {
@@ -393,7 +463,10 @@ public final class DashboardBenchmarkFormatter {
     private record ConfidenceSummary(
         int scenariosCompared,
         int adaptiveLowerProjectedWorkCount,
-        int adaptiveDegradedCount
+        int adaptiveDegradedCount,
+        int baselineConvergenceCount,
+        int adaptivePlanChangeCount,
+        int profileComparisonScenarioCount
     ) {
     }
 }

@@ -77,7 +77,9 @@ What you get back:
 
 ## 5) Optional: wire runtime pressure + lifecycle hooks
 
-BudgetFlow stays usable without extra wiring, but starter integration now supports a lightweight runtime adapter flow:
+BudgetFlow stays usable without extra wiring. Keep the default planner path on `budgetflow.planner.profile=balanced` first, then add runtime realism only when you need it.
+
+Starter integration supports a lightweight runtime adapter flow:
 
 ```yaml
 budgetflow:
@@ -148,3 +150,6 @@ Then run the side-by-side scenario comparison:
 
 For a complete evaluator workflow (including what to observe and how to interpret profile tradeoffs), continue with:
 `docs/evaluate.md`.
+
+For default-vs-advanced planner guidance, continue with:
+`docs/planner-customization.md`.

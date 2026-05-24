@@ -24,6 +24,8 @@ Observe:
 - decision trace reasons and `plannedExecutionLatency`
 - `executionSummary` for a compact human-readable interpretation of the response
 
+If this path is not clear yet, stop here and review `docs/quickstart.md` before moving into harness output.
+
 ## 2) Run scenario comparison packs
 
 ```bash
@@ -36,8 +38,15 @@ Observe per scenario:
 - pack-level `Best for` / `Suggested run` guidance at the top of the output
 - `Pattern` (real-world mapping)
 - `Observe` guidance
+- `Comparison takeaway`
 - adaptive vs naive projected work delta
 - profile deltas vs balanced
+- `confidenceSummary` as a pack-level orientation aid
+
+Suggested progression:
+- `default` first for the control case and the core constrained scenarios
+- `realism` next for broader scenario evidence, including the clean budget-only path-aware case
+- `policy` when you need to choose a planner profile deliberately
 
 ## 3) Interpret profile behavior conservatively
 
@@ -47,6 +56,8 @@ Observe per scenario:
 
 Choose profile by endpoint goals, not single-scenario wins.
 
+If none of the built-in profiles fit your endpoint class well, review `docs/planner-customization.md` before introducing a custom selector.
+
 ## 4) What good evaluation evidence looks like
 
 - Baseline convergence under generous budget + low pressure.
@@ -54,6 +65,7 @@ Choose profile by endpoint goals, not single-scenario wins.
 - Stable, deterministic trace semantics across repeated runs.
 - Profile deltas that match intended tradeoffs for your workload.
 - Sample-app and harness observations that tell the same story instead of diverging.
+- Tight-budget/path-aware scenarios that show degraded-path latency hints matter even when runtime pressure is calm.
 
 ## 5) What this guide does not claim
 

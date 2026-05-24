@@ -104,6 +104,19 @@ class PressureScenariosTest {
     }
 
     @Test
+    void tightBudgetLowPressureScenarioIsConsistent() {
+        DashboardBenchmarkScenario scenario = PressureScenarios.tightBudgetLowPressure();
+        assertEquals("extended", scenario.packName());
+        assertEquals("tight_budget_low_pressure", scenario.name());
+        assertEquals(Duration.ofMillis(250), scenario.requestBudget());
+        assertEquals(PressureScenarios.LOW_PRESSURE, scenario.pressureSnapshot());
+        assertEquals(
+            "Path-aware budget rescue: validates fallback/approximate latency hints without runtime-pressure noise.",
+            scenario.evaluationFocus()
+        );
+    }
+
+    @Test
     void tightBudgetModerateDbPressureScenarioIsConsistent() {
         DashboardBenchmarkScenario scenario = PressureScenarios.tightBudgetModerateDbPressure();
         assertEquals("tight_budget_moderate_db_pressure", scenario.name());
@@ -149,6 +162,8 @@ class PressureScenariosTest {
             PressureScenarios.constrainedBudgetLowPressure());
         assertEquals(PressureScenarios.constrainedBudgetElevatedPressure(),
             PressureScenarios.constrainedBudgetElevatedPressure());
+        assertEquals(PressureScenarios.tightBudgetLowPressure(),
+            PressureScenarios.tightBudgetLowPressure());
         assertEquals(PressureScenarios.generousBudgetElevatedPressure(),
             PressureScenarios.generousBudgetElevatedPressure());
         assertEquals(PressureScenarios.tightBudgetModerateDbPressure(),
@@ -196,9 +211,9 @@ class PressureScenariosTest {
         DashboardScenarioPack policyFromLookup = PressureScenarios.packNamed("policy");
 
         assertEquals("extended", extended.name());
-        assertEquals(6, extended.scenarios().size());
+        assertEquals(7, extended.scenarios().size());
         assertEquals("realism", realism.name());
-        assertEquals(4, realism.scenarios().size());
+        assertEquals(5, realism.scenarios().size());
         assertEquals("policy", policy.name());
         assertEquals(4, policy.scenarios().size());
         assertEquals(policy, policyFromLookup);

@@ -263,6 +263,11 @@ Built-in profiles:
 - `continuity`: favors degraded optional execution paths before omission
 - `efficiency`: omits optional work earlier under stress to protect latency headroom
 
+Recommended escalation path:
+1. stay on `balanced`
+2. compare `continuity` and `efficiency`
+3. only then add a custom `OptionalTaskModeSelector`
+
 Example policy variation wiring:
 
 ```java
@@ -273,6 +278,8 @@ AdaptiveExecutor executor = new DefaultAdaptiveExecutor(
     new DefaultBudgetPolicyEngine(preferFallback)
 );
 ```
+
+For a more realistic selector example and a concise default-vs-advanced decision guide, see `docs/planner-customization.md`.
 
 For Spring Boot starter usage, enable runtime-signal adapter composition with:
 

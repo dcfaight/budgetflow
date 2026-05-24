@@ -18,7 +18,8 @@ If you are exploring the repository for the first time, use this sequence:
 1. **Framework quickstart:** [docs/quickstart.md](docs/quickstart.md)
 2. **Guided local walkthrough:** `./gradlew :budgetflow-demo-fintech:runDashboardWalkthrough`
 3. **Evaluation runbook:** [docs/evaluate.md](docs/evaluate.md)
-4. **Architecture + extension boundaries:** [docs/architecture.md](docs/architecture.md)
+4. **Planner defaults vs customization:** [docs/planner-customization.md](docs/planner-customization.md)
+5. **Architecture + extension boundaries:** [docs/architecture.md](docs/architecture.md)
 
 ## Why this matters in the first minute
 
@@ -33,8 +34,9 @@ If you are new to the repository, start here:
 1. **Dependency:** add `budgetflow-spring-boot-starter` to your app.
 2. **Request budget:** annotate entry points with `@LatencyBudget("250ms")`.
 3. **Adaptive request:** build grouped work with `TaskKey` + `AdaptiveRequest`.
-4. **Runtime realism (optional):** wire `RuntimePressureSignals` and/or `ExecutionLifecycleListener`.
-5. **Result:** read typed values from `AdaptiveRequestResult` plus diagnostics/trace.
+4. **Default planner path:** stay on `budgetflow.planner.profile=balanced` unless you have a clear reason to compare variants.
+5. **Runtime realism (optional):** wire `RuntimePressureSignals` and/or `ExecutionLifecycleListener`.
+6. **Result:** read typed values from `AdaptiveRequestResult` plus diagnostics/trace.
 
 See the concise guide: [docs/quickstart.md](docs/quickstart.md)
 
@@ -46,6 +48,9 @@ If you want the shortest guided local tour, run:
 
 If you are evaluating BudgetFlow for potential adoption, continue with:
 [docs/evaluate.md](docs/evaluate.md)
+
+If you are evaluating planner variants or extension boundaries, continue with:
+[docs/planner-customization.md](docs/planner-customization.md)
 
 ## Package consumption at a glance
 
@@ -157,6 +162,8 @@ BudgetFlow keeps planner customization intentionally lightweight:
 - **Orchestration + trace:** `DefaultBudgetPolicyEngine` still owns planning order, budget allocation, diagnostics, and decision trace output.
 
 That keeps extension points explicit without turning the planner into a heavyweight plugin system.
+
+**Recommended path:** start with `balanced`, compare `continuity`/`efficiency` only when a real endpoint tradeoff exists, and reach for a custom `OptionalTaskModeSelector` only when the built-in profiles still do not fit.
 
 ### Dashboard example
 
@@ -291,7 +298,7 @@ Example (trimmed):
 | **Approximated** | Tasks that returned a lower-fidelity result (e.g., cached or estimated) |
 | **Work** | Request latency budget vs projected work under the chosen execution modes |
 
-The latest formatter now also groups output by scenario, adds a narrative line, emits compact comparison deltas, and includes scenario/profile guidance summaries to make profile tradeoffs easier to interpret.
+The latest formatter now also groups output by scenario, adds a narrative line, emits compact comparison deltas, includes a `comparisonTakeaway`, and finishes with a richer `confidenceSummary` so profile and scenario tradeoffs are easier to interpret quickly.
 
 The constrained-budget scenarios are the clearest before/after showcase:
 - `naive_parallel` still attempts all work using primary-path assumptions.
@@ -440,8 +447,8 @@ Optional harness arguments keep the tool lightweight while making demo output ea
 
 Available scenario packs:
 - `default` — the three core scenarios used in the basic comparison walkthrough; best for first-time repo evaluation
-- `extended` — adds generous-budget/elevated-pressure, DB-bound, and downstream-spike scenarios; best for broader local exploration
-- `realism` — emphasizes richer pressure narratives while staying deterministic and explainable; best for recognizable scenario sharing and JSON export
+- `extended` — adds tight-budget/path-aware, generous-budget/elevated-pressure, DB-bound, and downstream-spike scenarios; best for broader local exploration
+- `realism` — emphasizes richer pressure narratives while staying deterministic and explainable, including a clean budget-only path-aware scenario; best for recognizable scenario sharing and JSON export
 - `policy` — profile-comparison scenarios that make planner policy differences easier to inspect; best for deliberate planner-profile selection
 
 Available adaptive policy profiles:
@@ -456,6 +463,7 @@ Available adaptive policy profiles:
 | `generous_budget_low_pressure` | default, extended | Baseline convergence: adaptive and naive should be effectively equivalent when there is ample budget and low pressure. |
 | `constrained_budget_low_pressure` | default, extended, realism, policy | Budget-only stress: adaptive should omit the most expensive optional work first while preserving mandatory-first behavior. |
 | `constrained_budget_elevated_pressure` | default, extended, realism, policy | Joint budget + pressure stress: adaptive should degrade more aggressively (including fallback for important tasks). |
+| `tight_budget_low_pressure` | extended, realism | Path-aware budget rescue: even with calm runtime signals, degraded-path latency hints should let adaptive preserve more useful work than primary-path-only reasoning. |
 | `generous_budget_elevated_pressure` | extended | Pressure-only stress: even with budget headroom, elevated runtime pressure can trigger graceful degradation. |
 | `tight_budget_moderate_db_pressure` | extended, realism, policy | Dominant DB pressure path: demonstrates policy behavior when one pressure dimension (DB) is the main bottleneck. |
 | `moderate_budget_downstream_spike` | extended, realism | Downstream dependency instability: shows degradation decisions when downstream pressure dominates. |
@@ -473,6 +481,7 @@ Use harness output as scenario evidence, not benchmark certification:
 - Use `extended` or `realism` to inspect dominant-signal and mixed-constraint cases.
 - Use `policy` pack when choosing between `balanced`, `continuity`, and `efficiency`.
 - Prefer reading **decision trace reasons + scenario narratives** before drawing conclusions from single deltas.
+- Use `comparisonTakeaway` and `confidenceSummary` as orientation aids, not benchmark claims.
 - Export reports with `--out=` for review/share, then compare across the same pack/profile inputs only.
 
 See the [Comparison harness output](#comparison-harness-output) section above for example output and interpretation guidance.
@@ -489,7 +498,7 @@ Versioning is currently pre-1.0 (`0.x`) and should be treated as exploratory fra
 ### What it is today
 - a working request-aware adaptive execution prototype
 - a concrete experiment in graceful degradation under latency budgets
-- a framework skeleton with real planning, execution, tracing, diagnostics, pluggable pressure inputs, grouped request ergonomics, and a local comparison harness
+- a framework skeleton with real planning, execution, tracing, diagnostics, pluggable pressure inputs, grouped request ergonomics, planner-profile customization guidance, and a local comparison harness
 
 ### What it is not yet
 - production hardened
@@ -505,8 +514,8 @@ Near-term priorities include:
 - refining public developer ergonomics
 - evolving pressure providers toward more realistic runtime signals
 - expanding lightweight runtime integration hooks for pressure and observability-style callbacks
-- expanding scenario realism and comparison depth
-- exploring richer planning and orchestration strategies
+- expanding scenario realism and comparison depth without turning the harness into a benchmark platform
+- deepening planner customization guidance and examples without adding a heavyweight plugin system
 
 See [docs/status-roadmap.md](docs/status-roadmap.md) for current maturity focus areas and conservative next steps.
 

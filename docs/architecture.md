@@ -254,6 +254,8 @@ The policy engine returns `PolicyDecision`, which contains:
 
 This keeps extension localized to policy variation without introducing a heavyweight plugin system.
 
+See `docs/planner-customization.md` for the recommended escalation path from `balanced` to built-in profiles to custom selectors.
+
 ---
 
 ## Execution
