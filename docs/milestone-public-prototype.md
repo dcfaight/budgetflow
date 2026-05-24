@@ -1,12 +1,38 @@
 # BudgetFlow public prototype milestone (May 2026)
 
-This milestone is a polish-and-confidence pass for public evaluation.
+This milestone consolidates BudgetFlow from a sequence of maturity-focused increments into a clearer public prototype story.
 
-## What this milestone strengthens
+## Why this milestone matters
 
-- **Public entry clarity:** clearer README framing and a direct evaluation entry path.
-- **Planner explainability depth:** decision reasons now expose explicit decision layers (`layer=...`) in addition to policy, pressure, budget fit, and savings markers.
-- **Evaluator confidence:** comparison output now includes a concrete evaluator next-step line per scenario and compact reason summaries that are easier to interpret.
+The project is no longer just a collection of isolated capabilities. It now has a coherent execution model, readable decision semantics, and a practical evaluation path that outside readers can follow without digging through incremental PR history.
+
+This milestone establishes BudgetFlow as a polished prototype that is credible to discuss, demo, and evaluate conservatively.
+
+## What reached milestone-level maturity
+
+### 1) Adaptive execution model maturity
+
+- request-scoped planning is the default orchestration shape
+- deterministic degradation behavior is explicit and inspectable
+- grouped request ergonomics make app-facing usage clearer without hiding planner semantics
+
+### 2) Planner sophistication with explicit boundaries
+
+- path-aware planning uses selected-path latency to reason about degraded options more realistically
+- mixed-constraint semantics make budget and runtime-pressure interaction clearer
+- configurable planner profiles and targeted extension points keep customization intentional rather than open-ended
+
+### 3) Diagnostics, explainability, and evaluation confidence
+
+- decision reasons expose compact markers (`layer=...`, `fit=...`, `savings=...`) that are easier to review quickly
+- request diagnostics and trace output make degradation choices explainable at request scope
+- walkthrough and comparison packs provide practical scenario evidence for evaluator discussion
+
+### 4) Adoption/readability/usability improvements
+
+- starter-first entry remains the preferred app integration path
+- quickstart, evaluation flow, and customization docs now align on the same conservative framing
+- scenario narratives and evaluator guidance are easier to share without overclaiming rigor
 
 ## Fast evaluation entry flow
 
@@ -29,6 +55,7 @@ Then (only when profile selection matters):
 - Treat outputs as **scenario evidence**, not benchmark certification.
 - Keep `balanced` as the default starting point unless scenario evidence suggests a clear continuity/headroom tradeoff.
 - Use decision trace + diagnostics summaries as the primary explanation surface before drawing conclusions.
+- Use [docs/status-roadmap.md](status-roadmap.md) to separate likely next-step exploration from longer-term ideas.
 
 ## Scope guardrails
 

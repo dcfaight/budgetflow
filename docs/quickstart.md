@@ -1,6 +1,6 @@
 # BudgetFlow quickstart (Spring Boot)
 
-BudgetFlow is an early prototype; this quickstart is optimized for trying the core flow quickly, not production hardening.
+BudgetFlow is a polished prototype milestone; this quickstart is optimized for trying the core flow quickly, not production hardening.
 
 If you want the repository’s preferred guided local tour instead of just the API path, run:
 

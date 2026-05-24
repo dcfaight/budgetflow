@@ -2,30 +2,56 @@
 
 ## Current status
 
-BudgetFlow is in advanced prototype maturity:
+BudgetFlow is at a polished prototype milestone:
 
-- request-scoped adaptive planning is implemented and test-covered
-- deterministic degradation and decision trace are first-class
-- planner profiles and runtime-signal integrations are available
-- demo + scenario harness support practical local evaluation
+- request-scoped adaptive execution is real and test-covered
+- deterministic degradation semantics and decision trace are first-class
+- planner profiles, path-aware reasoning, and runtime-signal integration are available
+- walkthrough + scenario packs support practical local evaluation and discussion
 
 BudgetFlow is **not** production hardened, benchmark-certified, or API-stable.
 
-## What this maturity pass strengthens
+## What this milestone consolidated
 
-- release-facing framing and evaluation guidance
-- clearer planner separation between signal analysis, policy selection, and trace/orchestration output (including fit/savings reason semantics)
-- scenario mapping to recognizable real-world pressure patterns
-- default-vs-advanced planner customization guidance
-- a guided walkthrough path for first-time local exploration plus a compact adoption scenario pack
+- a clearer public story across README, milestone, roadmap, and evaluation entry docs
+- stronger explainability framing around decision reasons and request-level diagnostics
+- clearer boundaries between default profile usage and deeper planner customization
+- a more intentional evaluator journey from walkthrough to scenario packs
 
-## Near-term roadmap (incremental)
+## Roadmap themes
 
-1. tighten API ergonomics while preserving starter-first adoption path
-2. expand scenario packs with compact, realistic endpoint patterns and clearer comparison summaries
-3. deepen runtime-signal adapters and observability-friendly hooks
-4. continue planner refinement with deterministic, explainable semantics
-5. improve docs coherence across quickstart, usage, and evaluation flow
+### 1) Planner/runtime sophistication
+
+**Likely next-step exploration**
+- refine mixed-constraint and path-aware planner behavior while keeping deterministic semantics
+- deepen runtime-signal adapters and lifecycle hooks that improve realism without heavy infrastructure coupling
+- improve planner reasoning summaries for faster evaluator interpretation
+
+**Longer-term ideas**
+- broaden endpoint-shape coverage for profile behavior beyond dashboard-style workloads
+- evaluate tighter coupling between runtime signals and adaptive path selection heuristics
+
+### 2) Adoption and packaging story
+
+**Likely next-step exploration**
+- continue improving starter-first ergonomics and app-facing API readability
+- tighten quickstart/customization guidance around default (`balanced`) usage before advanced tuning
+- improve small-scope integration examples that show credible first adoption steps
+
+**Longer-term ideas**
+- sharper packaging/release conventions once API evolution is more stable
+- broader integration samples for additional Spring service patterns
+
+### 3) Evaluation realism and evidence
+
+**Likely next-step exploration**
+- extend scenario evidence with compact, recognizable production-like pressure patterns
+- improve comparison summaries that remain conservative and explainable
+- strengthen repeatable evaluator workflows for sharing scenario outputs
+
+**Longer-term ideas**
+- deeper evidence gathering across varied runtime environments (still as prototype exploration)
+- more structured evaluation artifacts if they can stay lightweight and non-benchmark-claiming
 
 ## Non-goals (for now)
 
