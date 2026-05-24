@@ -180,6 +180,8 @@ BudgetFlow currently includes:
 - named grouped-request helpers such as `importantWithFallback(...)` and `optionalWithFallbackAndApproximate(...)`
 - optional degraded-path latency hints so fallback/approximate execution can participate in planning more realistically
 - lightweight optional-task strategy extension via `OptionalTaskModeSelector` (default behavior remains deterministic)
+- named planner policy profiles (`balanced`, `continuity`, `efficiency`) with deterministic semantics and balanced default behavior
+- Spring Boot planner policy profile selection via `budgetflow.planner.policy-profile`
 - typed task result access via `TaskKey<T>` and `AdaptiveRequestResult`
 - policy-driven execution mode selection
 - deterministic mandatory-first planning
@@ -204,10 +206,10 @@ Scenario: constrained_budget_low_pressure — Constrained budget / low pressure
 Narrative: Budget is the binding constraint while infrastructure remains healthy.
 Budget profile: constrained_budget | Pressure profile: low_pressure
 Request budget: 430ms | Pressure: exec=0.15 db=0.10 down=0.20
-Strategy | Executed | Degraded | Work | Omitted | Fallback | Approx | Why
--------- | -------- | -------- | ---- | ------- | -------- | ------ | ---
-budgetflow_adaptive | 4 | true | 430ms/203ms | insights | - | offers | offers=approximate_selected_by_policy[pressure=low:downstream,budget=available], insights=omitted_by_policy[pressure=low:downstream,budget=tight]
-naive_parallel | 5 | true | 430ms/445ms | - | - | - | projected_work_exceeds_request_budget_by_15ms
+Strategy | Policy | Executed | Degraded | Work | Omitted | Fallback | Approx | Why
+-------- | ------ | -------- | -------- | ---- | ------- | -------- | ------ | ---
+budgetflow_adaptive | balanced | 4 | true | 430ms/203ms | insights | - | offers | offers=approximate_selected_by_policy[policy=balanced,pressure=low:downstream,budget=available], insights=omitted_by_policy[policy=balanced,pressure=low:downstream,budget=tight]
+naive_parallel | - | 5 | true | 430ms/445ms | - | - | - | projected_work_exceeds_request_budget_by_15ms
 Comparison: adaptive projected work delta=-140ms, executed_task_delta=-1, adaptive_changes=omit=insights
 ```
 
@@ -217,6 +219,7 @@ Use `--json` when you need copy/paste-friendly output for demos:
 
 ```text
 ./gradlew :budgetflow-demo-fintech:runDashboardComparison --args="--pack=realism --json"
+./gradlew :budgetflow-demo-fintech:runDashboardComparison --args="--pack=policy --policies=balanced,continuity,efficiency"
 ```
 
 Example (trimmed):
@@ -315,10 +318,14 @@ Enable runtime signal adapter support in configuration:
 
 ```yaml
 budgetflow:
+  planner:
+    policy-profile: balanced
   runtime-signals:
     enabled: true
     include-default-provider: true
 ```
+
+`budgetflow.planner.policy-profile` accepts `balanced` (default), `continuity`, or `efficiency`.
 
 Provide a `RuntimePressureSignals` bean (for example from Micrometer or custom gauges):
 
@@ -355,23 +362,31 @@ Optional harness arguments keep the tool lightweight while making demo output ea
 ```bash
 ./gradlew :budgetflow-demo-fintech:runDashboardComparison --args="--pack=extended"
 ./gradlew :budgetflow-demo-fintech:runDashboardComparison --args="--pack=realism --json"
+./gradlew :budgetflow-demo-fintech:runDashboardComparison --args="--pack=policy --policies=balanced,continuity,efficiency"
 ```
 
 Available scenario packs:
 - `default` — the three core scenarios used in the basic comparison walkthrough
 - `extended` — adds generous-budget/elevated-pressure, DB-bound, and downstream-spike scenarios
 - `realism` — emphasizes richer pressure narratives while staying deterministic and explainable
+- `policy` — profile-comparison scenarios that make planner policy differences easier to inspect
+
+Available adaptive policy profiles:
+- `balanced` — default middle-ground policy (recommended starting point)
+- `continuity` — prefers degraded execution paths over omission when possible
+- `efficiency` — omits optional work sooner under stress to preserve latency headroom
 
 ### Scenario matrix
 
 | Scenario | Pack(s) | What it demonstrates |
 |----------|---------|----------------------|
 | `generous_budget_low_pressure` | default, extended | Baseline convergence: adaptive and naive should be effectively equivalent when there is ample budget and low pressure. |
-| `constrained_budget_low_pressure` | default, extended, realism | Budget-only stress: adaptive should omit the most expensive optional work first while preserving mandatory-first behavior. |
-| `constrained_budget_elevated_pressure` | default, extended, realism | Joint budget + pressure stress: adaptive should degrade more aggressively (including fallback for important tasks). |
+| `constrained_budget_low_pressure` | default, extended, realism, policy | Budget-only stress: adaptive should omit the most expensive optional work first while preserving mandatory-first behavior. |
+| `constrained_budget_elevated_pressure` | default, extended, realism, policy | Joint budget + pressure stress: adaptive should degrade more aggressively (including fallback for important tasks). |
 | `generous_budget_elevated_pressure` | extended | Pressure-only stress: even with budget headroom, elevated runtime pressure can trigger graceful degradation. |
-| `tight_budget_moderate_db_pressure` | extended, realism | Dominant DB pressure path: demonstrates policy behavior when one pressure dimension (DB) is the main bottleneck. |
+| `tight_budget_moderate_db_pressure` | extended, realism, policy | Dominant DB pressure path: demonstrates policy behavior when one pressure dimension (DB) is the main bottleneck. |
 | `moderate_budget_downstream_spike` | extended, realism | Downstream dependency instability: shows degradation decisions when downstream pressure dominates. |
+| `moderate_budget_elevated_pressure` | policy | Policy-profile comparison focus: same pressure + budget setup used to contrast balanced, continuity, and efficiency behavior. |
 
 The optional JSON mode is intentionally simple and stable enough for demo automation or snapshot-style tests; it is not intended as a full benchmarking/reporting platform.
 

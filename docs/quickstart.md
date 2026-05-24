@@ -70,6 +70,8 @@ BudgetFlow stays usable without extra wiring, but starter integration now suppor
 
 ```yaml
 budgetflow:
+  planner:
+    policy-profile: balanced
   runtime-signals:
     enabled: true
     include-default-provider: true
@@ -94,6 +96,8 @@ You can also make the starter defaults visible in `application.yml`:
 budgetflow:
   enabled: true
   default-budget: 250ms
+  planner:
+    policy-profile: balanced
   runtime-signals:
     enabled: false
     include-default-provider: true
@@ -112,4 +116,5 @@ Then run the side-by-side scenario comparison:
 
 ```bash
 ./gradlew :budgetflow-demo-fintech:runDashboardComparison
+./gradlew :budgetflow-demo-fintech:runDashboardComparison --args="--pack=policy --policies=balanced,continuity,efficiency"
 ```

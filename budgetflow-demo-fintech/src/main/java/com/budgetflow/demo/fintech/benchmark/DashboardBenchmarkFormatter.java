@@ -32,13 +32,14 @@ public final class DashboardBenchmarkFormatter {
                 .append(" | Pressure profile: ").append(scenario.pressureProfile()).append(System.lineSeparator());
             builder.append("Request budget: ").append(scenario.requestBudget().toMillis()).append("ms")
                 .append(" | Pressure: ").append(scenario.pressureSummary()).append(System.lineSeparator());
-            builder.append("Strategy | Executed | Degraded | Work | Omitted | Fallback | Approx | Why")
+            builder.append("Strategy | Policy | Executed | Degraded | Work | Omitted | Fallback | Approx | Why")
                 .append(System.lineSeparator());
-            builder.append("-------- | -------- | -------- | ---- | ------- | -------- | ------ | ---")
+            builder.append("-------- | ------ | -------- | -------- | ---- | ------- | -------- | ------ | ---")
                 .append(System.lineSeparator());
 
             for (DashboardBenchmarkSummary summary : orderedStrategies(scenarioSummaries)) {
                 builder.append(summary.executionStrategy()).append(" | ")
+                    .append(summary.policyProfile()).append(" | ")
                     .append(summary.totalTasksExecuted()).append(" | ")
                     .append(summary.degraded()).append(" | ")
                     .append(summary.requestBudget().toMillis()).append("ms/")
@@ -50,8 +51,8 @@ public final class DashboardBenchmarkFormatter {
                     .append(System.lineSeparator());
             }
 
-            DashboardBenchmarkSummary naive = summaryForStrategy(scenarioSummaries, "naive_parallel");
-            DashboardBenchmarkSummary adaptive = summaryForStrategy(scenarioSummaries, "budgetflow_adaptive");
+            DashboardBenchmarkSummary naive = summaryForStrategy(scenarioSummaries, "naive_parallel", "-");
+            DashboardBenchmarkSummary adaptive = summaryForStrategy(scenarioSummaries, "budgetflow_adaptive", "balanced");
             if (naive != null && adaptive != null) {
                 long savings = naive.projectedWork().minus(adaptive.projectedWork()).toMillis();
                 int executedDelta = adaptive.totalTasksExecuted() - naive.totalTasksExecuted();
@@ -62,6 +63,31 @@ public final class DashboardBenchmarkFormatter {
                     .append(", adaptive_changes=")
                     .append(compactAdaptiveChanges(adaptive))
                     .append(System.lineSeparator());
+            }
+
+            DashboardBenchmarkSummary balanced = summaryForStrategy(scenarioSummaries, "budgetflow_adaptive", "balanced");
+            List<DashboardBenchmarkSummary> adaptiveVariants = scenarioSummaries.stream()
+                .filter(summary -> summary.executionStrategy().equals("budgetflow_adaptive"))
+                .sorted(Comparator.comparing(DashboardBenchmarkSummary::policyProfile))
+                .toList();
+            if (balanced != null && adaptiveVariants.size() > 1) {
+                for (DashboardBenchmarkSummary variant : adaptiveVariants) {
+                    if (variant.policyProfile().equals("balanced")) {
+                        continue;
+                    }
+                    long projectedDelta = variant.projectedWork().minus(balanced.projectedWork()).toMillis();
+                    int executedDelta = variant.totalTasksExecuted() - balanced.totalTasksExecuted();
+                    builder.append("Policy delta vs balanced (")
+                        .append(variant.policyProfile())
+                        .append("): projected_work_delta=")
+                        .append(projectedDelta >= 0 ? "+" : "-")
+                        .append(Math.abs(projectedDelta))
+                        .append("ms, executed_task_delta=")
+                        .append(executedDelta)
+                        .append(", adaptive_changes=")
+                        .append(compactAdaptiveChanges(variant))
+                        .append(System.lineSeparator());
+                }
             }
             builder.append(System.lineSeparator());
         }
@@ -84,8 +110,8 @@ public final class DashboardBenchmarkFormatter {
         for (int index = 0; index < grouped.size(); index++) {
             List<DashboardBenchmarkSummary> scenarioSummaries = grouped.get(index);
             DashboardBenchmarkScenario scenario = scenarioSummaries.get(0).scenario();
-            DashboardBenchmarkSummary naive = summaryForStrategy(scenarioSummaries, "naive_parallel");
-            DashboardBenchmarkSummary adaptive = summaryForStrategy(scenarioSummaries, "budgetflow_adaptive");
+            DashboardBenchmarkSummary naive = summaryForStrategy(scenarioSummaries, "naive_parallel", "-");
+            DashboardBenchmarkSummary adaptive = summaryForStrategy(scenarioSummaries, "budgetflow_adaptive", "balanced");
             if (index > 0) {
                 builder.append(",");
             }
@@ -124,13 +150,19 @@ public final class DashboardBenchmarkFormatter {
 
     private static List<DashboardBenchmarkSummary> orderedStrategies(List<DashboardBenchmarkSummary> summaries) {
         return summaries.stream()
-            .sorted(Comparator.comparing(DashboardBenchmarkSummary::executionStrategy))
+            .sorted(Comparator.comparing(DashboardBenchmarkSummary::executionStrategy)
+                .thenComparing(DashboardBenchmarkSummary::policyProfile))
             .toList();
     }
 
-    private static DashboardBenchmarkSummary summaryForStrategy(List<DashboardBenchmarkSummary> summaries, String strategy) {
+    private static DashboardBenchmarkSummary summaryForStrategy(
+        List<DashboardBenchmarkSummary> summaries,
+        String strategy,
+        String policyProfile
+    ) {
         return summaries.stream()
             .filter(summary -> summary.executionStrategy().equals(strategy))
+            .filter(summary -> summary.policyProfile().equals(policyProfile))
             .findFirst()
             .orElse(null);
     }
@@ -138,6 +170,7 @@ public final class DashboardBenchmarkFormatter {
     private static String strategyJson(DashboardBenchmarkSummary summary) {
         return "{"
             + "\"name\":\"" + escape(summary.executionStrategy()) + "\","
+            + "\"policyProfile\":\"" + escape(summary.policyProfile()) + "\","
             + "\"executedTasks\":" + summary.totalTasksExecuted() + ","
             + "\"degraded\":" + summary.degraded() + ","
             + "\"projectedWorkMs\":" + summary.projectedWork().toMillis() + ","

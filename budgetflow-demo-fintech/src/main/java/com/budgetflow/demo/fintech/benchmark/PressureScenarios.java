@@ -105,6 +105,19 @@ public final class PressureScenarios {
         );
     }
 
+    public static DashboardBenchmarkScenario moderateBudgetElevatedPressure() {
+        return scenario(
+            "policy",
+            "moderate_budget_elevated_pressure",
+            "Moderate budget / elevated pressure",
+            "Designed for policy-profile comparison: balanced, continuity, and efficiency can diverge clearly under pressure.",
+            "moderate_budget",
+            "elevated_pressure",
+            Duration.ofMillis(520),
+            ELEVATED_PRESSURE
+        );
+    }
+
     public static DashboardScenarioPack defaultPack() {
         return new DashboardScenarioPack(
             "default",
@@ -145,11 +158,25 @@ public final class PressureScenarios {
         );
     }
 
+    public static DashboardScenarioPack policyPack() {
+        return new DashboardScenarioPack(
+            "policy",
+            "Profile-comparison scenarios that highlight planner-policy trade-offs under the same workload.",
+            List.of(
+                constrainedBudgetLowPressure(),
+                constrainedBudgetElevatedPressure(),
+                moderateBudgetElevatedPressure(),
+                tightBudgetModerateDbPressure()
+            )
+        );
+    }
+
     public static DashboardScenarioPack packNamed(String packName) {
         return switch (packName) {
             case "default" -> defaultPack();
             case "extended" -> extendedPack();
             case "realism" -> realismPack();
+            case "policy" -> policyPack();
             default -> throw new IllegalArgumentException("Unknown dashboard scenario pack: " + packName);
         };
     }

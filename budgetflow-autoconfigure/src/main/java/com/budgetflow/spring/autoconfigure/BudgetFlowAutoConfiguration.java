@@ -7,6 +7,7 @@ import com.budgetflow.core.policy.BudgetPolicyEngine;
 import com.budgetflow.core.policy.CompositeSystemPressureProvider;
 import com.budgetflow.core.policy.DefaultBudgetPolicyEngine;
 import com.budgetflow.core.policy.DefaultSystemPressureProvider;
+import com.budgetflow.core.policy.PlannerPolicyProfile;
 import com.budgetflow.core.policy.RuntimeSignalPressureProvider;
 import com.budgetflow.core.policy.SystemPressureProvider;
 import com.budgetflow.spring.aop.LatencyBudgetAspect;
@@ -41,8 +42,11 @@ public class BudgetFlowAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean
-    public BudgetPolicyEngine budgetPolicyEngine() {
-        return new DefaultBudgetPolicyEngine();
+    public BudgetPolicyEngine budgetPolicyEngine(BudgetFlowProperties properties) {
+        String configuredProfile = properties.getPlanner() == null
+            ? PlannerPolicyProfile.BALANCED.configName()
+            : properties.getPlanner().getPolicyProfile();
+        return new DefaultBudgetPolicyEngine(PlannerPolicyProfile.fromConfigName(configuredProfile));
     }
 
     @Bean

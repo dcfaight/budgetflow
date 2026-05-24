@@ -6,6 +6,7 @@ import java.util.List;
 public record DashboardBenchmarkSummary(
     DashboardBenchmarkScenario scenario,
     String executionStrategy,
+    String policyProfile,
     int totalTasksExecuted,
     List<String> omittedTasks,
     List<String> fallbackTasks,
@@ -15,6 +16,7 @@ public record DashboardBenchmarkSummary(
     List<String> degradationReasons
 ) {
     public DashboardBenchmarkSummary {
+        policyProfile = policyProfile == null || policyProfile.isBlank() ? "-" : policyProfile;
         omittedTasks = List.copyOf(omittedTasks);
         fallbackTasks = List.copyOf(fallbackTasks);
         approximatedTasks = List.copyOf(approximatedTasks);

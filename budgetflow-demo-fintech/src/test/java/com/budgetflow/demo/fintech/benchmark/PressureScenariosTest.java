@@ -112,6 +112,15 @@ class PressureScenariosTest {
         assertEquals("downstream_spike", scenario.pressureProfile());
     }
 
+    @Test
+    void moderateBudgetElevatedPressureScenarioIsConsistent() {
+        DashboardBenchmarkScenario scenario = PressureScenarios.moderateBudgetElevatedPressure();
+        assertEquals("policy", scenario.packName());
+        assertEquals("moderate_budget_elevated_pressure", scenario.name());
+        assertEquals(Duration.ofMillis(520), scenario.requestBudget());
+        assertEquals(PressureScenarios.ELEVATED_PRESSURE, scenario.pressureSnapshot());
+    }
+
     // -----------------------------------------------------------------------
     // Scenario factories are deterministic
     // -----------------------------------------------------------------------
@@ -130,6 +139,8 @@ class PressureScenariosTest {
             PressureScenarios.tightBudgetModerateDbPressure());
         assertEquals(PressureScenarios.moderateBudgetDownstreamSpike(),
             PressureScenarios.moderateBudgetDownstreamSpike());
+        assertEquals(PressureScenarios.moderateBudgetElevatedPressure(),
+            PressureScenarios.moderateBudgetElevatedPressure());
     }
 
     // -----------------------------------------------------------------------
@@ -165,10 +176,15 @@ class PressureScenariosTest {
     void scenarioPacksExposeNamedReusableCollections() {
         DashboardScenarioPack extended = PressureScenarios.extendedPack();
         DashboardScenarioPack realism = PressureScenarios.realismPack();
+        DashboardScenarioPack policy = PressureScenarios.policyPack();
+        DashboardScenarioPack policyFromLookup = PressureScenarios.packNamed("policy");
 
         assertEquals("extended", extended.name());
         assertEquals(6, extended.scenarios().size());
         assertEquals("realism", realism.name());
         assertEquals(4, realism.scenarios().size());
+        assertEquals("policy", policy.name());
+        assertEquals(4, policy.scenarios().size());
+        assertEquals(policy, policyFromLookup);
     }
 }
