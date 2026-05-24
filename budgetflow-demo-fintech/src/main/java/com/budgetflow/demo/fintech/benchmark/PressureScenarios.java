@@ -78,6 +78,23 @@ public final class PressureScenarios {
         );
     }
 
+    public static DashboardBenchmarkScenario tightBudgetLowPressure() {
+        return scenario(
+            "extended",
+            "tight_budget_low_pressure",
+            "Tight budget / low pressure",
+            "The system is healthy, but the request budget is tight enough that degraded paths matter on their own.",
+            "Path-aware budget rescue: validates fallback/approximate latency hints without runtime-pressure noise.",
+            "Use this when you want the clearest budget-only proof that degraded-path planning preserves more useful work than primary-path-only reasoning.",
+            "Aggressive mobile latency target on an otherwise healthy platform.",
+            "Look for budget-driven fallback/approximate choices and plannedExecutionLatency reductions before attributing anything to pressure.",
+            "tight_budget",
+            "low_pressure",
+            Duration.ofMillis(250),
+            LOW_PRESSURE
+        );
+    }
+
     public static DashboardBenchmarkScenario generousBudgetElevatedPressure() {
         return scenario(
             "extended",
@@ -170,6 +187,7 @@ public final class PressureScenarios {
                 generousBudgetLowPressure(),
                 constrainedBudgetLowPressure(),
                 constrainedBudgetElevatedPressure(),
+                tightBudgetLowPressure(),
                 generousBudgetElevatedPressure(),
                 tightBudgetModerateDbPressure(),
                 moderateBudgetDownstreamSpike()
@@ -185,6 +203,7 @@ public final class PressureScenarios {
             "./gradlew :budgetflow-demo-fintech:runDashboardComparison --args=\"--pack=realism --json\"",
             List.of(
                 constrainedBudgetLowPressure(),
+                tightBudgetLowPressure(),
                 tightBudgetModerateDbPressure(),
                 moderateBudgetDownstreamSpike(),
                 constrainedBudgetElevatedPressure()

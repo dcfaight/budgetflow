@@ -16,12 +16,13 @@ BudgetFlow is **not** production hardened, benchmark-certified, or API-stable.
 - release-facing framing and evaluation guidance
 - clearer planner separation between signal analysis, policy selection, and trace/orchestration output
 - scenario mapping to recognizable real-world pressure patterns
+- default-vs-advanced planner customization guidance
 - a guided walkthrough path for first-time local exploration
 
 ## Near-term roadmap (incremental)
 
 1. tighten API ergonomics while preserving starter-first adoption path
-2. expand scenario packs with compact, realistic endpoint patterns
+2. expand scenario packs with compact, realistic endpoint patterns and clearer comparison summaries
 3. deepen runtime-signal adapters and observability-friendly hooks
 4. continue planner refinement with deterministic, explainable semantics
 5. improve docs coherence across quickstart, usage, and evaluation flow

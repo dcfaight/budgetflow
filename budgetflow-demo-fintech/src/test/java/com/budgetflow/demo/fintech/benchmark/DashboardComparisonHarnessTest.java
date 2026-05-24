@@ -83,6 +83,20 @@ class DashboardComparisonHarnessTest {
     }
 
     @Test
+    void formatterAddsComparisonTakeawayAndRicherConfidenceSummary() {
+        try (DashboardComparisonHarness harness = new DashboardComparisonHarness(new NoDelaySimulationSupport())) {
+            DashboardScenarioPack pack = PressureScenarios.extendedPack();
+            String output = DashboardBenchmarkFormatter.format(pack, harness.run(pack.scenarios()));
+
+            assertTrue(output.contains("Scenario: tight_budget_low_pressure"));
+            assertTrue(output.contains("Comparison takeaway:"));
+            assertTrue(output.contains("baseline_convergence="));
+            assertTrue(output.contains("adaptive_plan_changes="));
+            assertTrue(output.contains("profile_comparison_scenarios="));
+        }
+    }
+
+    @Test
     void generousBudgetElevatedPressureAdaptiveDegradesOptionalAndEnrichesImportantWithFallback() {
         try (DashboardComparisonHarness harness = new DashboardComparisonHarness(new NoDelaySimulationSupport())) {
             List<DashboardBenchmarkSummary> summaries = harness.run(List.of(
@@ -112,7 +126,7 @@ class DashboardComparisonHarnessTest {
 
             List<DashboardBenchmarkSummary> summaries = harness.run(extended);
 
-            assertEquals(12, summaries.size());
+            assertEquals(14, summaries.size());
             summaries.forEach(s -> assertTrue(s.totalTasksExecuted() >= 0));
         }
     }
@@ -155,6 +169,7 @@ class DashboardComparisonHarnessTest {
             assertTrue(json.contains("\"name\":\"budgetflow_adaptive\""));
             assertTrue(json.contains("\"policyProfile\":\"balanced\""));
             assertTrue(json.contains("\"comparison\":{"));
+            assertTrue(json.contains("\"comparisonTakeaway\":"));
             assertTrue(json.contains("\"adaptiveChanges\":"));
             assertTrue(json.contains("\"profileSummary\":"));
             assertTrue(json.contains("\"profileGuidance\":"));
@@ -179,6 +194,7 @@ class DashboardComparisonHarnessTest {
             assertTrue(constrainedIndex > generousIndex);
             assertTrue(elevatedIndex > constrainedIndex);
             assertTrue(output.contains("Comparison: adaptive projected work delta="));
+            assertTrue(output.contains("Comparison takeaway:"));
             assertTrue(output.contains("adaptive_changes="));
             assertTrue(output.contains("Confidence summary: scenarios_compared="));
             assertTrue(output.contains("Prototype reminder: comparison output is for exploratory evaluation, not benchmark certification."));
@@ -194,6 +210,8 @@ class DashboardComparisonHarnessTest {
             assertTrue(json.contains("\"confidenceSummary\":{"));
             assertTrue(json.contains("\"scenariosCompared\":"));
             assertTrue(json.contains("\"adaptiveLowerProjectedWorkCount\":"));
+            assertTrue(json.contains("\"baselineConvergenceCount\":"));
+            assertTrue(json.contains("\"adaptivePlanChangeCount\":"));
         }
     }
 
@@ -227,6 +245,7 @@ class DashboardComparisonHarnessTest {
         assertTrue(output.contains("./gradlew :budgetflow-demo-fintech:runDashboardComparison --args=\"--pack=default\""));
         assertTrue(output.contains("./gradlew :budgetflow-demo-fintech:runDashboardComparison --args=\"--pack=policy --policies=balanced,continuity,efficiency\""));
         assertTrue(output.contains("/tmp/budgetflow-realism.json"));
+        assertTrue(output.contains("docs/planner-customization.md"));
         assertTrue(output.contains("not a production-ready platform"));
     }
 
