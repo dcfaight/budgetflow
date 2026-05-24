@@ -138,6 +138,7 @@ class DashboardComparisonHarnessTest {
             assertTrue(json.contains("\"tool\":\"budgetflow_dashboard_comparison\""));
             assertTrue(json.contains("\"scenarioPack\":{\"name\":\"realism\""));
             assertTrue(json.contains("\"name\":\"budgetflow_adaptive\""));
+            assertTrue(json.contains("\"policyProfile\":\"balanced\""));
             assertTrue(json.contains("\"comparison\":{"));
             assertTrue(json.contains("\"adaptiveChanges\":"));
         }

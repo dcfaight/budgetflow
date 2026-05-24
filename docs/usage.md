@@ -234,12 +234,18 @@ BudgetFlow remains a prototype, but now includes lightweight integration points 
 - `RuntimeSignalPressureProvider` for plugging in live pressure signal suppliers (executor, DB, downstream).
 - `CompositeSystemPressureProvider` for combining multiple pressure sources conservatively (max per dimension).
 - `ExecutionLifecycleListener` for optional lifecycle callbacks before/after policy evaluation and after request execution.
-- `OptionalTaskModeSelector` for optional-task policy variation while keeping default path-aware planning deterministic.
+- named planner policy profiles (`balanced`, `continuity`, `efficiency`) for optional-task policy variation while keeping behavior deterministic.
+- `OptionalTaskModeSelector` for custom optional-task policy variation when profiles are not enough.
 
 These hooks are intentionally lightweight and optional:
 - no hard dependency on any observability vendor
 - no mandatory telemetry platform setup
-- default planner semantics remain unchanged unless you explicitly provide a custom selector
+- default planner semantics remain unchanged unless you explicitly choose a different profile or provide a custom selector
+
+Built-in profiles:
+- `balanced` (default): middle-ground behavior for most teams
+- `continuity`: favors degraded optional execution paths before omission
+- `efficiency`: omits optional work earlier under stress to protect latency headroom
 
 Example policy variation wiring:
 
@@ -256,12 +262,16 @@ For Spring Boot starter usage, enable runtime-signal adapter composition with:
 
 ```yaml
 budgetflow:
+  planner:
+    policy-profile: balanced
   runtime-signals:
     enabled: true
     include-default-provider: true
 ```
 
 Then provide one `RuntimePressureSignals` bean to bridge your app/runtime metrics into BudgetFlow.
+
+`budgetflow.planner.policy-profile` accepts `balanced`, `continuity`, or `efficiency`.
 
 When `ExecutionLifecycleListener` beans are present, starter auto-configuration now wires them into the default `AdaptiveExecutor`.
 
@@ -271,6 +281,8 @@ When `ExecutionLifecycleListener` beans are present, starter auto-configuration 
 budgetflow:
   enabled: true
   default-budget: 250ms
+  planner:
+    policy-profile: continuity
   runtime-signals:
     enabled: true
     include-default-provider: true

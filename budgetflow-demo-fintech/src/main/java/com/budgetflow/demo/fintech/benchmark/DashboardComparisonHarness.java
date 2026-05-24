@@ -8,7 +8,6 @@ import com.budgetflow.core.classification.ExecutionMode;
 import com.budgetflow.core.context.BudgetContext;
 import com.budgetflow.core.context.BudgetContextHolder;
 import com.budgetflow.core.execution.DefaultAdaptiveExecutor;
-import com.budgetflow.core.metadata.RequestExecutionDiagnostics;
 import com.budgetflow.core.policy.DefaultBudgetPolicyEngine;
 import com.budgetflow.core.policy.PlannerPolicyProfile;
 import com.budgetflow.demo.fintech.dashboard.BalanceClient;
