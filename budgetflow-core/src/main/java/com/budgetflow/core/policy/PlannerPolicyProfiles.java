@@ -2,6 +2,7 @@ package com.budgetflow.core.policy;
 
 import java.util.Arrays;
 import java.util.List;
+import java.util.stream.Stream;
 
 public final class PlannerPolicyProfiles {
     private PlannerPolicyProfiles() {
@@ -22,6 +23,13 @@ public final class PlannerPolicyProfiles {
     public static List<String> supportedProfileNames() {
         return Arrays.stream(PlannerPolicyProfile.values())
             .map(PlannerPolicyProfile::configName)
+            .toList();
+    }
+
+    public static List<String> supportedConfigNames() {
+        return Arrays.stream(PlannerPolicyProfile.values())
+            .flatMap(profile -> Stream.concat(Stream.of(profile.configName()), profile.aliases().stream()))
+            .distinct()
             .toList();
     }
 }

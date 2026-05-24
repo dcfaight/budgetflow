@@ -89,6 +89,12 @@ public final class DashboardBenchmarkFormatter {
                         .append(System.lineSeparator());
                 }
             }
+            builder.append("Scenario summary: ")
+                .append(scenarioSummary(naive, balanced))
+                .append(System.lineSeparator());
+            builder.append("Profile guidance: ")
+                .append(profileGuidance(adaptiveVariants))
+                .append(System.lineSeparator());
             builder.append(System.lineSeparator());
         }
         return builder.toString().trim();
@@ -132,6 +138,16 @@ public final class DashboardBenchmarkFormatter {
                 .append(",")
                 .append("\"comparison\":")
                 .append(comparisonJson(naive, adaptive))
+                .append(",")
+                .append("\"profileSummary\":")
+                .append(profileSummaryJson(scenarioSummaries))
+                .append(",")
+                .append("\"profileGuidance\":\"")
+                .append(escape(profileGuidance(scenarioSummaries.stream()
+                    .filter(summary -> summary.executionStrategy().equals("budgetflow_adaptive"))
+                    .sorted(Comparator.comparing(DashboardBenchmarkSummary::policyProfile))
+                    .toList())))
+                .append("\"")
                 .append("}");
         }
 
@@ -209,6 +225,80 @@ public final class DashboardBenchmarkFormatter {
             + "\"executedTaskDelta\":" + (adaptive.totalTasksExecuted() - naive.totalTasksExecuted()) + ","
             + "\"adaptiveChanges\":\"" + escape(compactAdaptiveChanges(adaptive)) + "\""
             + "}";
+    }
+
+    private static String scenarioSummary(DashboardBenchmarkSummary naive, DashboardBenchmarkSummary balanced) {
+        if (naive == null || balanced == null) {
+            return "balanced profile summary unavailable for this scenario.";
+        }
+        long savings = naive.projectedWork().minus(balanced.projectedWork()).toMillis();
+        return "balanced projected_work_savings="
+            + savings
+            + "ms_vs_naive, degraded="
+            + balanced.degraded()
+            + ", omitted="
+            + formatList(balanced.omittedTasks())
+            + ", fallback="
+            + formatList(balanced.fallbackTasks())
+            + ", approx="
+            + formatList(balanced.approximatedTasks());
+    }
+
+    private static String profileGuidance(List<DashboardBenchmarkSummary> adaptiveVariants) {
+        DashboardBenchmarkSummary balanced = adaptiveVariants.stream()
+            .filter(summary -> summary.policyProfile().equals("balanced"))
+            .findFirst()
+            .orElse(null);
+        if (balanced == null) {
+            return "Use balanced as the default profile for first adoption; compare continuity and efficiency only when tradeoffs matter.";
+        }
+
+        DashboardBenchmarkSummary continuity = adaptiveVariants.stream()
+            .filter(summary -> summary.policyProfile().equals("continuity"))
+            .findFirst()
+            .orElse(null);
+        DashboardBenchmarkSummary efficiency = adaptiveVariants.stream()
+            .filter(summary -> summary.policyProfile().equals("efficiency"))
+            .findFirst()
+            .orElse(null);
+
+        StringBuilder guidance = new StringBuilder(
+            "Default to balanced for most traffic; it keeps behavior conservative and explainable."
+        );
+        if (continuity != null) {
+            int continuityExecutedDelta = continuity.totalTasksExecuted() - balanced.totalTasksExecuted();
+            guidance.append(" Choose continuity when preserving optional response coverage matters")
+                .append(" (executed_task_delta_vs_balanced=")
+                .append(continuityExecutedDelta)
+                .append(").");
+        }
+        if (efficiency != null) {
+            long efficiencyWorkDelta = efficiency.projectedWork().minus(balanced.projectedWork()).toMillis();
+            guidance.append(" Choose efficiency when stricter latency headroom is worth dropping optional work earlier")
+                .append(" (projected_work_delta_vs_balanced=")
+                .append(efficiencyWorkDelta >= 0 ? "+" : "")
+                .append(efficiencyWorkDelta)
+                .append("ms).");
+        }
+        return guidance.toString();
+    }
+
+    private static String profileSummaryJson(List<DashboardBenchmarkSummary> scenarioSummaries) {
+        List<DashboardBenchmarkSummary> adaptiveVariants = scenarioSummaries.stream()
+            .filter(summary -> summary.executionStrategy().equals("budgetflow_adaptive"))
+            .sorted(Comparator.comparing(DashboardBenchmarkSummary::policyProfile))
+            .toList();
+        return adaptiveVariants.stream()
+            .map(summary -> "{"
+                + "\"policyProfile\":\"" + escape(summary.policyProfile()) + "\","
+                + "\"executedTasks\":" + summary.totalTasksExecuted() + ","
+                + "\"projectedWorkMs\":" + summary.projectedWork().toMillis() + ","
+                + "\"omittedTasks\":" + jsonArray(summary.omittedTasks()) + ","
+                + "\"fallbackTasks\":" + jsonArray(summary.fallbackTasks()) + ","
+                + "\"approximatedTasks\":" + jsonArray(summary.approximatedTasks()) + ","
+                + "\"degraded\":" + summary.degraded()
+                + "}")
+            .collect(Collectors.joining(",", "[", "]"));
     }
 
     private static String formatList(List<String> values) {

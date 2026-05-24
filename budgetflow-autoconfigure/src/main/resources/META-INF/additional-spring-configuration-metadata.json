@@ -13,6 +13,18 @@
       "description": "Default request budget used by the latency budget aspect when an explicit annotation value is not provided."
     },
     {
+      "name": "budgetflow.planner.profile",
+      "type": "java.lang.String",
+      "defaultValue": "balanced",
+      "description": "Planner profile name (recommended property). Accepts balanced/default, continuity, or efficiency."
+    },
+    {
+      "name": "budgetflow.planner.policy-profile",
+      "type": "java.lang.String",
+      "defaultValue": "balanced",
+      "description": "Legacy planner profile property. Accepts balanced/default, continuity, or efficiency."
+    },
+    {
       "name": "budgetflow.runtime-signals.enabled",
       "type": "java.lang.Boolean",
       "defaultValue": false,

@@ -180,8 +180,8 @@ BudgetFlow currently includes:
 - named grouped-request helpers such as `importantWithFallback(...)` and `optionalWithFallbackAndApproximate(...)`
 - optional degraded-path latency hints so fallback/approximate execution can participate in planning more realistically
 - lightweight optional-task strategy extension via `OptionalTaskModeSelector` (default behavior remains deterministic)
-- named planner policy profiles (`balanced`, `continuity`, `efficiency`) with deterministic semantics and balanced default behavior
-- Spring Boot planner policy profile selection via `budgetflow.planner.policy-profile`
+- named planner policy profiles (`balanced`/`default`, `continuity`, `efficiency`) with deterministic semantics and balanced default behavior
+- Spring Boot planner profile selection via `budgetflow.planner.profile` (legacy alias: `budgetflow.planner.policy-profile`)
 - typed task result access via `TaskKey<T>` and `AdaptiveRequestResult`
 - policy-driven execution mode selection
 - deterministic mandatory-first planning
@@ -249,7 +249,7 @@ Example (trimmed):
 | **Approximated** | Tasks that returned a lower-fidelity result (e.g., cached or estimated) |
 | **Work** | Request latency budget vs projected work under the chosen execution modes |
 
-The latest formatter now also groups output by scenario, adds a narrative line, and emits a compact comparison summary showing projected work savings and adaptive changes side-by-side.
+The latest formatter now also groups output by scenario, adds a narrative line, emits compact comparison deltas, and includes scenario/profile guidance summaries to make profile tradeoffs easier to interpret.
 
 The constrained-budget scenarios are the clearest before/after showcase:
 - `naive_parallel` still attempts all work using primary-path assumptions.
@@ -259,6 +259,12 @@ The constrained-budget scenarios are the clearest before/after showcase:
 - Under a generous budget and low pressure, naive and adaptive produce identical results — no degradation is needed.
 - Under a constrained budget and low pressure, the adaptive executor omits optional `insights` while keeping `offers` on the primary path, bringing projected work down from 445 ms to 305 ms. The naive executor still attempts all five tasks over budget.
 - Under elevated pressure, the adaptive executor falls back on `rewards`, approximates `offers`, and omits `insights`, projecting about 123 ms of work. The naive executor is unaware of pressure and attempts everything.
+
+**Profile recommendation guidance (prototype):**
+- Use `default`/`balanced` first unless you have a clear reason to optimize for a specific tradeoff.
+- Prefer `continuity` when preserving optional response coverage matters more than strict headroom.
+- Prefer `efficiency` when minimizing projected work and protecting latency headroom is the priority.
+- Treat harness guidance as scenario evidence, not a rigorous benchmark claim.
 
 ## Modules
 
@@ -364,6 +370,8 @@ Optional harness arguments keep the tool lightweight while making demo output ea
 ./gradlew :budgetflow-demo-fintech:runDashboardComparison --args="--pack=realism --json"
 ./gradlew :budgetflow-demo-fintech:runDashboardComparison --args="--pack=policy --policies=balanced,continuity,efficiency"
 ```
+
+`--policies=` also accepts `default` as an alias for `balanced`.
 
 Available scenario packs:
 - `default` — the three core scenarios used in the basic comparison walkthrough

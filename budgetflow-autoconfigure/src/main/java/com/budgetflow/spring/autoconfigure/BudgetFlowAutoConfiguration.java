@@ -44,8 +44,8 @@ public class BudgetFlowAutoConfiguration {
     @ConditionalOnMissingBean
     public BudgetPolicyEngine budgetPolicyEngine(BudgetFlowProperties properties) {
         String configuredProfile = properties.getPlanner() == null
-            ? PlannerPolicyProfile.BALANCED.configName()
-            : properties.getPlanner().getPolicyProfile();
+            ? PlannerPolicyProfile.defaultProfile().configName()
+            : properties.getPlanner().resolveProfileName();
         return new DefaultBudgetPolicyEngine(PlannerPolicyProfile.fromConfigName(configuredProfile));
     }
 

@@ -238,7 +238,7 @@ The policy engine returns `PolicyDecision`, which contains:
 ### Extensibility boundary
 `DefaultBudgetPolicyEngine` keeps the main planning flow deterministic, while exposing a lightweight optional-task mode extension point:
 - `PlannerPolicyProfile` provides built-in deterministic variants:
-  - `balanced` (default)
+  - `balanced` / `default` (recommended default)
   - `continuity` (degraded-path-first)
   - `efficiency` (earlier optional omission under stress)
 - `OptionalTaskModeSelector` chooses optional-task execution mode (`EXECUTE`, `EXECUTE_WITH_FALLBACK`, `EXECUTE_APPROXIMATE`, `OMIT`)
@@ -314,7 +314,7 @@ BudgetFlow’s Spring integration currently includes:
 - auto-configuration
 - starter dependency
 - optional `RuntimePressureSignals` adapter bean support
-- optional planner profile selection via `budgetflow.planner.policy-profile`
+- optional planner profile selection via `budgetflow.planner.profile` (legacy alias: `budgetflow.planner.policy-profile`)
 - auto-wiring of optional `ExecutionLifecycleListener` beans into the default executor
 
 This allows applications to establish a request budget declaratively and use the adaptive executor inside normal Spring services.

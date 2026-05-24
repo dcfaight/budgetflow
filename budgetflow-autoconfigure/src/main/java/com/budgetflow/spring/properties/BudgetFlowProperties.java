@@ -44,7 +44,8 @@ public class BudgetFlowProperties {
     }
 
     public static class Planner {
-        private String policyProfile = "balanced";
+        private String policyProfile;
+        private String profile = "balanced";
 
         public String getPolicyProfile() {
             return policyProfile;
@@ -52,6 +53,24 @@ public class BudgetFlowProperties {
 
         public void setPolicyProfile(String policyProfile) {
             this.policyProfile = policyProfile;
+        }
+
+        public String getProfile() {
+            return profile;
+        }
+
+        public void setProfile(String profile) {
+            this.profile = profile;
+        }
+
+        public String resolveProfileName() {
+            if (policyProfile != null && !policyProfile.isBlank()) {
+                return policyProfile;
+            }
+            if (profile != null && !profile.isBlank()) {
+                return profile;
+            }
+            return "balanced";
         }
     }
 
