@@ -7,10 +7,10 @@ public final class EfficiencyOptionalTaskModeSelector implements OptionalTaskMod
     public ExecutionMode chooseMode(TaskDescriptor task, OptionalTaskPlanningContext context) {
         boolean stressConditions = context.highPressure()
             || context.lowBudget()
-            || context.latencyRatio() >= context.optionalDegradeThreshold();
+            || context.primaryLatencyRatio() >= context.optionalDegradeThreshold();
         boolean shouldOmit = context.highPressure()
             || context.veryLowBudget()
-            || context.latencyRatio() >= context.optionalOmitThreshold();
+            || context.primaryLatencyRatio() >= context.optionalOmitThreshold();
 
         if (shouldOmit) {
             return ExecutionMode.OMIT;

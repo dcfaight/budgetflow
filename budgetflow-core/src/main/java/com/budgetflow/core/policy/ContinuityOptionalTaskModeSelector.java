@@ -9,13 +9,14 @@ public final class ContinuityOptionalTaskModeSelector implements OptionalTaskMod
     public ExecutionMode chooseMode(TaskDescriptor task, OptionalTaskPlanningContext context) {
         boolean stressConditions = context.highPressure()
             || context.lowBudget()
-            || context.latencyRatio() >= context.optionalDegradeThreshold();
-        boolean omitDueToNoDegradedPath = context.latencyRatio() >= OPTIONAL_EXTREME_OMIT_LATENCY_RATIO
+            || context.primaryLatencyRatio() >= context.optionalDegradeThreshold();
+        boolean omitDueToNoDegradedPath = context.primaryLatencyRatio() >= OPTIONAL_EXTREME_OMIT_LATENCY_RATIO
             && !task.approximateSupported()
             && !task.fallbackSupported();
         boolean severeJointStress = context.highPressure()
             && context.veryLowBudget()
-            && context.latencyRatio() >= context.optionalOmitThreshold();
+            && context.primaryLatencyRatio() >= context.optionalOmitThreshold()
+            && !context.degradedPathAvailable();
 
         if (omitDueToNoDegradedPath || severeJointStress) {
             return ExecutionMode.OMIT;
@@ -29,7 +30,9 @@ public final class ContinuityOptionalTaskModeSelector implements OptionalTaskMod
             return ExecutionMode.EXECUTE_WITH_FALLBACK;
         }
 
-        if (context.latencyRatio() >= context.optionalOmitThreshold() && !task.approximateSupported() && !task.fallbackSupported()) {
+        if (context.primaryLatencyRatio() >= context.optionalOmitThreshold()
+            && !task.approximateSupported()
+            && !task.fallbackSupported()) {
             return ExecutionMode.OMIT;
         }
 

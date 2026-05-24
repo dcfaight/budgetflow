@@ -23,8 +23,14 @@ class PlannerPolicyProfilesTest {
             () -> PlannerPolicyProfile.fromConfigName("unknown")
         );
         assertTrue(exception.getMessage().contains("balanced"));
+        assertTrue(exception.getMessage().contains("default"));
         assertTrue(exception.getMessage().contains("continuity"));
         assertTrue(exception.getMessage().contains("efficiency"));
+    }
+
+    @Test
+    void defaultAliasResolvesToBalancedProfile() {
+        assertEquals(PlannerPolicyProfile.BALANCED, PlannerPolicyProfile.fromConfigName("default"));
     }
 
     @Test
@@ -42,6 +48,10 @@ class PlannerPolicyProfilesTest {
             new SystemPressureSnapshot(0.90, 0.20, 0.20),
             Duration.ofMillis(260),
             0.46,
+            0.07,
+            0.93,
+            111,
+            true,
             false,
             false,
             true,

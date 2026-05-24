@@ -8,11 +8,15 @@ public final class DefaultOptionalTaskModeSelector implements OptionalTaskModeSe
     @Override
     public ExecutionMode chooseMode(TaskDescriptor task, OptionalTaskPlanningContext context) {
         boolean severeBudgetOrPressure = context.veryLowBudget() || context.highPressure();
+        boolean degradedPathProtectsHeadroom = context.degradedPathAvailable()
+            && context.cheapestDegradedLatencyRatio() < context.optionalOmitThreshold();
         boolean stressConditions = severeBudgetOrPressure
             || context.lowBudget()
-            || context.latencyRatio() >= context.optionalDegradeThreshold();
-        boolean omitDueToExtremeRatio = severeBudgetOrPressure && context.latencyRatio() >= context.optionalOmitThreshold();
-        boolean omitDueToNoDegradedPath = context.latencyRatio() >= OPTIONAL_EXTREME_OMIT_LATENCY_RATIO
+            || context.primaryLatencyRatio() >= context.optionalDegradeThreshold();
+        boolean omitDueToExtremeRatio = severeBudgetOrPressure
+            && context.primaryLatencyRatio() >= context.optionalOmitThreshold()
+            && !degradedPathProtectsHeadroom;
+        boolean omitDueToNoDegradedPath = context.primaryLatencyRatio() >= OPTIONAL_EXTREME_OMIT_LATENCY_RATIO
             && !task.approximateSupported()
             && !task.fallbackSupported();
 
@@ -28,7 +32,8 @@ public final class DefaultOptionalTaskModeSelector implements OptionalTaskModeSe
             return ExecutionMode.EXECUTE_WITH_FALLBACK;
         }
 
-        if (severeBudgetOrPressure || context.latencyRatio() >= context.optionalOmitThreshold()) {
+        if ((severeBudgetOrPressure || context.primaryLatencyRatio() >= context.optionalOmitThreshold())
+            && !degradedPathProtectsHeadroom) {
             return ExecutionMode.OMIT;
         }
 

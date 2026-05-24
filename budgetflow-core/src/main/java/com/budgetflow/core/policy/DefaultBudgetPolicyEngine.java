@@ -23,8 +23,8 @@ public class DefaultBudgetPolicyEngine implements BudgetPolicyEngine {
 
     public DefaultBudgetPolicyEngine() {
         this(
-            PlannerPolicyProfiles.optionalTaskSelector(PlannerPolicyProfile.BALANCED),
-            PlannerPolicyProfile.BALANCED.configName()
+            PlannerPolicyProfiles.optionalTaskSelector(PlannerPolicyProfile.defaultProfile()),
+            PlannerPolicyProfile.defaultProfile().configName()
         );
     }
 
@@ -168,10 +168,8 @@ public class DefaultBudgetPolicyEngine implements BudgetPolicyEngine {
         SystemPressureSnapshot snapshot,
         Duration remainingBudget
     ) {
-        Duration expectedLatency = expectedLatencyOrZero(task);
-        long remainingMillis = Math.max(remainingBudget.toMillis(), 1L);
-        long expectedMillis = Math.max(expectedLatency.toMillis(), 0L);
-        double latencyRatio = (double) expectedMillis / (double) remainingMillis;
+        TaskCostSignals costSignals = taskCostSignals(task, remainingBudget);
+        double latencyRatio = costSignals.primaryLatencyRatio();
 
         double pressureLevel = snapshot.peakPressure();
         if (task.importance() == Importance.MANDATORY) {
@@ -189,7 +187,12 @@ public class DefaultBudgetPolicyEngine implements BudgetPolicyEngine {
                 lowBudget,
                 veryLowBudget
             );
-            ExecutionMode mode = (highPressure || lowBudget || latencyRatio >= importantFallbackThreshold) && task.fallbackSupported()
+            boolean importantStress = highPressure
+                || lowBudget
+                || latencyRatio >= importantFallbackThreshold
+                || costSignals.primaryHeadroomMillis() < 20;
+            boolean fallbackClearlyCheaper = costSignals.fallbackLatencyRatio() < latencyRatio;
+            ExecutionMode mode = importantStress && task.fallbackSupported() && (fallbackClearlyCheaper || highPressure || lowBudget)
                 ? ExecutionMode.EXECUTE_WITH_FALLBACK
                 : ExecutionMode.EXECUTE;
             return new PolicySelection(mode, explainReason(mode, snapshot, remainingBudget, latencyRatio));
@@ -214,6 +217,10 @@ public class DefaultBudgetPolicyEngine implements BudgetPolicyEngine {
                     snapshot,
                     remainingBudget,
                     latencyRatio,
+                    costSignals.cheapestDegradedLatencyRatio(),
+                    costSignals.degradedSavingsRatio(),
+                    costSignals.degradedSavingsMillis(),
+                    costSignals.degradedPathAvailable(),
                     lowBudget,
                     veryLowBudget,
                     highPressure,
@@ -315,6 +322,55 @@ public class DefaultBudgetPolicyEngine implements BudgetPolicyEngine {
 
     private Duration nonNegative(Duration value) {
         return value == null || value.isNegative() ? Duration.ZERO : value;
+    }
+
+    private TaskCostSignals taskCostSignals(TaskDescriptor task, Duration remainingBudget) {
+        Duration primaryLatency = expectedLatencyOrZero(task);
+        Duration fallbackLatency = latencyOrPrimary(task.fallbackExpectedLatency(), task);
+        Duration approximateLatency = latencyOrPrimary(task.approximateExpectedLatency(), task);
+        Duration cheapestDegradedLatency = task.fallbackSupported() && task.approximateSupported()
+            ? minPositive(fallbackLatency, approximateLatency)
+            : task.fallbackSupported()
+                ? fallbackLatency
+                : task.approximateSupported() ? approximateLatency : primaryLatency;
+        double primaryRatio = latencyRatio(primaryLatency, remainingBudget);
+        double fallbackRatio = latencyRatio(fallbackLatency, remainingBudget);
+        double approximateRatio = latencyRatio(approximateLatency, remainingBudget);
+        double degradedRatio = latencyRatio(cheapestDegradedLatency, remainingBudget);
+        long savingsMillis = Math.max(primaryLatency.toMillis() - cheapestDegradedLatency.toMillis(), 0L);
+        double savingsRatio = primaryLatency.isZero()
+            ? 0.0
+            : (double) savingsMillis / Math.max(primaryLatency.toMillis(), 1L);
+        long primaryHeadroomMillis = Math.max(remainingBudget.toMillis() - primaryLatency.toMillis(), 0L);
+
+        return new TaskCostSignals(
+            primaryRatio,
+            fallbackRatio,
+            approximateRatio,
+            degradedRatio,
+            savingsMillis,
+            savingsRatio,
+            primaryHeadroomMillis,
+            task.fallbackSupported() || task.approximateSupported()
+        );
+    }
+
+    private double latencyRatio(Duration latency, Duration remainingBudget) {
+        long remainingMillis = Math.max(nonNegative(remainingBudget).toMillis(), 1L);
+        long latencyMillis = Math.max(nonNegative(latency).toMillis(), 0L);
+        return (double) latencyMillis / (double) remainingMillis;
+    }
+
+    private record TaskCostSignals(
+        double primaryLatencyRatio,
+        double fallbackLatencyRatio,
+        double approximateLatencyRatio,
+        double cheapestDegradedLatencyRatio,
+        long degradedSavingsMillis,
+        double degradedSavingsRatio,
+        long primaryHeadroomMillis,
+        boolean degradedPathAvailable
+    ) {
     }
 
     private record PolicySelection(ExecutionMode mode, String reason) {

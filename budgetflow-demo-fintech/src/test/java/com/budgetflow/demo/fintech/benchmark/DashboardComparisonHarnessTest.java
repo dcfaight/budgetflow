@@ -126,6 +126,8 @@ class DashboardComparisonHarnessTest {
             assertTrue(output.contains("budgetflow_adaptive | continuity"));
             assertTrue(output.contains("budgetflow_adaptive | efficiency"));
             assertTrue(output.contains("Policy delta vs balanced"));
+            assertTrue(output.contains("Scenario summary:"));
+            assertTrue(output.contains("Profile guidance:"));
         }
     }
 
@@ -141,6 +143,8 @@ class DashboardComparisonHarnessTest {
             assertTrue(json.contains("\"policyProfile\":\"balanced\""));
             assertTrue(json.contains("\"comparison\":{"));
             assertTrue(json.contains("\"adaptiveChanges\":"));
+            assertTrue(json.contains("\"profileSummary\":"));
+            assertTrue(json.contains("\"profileGuidance\":"));
         }
     }
 

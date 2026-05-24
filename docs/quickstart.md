@@ -71,7 +71,7 @@ BudgetFlow stays usable without extra wiring, but starter integration now suppor
 ```yaml
 budgetflow:
   planner:
-    policy-profile: balanced
+    profile: default
   runtime-signals:
     enabled: true
     include-default-provider: true
@@ -97,7 +97,7 @@ budgetflow:
   enabled: true
   default-budget: 250ms
   planner:
-    policy-profile: balanced
+    profile: default
   runtime-signals:
     enabled: false
     include-default-provider: true
@@ -118,3 +118,5 @@ Then run the side-by-side scenario comparison:
 ./gradlew :budgetflow-demo-fintech:runDashboardComparison
 ./gradlew :budgetflow-demo-fintech:runDashboardComparison --args="--pack=policy --policies=balanced,continuity,efficiency"
 ```
+
+`budgetflow.planner.profile` is the recommended property name. `budgetflow.planner.policy-profile` remains supported for compatibility.

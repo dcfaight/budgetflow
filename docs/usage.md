@@ -243,7 +243,7 @@ These hooks are intentionally lightweight and optional:
 - default planner semantics remain unchanged unless you explicitly choose a different profile or provide a custom selector
 
 Built-in profiles:
-- `balanced` (default): middle-ground behavior for most teams
+- `balanced` / `default` (recommended default): middle-ground behavior for most teams
 - `continuity`: favors degraded optional execution paths before omission
 - `efficiency`: omits optional work earlier under stress to protect latency headroom
 
@@ -263,7 +263,7 @@ For Spring Boot starter usage, enable runtime-signal adapter composition with:
 ```yaml
 budgetflow:
   planner:
-    policy-profile: balanced
+    profile: default
   runtime-signals:
     enabled: true
     include-default-provider: true
@@ -271,7 +271,8 @@ budgetflow:
 
 Then provide one `RuntimePressureSignals` bean to bridge your app/runtime metrics into BudgetFlow.
 
-`budgetflow.planner.policy-profile` accepts `balanced`, `continuity`, or `efficiency`.
+`budgetflow.planner.profile` accepts `default`/`balanced`, `continuity`, or `efficiency`.  
+`budgetflow.planner.policy-profile` remains available as a legacy alias.
 
 When `ExecutionLifecycleListener` beans are present, starter auto-configuration now wires them into the default `AdaptiveExecutor`.
 
@@ -282,7 +283,7 @@ budgetflow:
   enabled: true
   default-budget: 250ms
   planner:
-    policy-profile: continuity
+    profile: continuity
   runtime-signals:
     enabled: true
     include-default-provider: true

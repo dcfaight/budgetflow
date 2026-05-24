@@ -5,6 +5,8 @@ spring:
 budgetflow:
   enabled: true
   default-budget: 250ms
+  planner:
+    profile: default
   runtime-signals:
     enabled: false
     include-default-provider: true

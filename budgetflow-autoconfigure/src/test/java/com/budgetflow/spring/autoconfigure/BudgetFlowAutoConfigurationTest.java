@@ -120,6 +120,31 @@ class BudgetFlowAutoConfigurationTest {
             });
     }
 
+    @Test
+    void plannerProfilePropertySupportsRecommendedDefaultAlias() {
+        contextRunner
+            .withPropertyValues("budgetflow.planner.profile=default")
+            .run(context -> {
+                BudgetPolicyEngine policyEngine = context.getBean(BudgetPolicyEngine.class);
+                PolicyDecision decision = policyEngine.evaluate(new PolicyEvaluationInput(
+                    Duration.ofMillis(260),
+                    java.util.List.of(new TaskDescriptor(
+                        "offers",
+                        Importance.OPTIONAL,
+                        Duration.ofMillis(110),
+                        true,
+                        true,
+                        Duration.ofMillis(12),
+                        Duration.ofMillis(8)
+                    )),
+                    new SystemPressureSnapshot(0.90, 0.20, 0.20)
+                ));
+
+                assertEquals(ExecutionMode.EXECUTE_APPROXIMATE, decision.directives().get(0).executionMode());
+                assertTrue(decision.directives().get(0).reason().contains("policy=balanced"));
+            });
+    }
+
     @Configuration(proxyBeanMethods = false)
     static class RuntimeSignalAdapterConfig {
         @Bean
