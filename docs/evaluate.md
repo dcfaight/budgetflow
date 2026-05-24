@@ -27,6 +27,14 @@ From repository root:
 curl http://localhost:8080/api/accounts/acc-123/dashboard
 ```
 
+Then open the lightweight evaluator UI:
+
+```text
+http://localhost:8080/dashboard/evaluator
+```
+
+Use it to browse scenarios, switch profiles, inspect request-level outcomes, and review planner trace reasoning in a visual prototype surface.
+
 Observe:
 - `diagnostics.degraded`
 - omitted/fallback/approximated task lists
@@ -59,6 +67,7 @@ Suggested progression:
 - `adoption` next for a compact, realistic storyline (control -> commuter mixed spike -> dominant DB bottleneck)
 - `realism` next for broader scenario evidence, including the clean budget-only path-aware case
 - `policy` when you need to choose a planner profile deliberately
+- dashboard UI query params mirror this flow (`pack`, `scenario`, `profile`, `compareProfiles`) for quick visual exploration
 
 ## 3) Interpret profile behavior conservatively
 

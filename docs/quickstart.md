@@ -138,6 +138,12 @@ From the repository root:
 curl http://localhost:8080/api/accounts/acc-123/dashboard
 ```
 
+For a lightweight visual evaluator view (prototype), open:
+
+```text
+http://localhost:8080/dashboard/evaluator
+```
+
 Then run the side-by-side scenario comparison:
 
 ```bash

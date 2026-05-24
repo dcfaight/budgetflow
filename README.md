@@ -21,9 +21,10 @@ If you are exploring the repository for the first time, use this sequence:
 
 1. **Framework quickstart:** [docs/quickstart.md](docs/quickstart.md)
 2. **Guided local walkthrough:** `./gradlew :budgetflow-demo-fintech:runDashboardWalkthrough`
-3. **Evaluation runbook:** [docs/evaluate.md](docs/evaluate.md)
-4. **Planner defaults vs customization:** [docs/planner-customization.md](docs/planner-customization.md)
-5. **Architecture + extension boundaries:** [docs/architecture.md](docs/architecture.md)
+3. **Visual evaluator dashboard:** run `./gradlew :budgetflow-demo-fintech:bootRun`, then open `http://localhost:8080/dashboard/evaluator`
+4. **Evaluation runbook:** [docs/evaluate.md](docs/evaluate.md)
+5. **Planner defaults vs customization:** [docs/planner-customization.md](docs/planner-customization.md)
+6. **Architecture + extension boundaries:** [docs/architecture.md](docs/architecture.md)
 
 ## Why this matters in the first minute
 
@@ -245,6 +246,7 @@ BudgetFlow currently includes:
 - optional property-only runtime signal inputs (`budgetflow.runtime-signals.*`) for quick starter/demo setup without custom beans
 - optional execution lifecycle hooks (`ExecutionLifecycleListener`)
 - fintech dashboard demo application
+- lightweight evaluator dashboard UI for scenario/profile/trace exploration (`/dashboard/evaluator`)
 - naive-vs-adaptive comparison harness with scenario packs, grouped reporting, and optional JSON output
 
 ## Comparison harness output
