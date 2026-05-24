@@ -198,6 +198,70 @@ class DefaultBudgetPolicyEngineTest {
         assertEquals(ExecutionMode.EXECUTE, decision.directives().get(1).executionMode());
     }
 
+    @Test
+    void optionalFallbackLatencyHintPreservesBudgetForLaterTasks() {
+        DefaultBudgetPolicyEngine engine = new DefaultBudgetPolicyEngine();
+
+        PolicyDecision decision = engine.evaluate(new PolicyEvaluationInput(
+            Duration.ofMillis(150),
+            List.of(
+                descriptorWithFallback("offers", Importance.OPTIONAL, 110, 10),
+                descriptor("insights", Importance.OPTIONAL, 70)
+            ),
+            new SystemPressureSnapshot(0.10, 0.10, 0.10)
+        ));
+
+        assertEquals(ExecutionMode.EXECUTE_WITH_FALLBACK, decision.directives().get(0).executionMode());
+        assertEquals(Duration.ofMillis(10), decision.decisionTrace().get(0).plannedExecutionLatency());
+        assertEquals(ExecutionMode.EXECUTE, decision.directives().get(1).executionMode());
+    }
+
+    @Test
+    void equivalentPlanningInputsProduceStableDecisionsAndTrace() {
+        DefaultBudgetPolicyEngine engine = new DefaultBudgetPolicyEngine();
+        PolicyEvaluationInput input = new PolicyEvaluationInput(
+            Duration.ofMillis(260),
+            List.of(
+                descriptor("balance", Importance.MANDATORY, 40),
+                descriptorWithFallback("rewards", Importance.IMPORTANT, 110, 18),
+                descriptorWithFallbackAndApproximate("offers", Importance.OPTIONAL, 120, 16, 9),
+                descriptor("insights", Importance.OPTIONAL, 85)
+            ),
+            new SystemPressureSnapshot(0.30, 0.22, 0.66)
+        );
+
+        PolicyDecision first = engine.evaluate(input);
+        PolicyDecision second = engine.evaluate(input);
+
+        assertEquals(first.directives(), second.directives());
+        assertEquals(first.decisionTrace(), second.decisionTrace());
+        assertEquals(first.degradationReasons(), second.degradationReasons());
+    }
+
+    @Test
+    void optionalStrategyCanBeOverriddenWithoutLosingExplainableReasons() {
+        DefaultBudgetPolicyEngine engine = new DefaultBudgetPolicyEngine((task, context) -> {
+            if (task.fallbackSupported()) {
+                return ExecutionMode.EXECUTE_WITH_FALLBACK;
+            }
+            return ExecutionMode.EXECUTE;
+        });
+
+        PolicyDecision decision = engine.evaluate(new PolicyEvaluationInput(
+            Duration.ofMillis(350),
+            List.of(
+                descriptorWithFallbackAndApproximate("offers", Importance.OPTIONAL, 120, 14, 8),
+                descriptor("insights", Importance.OPTIONAL, 70)
+            ),
+            new SystemPressureSnapshot(0.05, 0.05, 0.05)
+        ));
+
+        assertEquals(ExecutionMode.EXECUTE_WITH_FALLBACK, decision.directives().get(0).executionMode());
+        assertTrue(decision.directives().get(0).reason().startsWith("fallback_selected_by_policy["));
+        assertEquals(Duration.ofMillis(14), decision.decisionTrace().get(0).plannedExecutionLatency());
+        assertEquals(ExecutionMode.EXECUTE, decision.directives().get(1).executionMode());
+    }
+
     private TaskDescriptor descriptor(String taskName, Importance importance, long expectedLatencyMs) {
         Duration latency = Duration.ofMillis(expectedLatencyMs);
         return new TaskDescriptor(taskName, importance, latency, false, false, latency, latency);

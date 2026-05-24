@@ -159,6 +159,11 @@ The default policy engine currently uses a deterministic planning model:
 
 This gives the planner a stable and explainable behavior model.
 
+Key planner invariants:
+- equivalent planning inputs produce equivalent directives and decision trace
+- planning order is deterministic by importance class (`MANDATORY` → `IMPORTANT` → `OPTIONAL`) with stable in-class order
+- reason strings are deterministic for a fixed pressure snapshot and budget context
+
 The default policy now also emits deterministic reason strings that include:
 - pressure band
 - dominant pressure source
@@ -175,6 +180,11 @@ The latest planner pass keeps this ladder deterministic while adding dynamic lat
 When a task supplies explicit fallback/approximate latency hints, the planner now also carries those reduced costs forward into rolling request-budget allocation and decision trace.
 
 That keeps degradation decisions explainable without introducing opaque heuristics.
+
+### Path-aware before/after mental model
+- Before path-aware planning, task budgeting effectively tracked primary-path latency.
+- With path-aware planning, budgeting tracks selected-path latency (`plannedExecutionLatency`) so a 10 ms fallback can free budget that was previously reserved for a 90 ms primary path.
+- This is why fallback/approximate choices now affect downstream planning decisions, not just execution behavior.
 
 ---
 
@@ -224,6 +234,13 @@ The policy engine returns `PolicyDecision`, which contains:
 - degraded flag
 - degradation reasons
 - decision trace entries
+
+### Extensibility boundary
+`DefaultBudgetPolicyEngine` keeps the main planning flow deterministic, while exposing a lightweight optional-task mode extension point:
+- `OptionalTaskModeSelector` chooses optional-task execution mode (`EXECUTE`, `EXECUTE_WITH_FALLBACK`, `EXECUTE_APPROXIMATE`, `OMIT`)
+- `DefaultOptionalTaskModeSelector` preserves the current default ladder and stress behavior
+
+This keeps extension localized to policy variation without introducing a heavyweight plugin system.
 
 ---
 
