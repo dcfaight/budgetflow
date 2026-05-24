@@ -96,7 +96,7 @@ class DashboardIntegrationTest {
 
                 @Override
                 public double downstreamPressure() {
-                    return 0.92;
+                    return 0.65;
                 }
             };
         }
