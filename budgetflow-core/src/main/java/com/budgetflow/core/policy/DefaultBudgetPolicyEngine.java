@@ -10,10 +10,12 @@ import java.util.List;
 public class DefaultBudgetPolicyEngine implements BudgetPolicyEngine {
     private static final double HIGH_PRESSURE = 0.85;
     private static final double MODERATE_PRESSURE = 0.60;
-    private static final double IMPORTANT_FALLBACK_LATENCY_RATIO = 0.45;
-    private static final double OPTIONAL_DEGRADE_LATENCY_RATIO = 0.45;
-    private static final double OPTIONAL_OMIT_LATENCY_RATIO = 0.70;
+    private static final double IMPORTANT_FALLBACK_LATENCY_RATIO = 0.52;
+    private static final double OPTIONAL_DEGRADE_LATENCY_RATIO = 0.58;
+    private static final double OPTIONAL_OMIT_LATENCY_RATIO = 0.78;
     private static final double OPTIONAL_EXTREME_OMIT_LATENCY_RATIO = 0.90;
+    private static final double MIN_DYNAMIC_LATENCY_RATIO = 0.20;
+    private static final double MAX_DYNAMIC_LATENCY_RATIO = 0.95;
     private static final Duration LOW_BUDGET_THRESHOLD = Duration.ofMillis(200);
     private static final Duration VERY_LOW_BUDGET_THRESHOLD = Duration.ofMillis(120);
 
@@ -144,23 +146,39 @@ public class DefaultBudgetPolicyEngine implements BudgetPolicyEngine {
         }
 
         boolean highPressure = pressureLevel >= HIGH_PRESSURE;
-        boolean moderatePressure = pressureLevel >= MODERATE_PRESSURE;
         boolean lowBudget = remainingBudget.compareTo(LOW_BUDGET_THRESHOLD) < 0;
         boolean veryLowBudget = remainingBudget.compareTo(VERY_LOW_BUDGET_THRESHOLD) < 0;
 
         if (task.importance() == Importance.IMPORTANT) {
-            ExecutionMode mode = (highPressure || lowBudget || latencyRatio >= IMPORTANT_FALLBACK_LATENCY_RATIO) && task.fallbackSupported()
+            double importantFallbackThreshold = adjustedLatencyThreshold(
+                IMPORTANT_FALLBACK_LATENCY_RATIO,
+                pressureLevel,
+                lowBudget,
+                veryLowBudget
+            );
+            ExecutionMode mode = (highPressure || lowBudget || latencyRatio >= importantFallbackThreshold) && task.fallbackSupported()
                 ? ExecutionMode.EXECUTE_WITH_FALLBACK
                 : ExecutionMode.EXECUTE;
             return new PolicySelection(mode, explainReason(mode, snapshot, remainingBudget, latencyRatio));
         }
 
+        double optionalDegradeThreshold = adjustedLatencyThreshold(
+            OPTIONAL_DEGRADE_LATENCY_RATIO,
+            pressureLevel,
+            lowBudget,
+            veryLowBudget
+        );
+        double optionalOmitThreshold = adjustedLatencyThreshold(
+            OPTIONAL_OMIT_LATENCY_RATIO,
+            pressureLevel,
+            lowBudget,
+            veryLowBudget
+        );
         boolean severeBudgetOrPressure = veryLowBudget || highPressure;
         boolean stressConditions = severeBudgetOrPressure
-            || moderatePressure
             || lowBudget
-            || latencyRatio >= OPTIONAL_DEGRADE_LATENCY_RATIO;
-        boolean omitDueToExtremeRatio = severeBudgetOrPressure && latencyRatio >= OPTIONAL_OMIT_LATENCY_RATIO;
+            || latencyRatio >= optionalDegradeThreshold;
+        boolean omitDueToExtremeRatio = severeBudgetOrPressure && latencyRatio >= optionalOmitThreshold;
         boolean omitDueToNoDegradedPath = latencyRatio >= OPTIONAL_EXTREME_OMIT_LATENCY_RATIO
             && !task.approximateSupported()
             && !task.fallbackSupported();
@@ -183,7 +201,7 @@ public class DefaultBudgetPolicyEngine implements BudgetPolicyEngine {
             );
         }
 
-        if (severeBudgetOrPressure || latencyRatio >= OPTIONAL_OMIT_LATENCY_RATIO) {
+        if (severeBudgetOrPressure || latencyRatio >= optionalOmitThreshold) {
             return new PolicySelection(ExecutionMode.OMIT, explainReason(ExecutionMode.OMIT, snapshot, remainingBudget, latencyRatio));
         }
 
@@ -229,6 +247,22 @@ public class DefaultBudgetPolicyEngine implements BudgetPolicyEngine {
             return "tight";
         }
         return "available";
+    }
+
+    private double adjustedLatencyThreshold(
+        double baseThreshold,
+        double pressureLevel,
+        boolean lowBudget,
+        boolean veryLowBudget
+    ) {
+        double pressureAdjustment = pressureLevel >= HIGH_PRESSURE
+            ? -0.20
+            : pressureLevel >= MODERATE_PRESSURE ? -0.10 : 0.10;
+        double budgetAdjustment = veryLowBudget
+            ? -0.18
+            : lowBudget ? -0.10 : 0.04;
+        double adjusted = baseThreshold + pressureAdjustment + budgetAdjustment;
+        return Math.max(MIN_DYNAMIC_LATENCY_RATIO, Math.min(MAX_DYNAMIC_LATENCY_RATIO, adjusted));
     }
 
     private Duration minPositive(Duration first, Duration second) {

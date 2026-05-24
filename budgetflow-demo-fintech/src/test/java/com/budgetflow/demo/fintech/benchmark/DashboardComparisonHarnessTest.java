@@ -35,7 +35,7 @@ class DashboardComparisonHarnessTest {
             assertTrue(constrainedAdaptive.degraded());
             assertEquals(List.of("insights"), constrainedAdaptive.omittedTasks());
             assertEquals(List.of(), constrainedAdaptive.fallbackTasks());
-            assertEquals(List.of("offers"), constrainedAdaptive.approximatedTasks());
+            assertEquals(List.of(), constrainedAdaptive.approximatedTasks());
 
             DashboardBenchmarkSummary elevatedAdaptive = summaryFor(summaries, "constrained_budget_elevated_pressure", "budgetflow_adaptive");
             assertEquals(4, elevatedAdaptive.totalTasksExecuted());

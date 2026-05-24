@@ -2,6 +2,10 @@
 
 **Latency-budget-aware adaptive execution for Spring Boot.**
 
+[![Java 17](https://img.shields.io/badge/java-17-437291.svg)](https://adoptium.net/)
+[![Spring Boot 3.5](https://img.shields.io/badge/spring--boot-3.5.x-6DB33F.svg)](https://spring.io/projects/spring-boot)
+[![Status: Prototype](https://img.shields.io/badge/status-prototype-orange.svg)](#current-status)
+
 BudgetFlow is a prototype Java/Spring framework for request-scoped orchestration under latency pressure. It helps APIs stay inside request budgets by classifying work by importance, planning tasks together under a shared budget, and surfacing how execution degraded through decision trace and request-level diagnostics.
 
 ## Quickstart first (5 minutes)
@@ -11,7 +15,8 @@ If you are new to the repository, start here:
 1. **Dependency:** add `budgetflow-spring-boot-starter` to your app.
 2. **Request budget:** annotate entry points with `@LatencyBudget("250ms")`.
 3. **Adaptive request:** build grouped work with `TaskKey` + `AdaptiveRequest`.
-4. **Result:** read typed values from `AdaptiveRequestResult` plus diagnostics/trace.
+4. **Runtime realism (optional):** wire `RuntimePressureSignals` and/or `ExecutionLifecycleListener`.
+5. **Result:** read typed values from `AdaptiveRequestResult` plus diagnostics/trace.
 
 See the concise guide: [docs/quickstart.md](docs/quickstart.md)
 
@@ -182,7 +187,32 @@ Strategy | Executed | Degraded | Work | Omitted | Fallback | Approx | Why
 -------- | -------- | -------- | ---- | ------- | -------- | ------ | ---
 budgetflow_adaptive | 4 | true | 430ms/203ms | insights | - | offers | offers=approximate_selected_by_policy[pressure=low:downstream,budget=available], insights=omitted_by_policy[pressure=low:downstream,budget=tight]
 naive_parallel | 5 | true | 430ms/445ms | - | - | - | projected_work_exceeds_request_budget_by_15ms
-Comparison: adaptive projected work delta=-242ms, executed_task_delta=-1, adaptive_changes=omit=insights; approx=offers
+Comparison: adaptive projected work delta=-140ms, executed_task_delta=-1, adaptive_changes=omit=insights
+```
+
+### JSON mode showcase snippet
+
+Use `--json` when you need copy/paste-friendly output for demos:
+
+```text
+./gradlew :budgetflow-demo-fintech:runDashboardComparison --args="--pack=realism --json"
+```
+
+Example (trimmed):
+
+```json
+{
+  "scenario": "constrained_budget_elevated_pressure",
+  "adaptive": {
+    "degraded": true,
+    "omitted": ["insights"],
+    "fallback": ["rewards"],
+    "approximate": ["offers"]
+  },
+  "comparison": {
+    "projectedWorkDeltaMs": -322
+  }
+}
 ```
 
 ### How to read the output
@@ -199,7 +229,7 @@ The latest formatter now also groups output by scenario, adds a narrative line, 
 
 **What the scenarios show:**
 - Under a generous budget and low pressure, naive and adaptive produce identical results — no degradation is needed.
-- Under a constrained budget and low pressure, the adaptive executor sheds the optional `insights` task and approximates `offers`, bringing projected work down from 445 ms to 203 ms. The naive executor still attempts all five tasks over budget.
+- Under a constrained budget and low pressure, the adaptive executor omits optional `insights` while keeping `offers` on the primary path, bringing projected work down from 445 ms to 305 ms. The naive executor still attempts all five tasks over budget.
 - Under elevated pressure, the adaptive executor falls back on `rewards`, approximates `offers`, and omits `insights`, projecting about 123 ms of work. The naive executor is unaware of pressure and attempts everything.
 
 ## Modules
@@ -216,6 +246,34 @@ The latest formatter now also groups output by scenario, adds a narrative line, 
 ./gradlew :budgetflow-demo-fintech:bootRun
 curl http://localhost:8080/api/accounts/acc-123/dashboard
 ```
+
+### Optional runtime pressure + lifecycle wiring (Spring Boot)
+
+Enable runtime signal adapter support in configuration:
+
+```yaml
+budgetflow:
+  runtime-signals:
+    enabled: true
+    include-default-provider: true
+```
+
+Provide a `RuntimePressureSignals` bean (for example from Micrometer or custom gauges):
+
+```java
+@Bean
+RuntimePressureSignals runtimePressureSignals(
+    MeterRegistry meterRegistry
+) {
+    return new RuntimePressureSignals() {
+        @Override public double executorUtilization() { return readExecutorUtilization(meterRegistry); }
+        @Override public double dbPressure()          { return readDbPressure(meterRegistry); }
+        @Override public double downstreamPressure()  { return readDownstreamPressure(meterRegistry); }
+    };
+}
+```
+
+`ExecutionLifecycleListener` beans are now auto-detected by the starter and attached to the adaptive executor automatically.
 
 ## Running the comparison harness
 
@@ -247,7 +305,7 @@ Available scenario packs:
 | Scenario | Pack(s) | What it demonstrates |
 |----------|---------|----------------------|
 | `generous_budget_low_pressure` | default, extended | Baseline convergence: adaptive and naive should be effectively equivalent when there is ample budget and low pressure. |
-| `constrained_budget_low_pressure` | default, extended, realism | Budget-only stress: adaptive should approximate/omit optional work while preserving mandatory-first behavior. |
+| `constrained_budget_low_pressure` | default, extended, realism | Budget-only stress: adaptive should omit the most expensive optional work first while preserving mandatory-first behavior. |
 | `constrained_budget_elevated_pressure` | default, extended, realism | Joint budget + pressure stress: adaptive should degrade more aggressively (including fallback for important tasks). |
 | `generous_budget_elevated_pressure` | extended | Pressure-only stress: even with budget headroom, elevated runtime pressure can trigger graceful degradation. |
 | `tight_budget_moderate_db_pressure` | extended, realism | Dominant DB pressure path: demonstrates policy behavior when one pressure dimension (DB) is the main bottleneck. |

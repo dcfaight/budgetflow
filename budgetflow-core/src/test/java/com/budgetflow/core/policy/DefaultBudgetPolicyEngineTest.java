@@ -44,6 +44,21 @@ class DefaultBudgetPolicyEngineTest {
     }
 
     @Test
+    void optionalTaskWithApproximatePathCanStillExecuteUnderModeratePressureWhenLatencyRatioIsLow() {
+        DefaultBudgetPolicyEngine engine = new DefaultBudgetPolicyEngine();
+
+        PolicyDecision decision = engine.evaluate(new PolicyEvaluationInput(
+            Duration.ofMillis(1000),
+            List.of(new TaskDescriptor("offers", Importance.OPTIONAL, Duration.ofMillis(80), false, true)),
+            new SystemPressureSnapshot(0.62, 0.20, 0.20)
+        ));
+
+        assertEquals(ExecutionMode.EXECUTE, decision.directives().get(0).executionMode());
+        assertFalse(decision.directives().get(0).omitted());
+        assertTrue(decision.directives().get(0).reason().startsWith("normal["));
+    }
+
+    @Test
     void optionalTaskWithoutDegradedPathIsOmittedUnderHighPressure() {
         DefaultBudgetPolicyEngine engine = new DefaultBudgetPolicyEngine();
 
@@ -68,6 +83,20 @@ class DefaultBudgetPolicyEngineTest {
         ));
 
         assertEquals(ExecutionMode.EXECUTE, decision.directives().get(0).executionMode());
+    }
+
+    @Test
+    void importantTaskWithFallbackCanStillExecuteNormallyWhenStressIsLow() {
+        DefaultBudgetPolicyEngine engine = new DefaultBudgetPolicyEngine();
+
+        PolicyDecision decision = engine.evaluate(new PolicyEvaluationInput(
+            Duration.ofMillis(1000),
+            List.of(new TaskDescriptor("rewards", Importance.IMPORTANT, Duration.ofMillis(120), true, false)),
+            new SystemPressureSnapshot(0.15, 0.10, 0.10)
+        ));
+
+        assertEquals(ExecutionMode.EXECUTE, decision.directives().get(0).executionMode());
+        assertFalse(decision.directives().get(0).omitted());
     }
 
     @Test
