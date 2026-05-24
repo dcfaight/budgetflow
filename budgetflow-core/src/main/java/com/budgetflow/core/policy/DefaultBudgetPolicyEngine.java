@@ -6,6 +6,7 @@ import com.budgetflow.core.classification.Importance;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 
 public class DefaultBudgetPolicyEngine implements BudgetPolicyEngine {
     private static final double HIGH_PRESSURE = 0.85;
@@ -13,11 +14,22 @@ public class DefaultBudgetPolicyEngine implements BudgetPolicyEngine {
     private static final double IMPORTANT_FALLBACK_LATENCY_RATIO = 0.52;
     private static final double OPTIONAL_DEGRADE_LATENCY_RATIO = 0.58;
     private static final double OPTIONAL_OMIT_LATENCY_RATIO = 0.78;
-    private static final double OPTIONAL_EXTREME_OMIT_LATENCY_RATIO = 0.90;
     private static final double MIN_DYNAMIC_LATENCY_RATIO = 0.20;
     private static final double MAX_DYNAMIC_LATENCY_RATIO = 0.95;
     private static final Duration LOW_BUDGET_THRESHOLD = Duration.ofMillis(200);
     private static final Duration VERY_LOW_BUDGET_THRESHOLD = Duration.ofMillis(120);
+    private final OptionalTaskModeSelector optionalTaskModeSelector;
+
+    public DefaultBudgetPolicyEngine() {
+        this(new DefaultOptionalTaskModeSelector());
+    }
+
+    public DefaultBudgetPolicyEngine(OptionalTaskModeSelector optionalTaskModeSelector) {
+        this.optionalTaskModeSelector = Objects.requireNonNull(
+            optionalTaskModeSelector,
+            "optionalTaskModeSelector must not be null"
+        );
+    }
 
     @Override
     public PolicyDecision evaluate(PolicyEvaluationInput input) {
@@ -176,38 +188,23 @@ public class DefaultBudgetPolicyEngine implements BudgetPolicyEngine {
             lowBudget,
             veryLowBudget
         );
-        boolean severeBudgetOrPressure = veryLowBudget || highPressure;
-        boolean stressConditions = severeBudgetOrPressure
-            || lowBudget
-            || latencyRatio >= optionalDegradeThreshold;
-        boolean omitDueToExtremeRatio = severeBudgetOrPressure && latencyRatio >= optionalOmitThreshold;
-        boolean omitDueToNoDegradedPath = latencyRatio >= OPTIONAL_EXTREME_OMIT_LATENCY_RATIO
-            && !task.approximateSupported()
-            && !task.fallbackSupported();
-
-        if (omitDueToExtremeRatio || omitDueToNoDegradedPath) {
-            return new PolicySelection(ExecutionMode.OMIT, explainReason(ExecutionMode.OMIT, snapshot, remainingBudget, latencyRatio));
-        }
-
-        if (stressConditions && task.approximateSupported()) {
-            return new PolicySelection(
-                ExecutionMode.EXECUTE_APPROXIMATE,
-                explainReason(ExecutionMode.EXECUTE_APPROXIMATE, snapshot, remainingBudget, latencyRatio)
-            );
-        }
-
-        if (stressConditions && task.fallbackSupported()) {
-            return new PolicySelection(
-                ExecutionMode.EXECUTE_WITH_FALLBACK,
-                explainReason(ExecutionMode.EXECUTE_WITH_FALLBACK, snapshot, remainingBudget, latencyRatio)
-            );
-        }
-
-        if (severeBudgetOrPressure || latencyRatio >= optionalOmitThreshold) {
-            return new PolicySelection(ExecutionMode.OMIT, explainReason(ExecutionMode.OMIT, snapshot, remainingBudget, latencyRatio));
-        }
-
-        return new PolicySelection(ExecutionMode.EXECUTE, explainReason(ExecutionMode.EXECUTE, snapshot, remainingBudget, latencyRatio));
+        ExecutionMode mode = Objects.requireNonNull(
+            optionalTaskModeSelector.chooseMode(
+                task,
+                new OptionalTaskPlanningContext(
+                    snapshot,
+                    remainingBudget,
+                    latencyRatio,
+                    lowBudget,
+                    veryLowBudget,
+                    highPressure,
+                    optionalDegradeThreshold,
+                    optionalOmitThreshold
+                )
+            ),
+            "optionalTaskModeSelector must return a mode"
+        );
+        return new PolicySelection(mode, explainReason(mode, snapshot, remainingBudget, latencyRatio));
     }
 
     private String explainReason(

@@ -387,6 +387,27 @@ class DefaultAdaptiveExecutorTest {
         )).toCompletableFuture().join());
     }
 
+    @Test
+    void customOptionalModeSelectorPreservesDiagnosticsAndTrace() {
+        DefaultAdaptiveExecutor executor = new DefaultAdaptiveExecutor(
+            new DefaultBudgetPolicyEngine((task, context) -> task.fallbackSupported()
+                ? ExecutionMode.EXECUTE_WITH_FALLBACK
+                : ExecutionMode.EXECUTE)
+        );
+
+        var response = executor.executeRequest(List.of(
+            TaskSpec.optional("offers", Duration.ofMillis(120), () -> "primary")
+                .withFallback(() -> "cached", Duration.ofMillis(15)),
+            TaskSpec.optional("insights", Duration.ofMillis(70), () -> "insight")
+        )).toCompletableFuture().join();
+
+        assertEquals("cached", response.taskResult("offers").value().orElseThrow());
+        assertEquals(List.of("offers"), response.diagnostics().fallbackTaskNames());
+        assertEquals(List.of(), response.diagnostics().approximatedTaskNames());
+        assertEquals(ExecutionMode.EXECUTE_WITH_FALLBACK, response.decisionTrace().get(0).selectedExecutionMode());
+        assertEquals(Duration.ofMillis(15), response.decisionTrace().get(0).plannedExecutionLatency());
+    }
+
     private BudgetPolicyEngine policyFor(String taskName, ExecutionMode mode, boolean omitted, String reason) {
         return input -> new PolicyDecision(
             List.of(new TaskExecutionDirective(taskName, mode, Duration.ZERO, omitted, reason)),

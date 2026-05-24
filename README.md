@@ -72,6 +72,14 @@ A task may be planned to:
 ### Request-scoped planning
 Related tasks are planned together under one shared request budget.
 
+### Path-aware planning (what changed)
+Path-aware planning means each task can expose cheaper execution paths (fallback/approximate) with explicit latency hints, and the planner uses those path costs while budgeting the rest of the request.
+
+| Planning model | Budget view |
+|---|---|
+| Pre path-aware | Budgeting assumed primary-path latency only, so degraded paths did not reduce projected planner cost. |
+| Path-aware | Budgeting uses selected-path latency (`plannedExecutionLatency`), so fallback/approximate choices can preserve budget for later tasks. |
+
 ### Decision trace
 The planner records why each task received its selected execution mode.
 
@@ -171,6 +179,7 @@ BudgetFlow currently includes:
 - higher-level grouped request composition via `AdaptiveRequest`
 - named grouped-request helpers such as `importantWithFallback(...)` and `optionalWithFallbackAndApproximate(...)`
 - optional degraded-path latency hints so fallback/approximate execution can participate in planning more realistically
+- lightweight optional-task strategy extension via `OptionalTaskModeSelector` (default behavior remains deterministic)
 - typed task result access via `TaskKey<T>` and `AdaptiveRequestResult`
 - policy-driven execution mode selection
 - deterministic mandatory-first planning
@@ -238,6 +247,10 @@ Example (trimmed):
 | **Work** | Request latency budget vs projected work under the chosen execution modes |
 
 The latest formatter now also groups output by scenario, adds a narrative line, and emits a compact comparison summary showing projected work savings and adaptive changes side-by-side.
+
+The constrained-budget scenarios are the clearest before/after showcase:
+- `naive_parallel` still attempts all work using primary-path assumptions.
+- `budgetflow_adaptive` applies path-aware planning and can project lower work by selecting fallback/approximate paths before omission where policy allows.
 
 **What the scenarios show:**
 - Under a generous budget and low pressure, naive and adaptive produce identical results — no degradation is needed.

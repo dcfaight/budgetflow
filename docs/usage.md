@@ -234,11 +234,23 @@ BudgetFlow remains a prototype, but now includes lightweight integration points 
 - `RuntimeSignalPressureProvider` for plugging in live pressure signal suppliers (executor, DB, downstream).
 - `CompositeSystemPressureProvider` for combining multiple pressure sources conservatively (max per dimension).
 - `ExecutionLifecycleListener` for optional lifecycle callbacks before/after policy evaluation and after request execution.
+- `OptionalTaskModeSelector` for optional-task policy variation while keeping default path-aware planning deterministic.
 
 These hooks are intentionally lightweight and optional:
 - no hard dependency on any observability vendor
 - no mandatory telemetry platform setup
-- core planner semantics remain unchanged
+- default planner semantics remain unchanged unless you explicitly provide a custom selector
+
+Example policy variation wiring:
+
+```java
+OptionalTaskModeSelector preferFallback = (task, context) ->
+    task.fallbackSupported() ? ExecutionMode.EXECUTE_WITH_FALLBACK : ExecutionMode.EXECUTE;
+
+AdaptiveExecutor executor = new DefaultAdaptiveExecutor(
+    new DefaultBudgetPolicyEngine(preferFallback)
+);
+```
 
 For Spring Boot starter usage, enable runtime-signal adapter composition with:
 
