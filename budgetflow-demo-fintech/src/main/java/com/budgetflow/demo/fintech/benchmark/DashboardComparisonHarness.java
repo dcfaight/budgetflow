@@ -10,6 +10,7 @@ import com.budgetflow.core.context.BudgetContextHolder;
 import com.budgetflow.core.execution.DefaultAdaptiveExecutor;
 import com.budgetflow.core.metadata.RequestExecutionDiagnostics;
 import com.budgetflow.core.policy.DefaultBudgetPolicyEngine;
+import com.budgetflow.core.policy.PlannerPolicyProfile;
 import com.budgetflow.demo.fintech.dashboard.BalanceClient;
 import com.budgetflow.demo.fintech.dashboard.DashboardTaskSpecs;
 import com.budgetflow.demo.fintech.dashboard.InsightsClient;
@@ -22,6 +23,7 @@ import java.time.Duration;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -60,7 +62,7 @@ public final class DashboardComparisonHarness implements AutoCloseable {
         HarnessOptions options = HarnessOptions.parse(args);
         try (DashboardComparisonHarness harness = new DashboardComparisonHarness()) {
             DashboardScenarioPack pack = PressureScenarios.packNamed(options.packName());
-            List<DashboardBenchmarkSummary> summaries = harness.run(pack.scenarios());
+            List<DashboardBenchmarkSummary> summaries = harness.run(pack.scenarios(), options.policyProfiles());
             String output = options.json()
                 ? DashboardBenchmarkFormatter.formatJson(pack, summaries)
                 : DashboardBenchmarkFormatter.format(pack, summaries);
@@ -69,12 +71,29 @@ public final class DashboardComparisonHarness implements AutoCloseable {
     }
 
     public List<DashboardBenchmarkSummary> runDefaultScenarios() {
-        return run(PressureScenarios.defaultScenarios());
+        return run(PressureScenarios.defaultScenarios(), List.of(PlannerPolicyProfile.BALANCED));
     }
 
     public List<DashboardBenchmarkSummary> run(List<DashboardBenchmarkScenario> scenarios) {
+        return run(scenarios, List.of(PlannerPolicyProfile.BALANCED));
+    }
+
+    public List<DashboardBenchmarkSummary> run(
+        List<DashboardBenchmarkScenario> scenarios,
+        List<PlannerPolicyProfile> policyProfiles
+    ) {
+        List<PlannerPolicyProfile> resolvedProfiles = policyProfiles == null || policyProfiles.isEmpty()
+            ? List.of(PlannerPolicyProfile.BALANCED)
+            : List.copyOf(policyProfiles);
         return scenarios.stream()
-            .flatMap(scenario -> List.of(runNaiveParallel(scenario), runAdaptive(scenario)).stream())
+            .flatMap(scenario -> {
+                List<DashboardBenchmarkSummary> summaries = new java.util.ArrayList<>();
+                summaries.add(runNaiveParallel(scenario));
+                for (PlannerPolicyProfile policyProfile : resolvedProfiles) {
+                    summaries.add(runAdaptive(scenario, policyProfile));
+                }
+                return summaries.stream();
+            })
             .toList();
     }
 
@@ -117,6 +136,7 @@ public final class DashboardComparisonHarness implements AutoCloseable {
         return summaryFor(
             scenario,
             NAIVE_PARALLEL,
+            "-",
             results,
             List.of(),
             List.of(),
@@ -127,12 +147,15 @@ public final class DashboardComparisonHarness implements AutoCloseable {
         );
     }
 
-    private DashboardBenchmarkSummary runAdaptive(DashboardBenchmarkScenario scenario) {
+    private DashboardBenchmarkSummary runAdaptive(
+        DashboardBenchmarkScenario scenario,
+        PlannerPolicyProfile policyProfile
+    ) {
         BudgetContextHolder.set(new BudgetContext(new DefaultExecutionBudget(scenario.requestBudget())));
         try {
             RequestExecutionResult result = new DefaultAdaptiveExecutor(
                 executorService,
-                new DefaultBudgetPolicyEngine(),
+                new DefaultBudgetPolicyEngine(policyProfile),
                 scenario::pressureSnapshot
             ).executeRequest(taskSpecs()).toCompletableFuture().join();
 
@@ -148,6 +171,7 @@ public final class DashboardComparisonHarness implements AutoCloseable {
             return summaryFor(
                 scenario,
                 BUDGETFLOW_ADAPTIVE,
+                policyProfile.configName(),
                 result.taskResults(),
                 result.diagnostics().omittedTaskNames(),
                 result.diagnostics().fallbackTaskNames(),
@@ -164,6 +188,7 @@ public final class DashboardComparisonHarness implements AutoCloseable {
     private DashboardBenchmarkSummary summaryFor(
         DashboardBenchmarkScenario scenario,
         String strategy,
+        String policyProfile,
         Map<String, TaskResult<?>> taskResults,
         List<String> omittedTasks,
         List<String> fallbackTasks,
@@ -178,6 +203,7 @@ public final class DashboardComparisonHarness implements AutoCloseable {
         return new DashboardBenchmarkSummary(
             scenario,
             strategy,
+            policyProfile,
             executedTasks,
             omittedTasks,
             fallbackTasks,
@@ -207,10 +233,11 @@ public final class DashboardComparisonHarness implements AutoCloseable {
         return reason.substring(0, ratioIndex) + "]";
     }
 
-    private record HarnessOptions(String packName, boolean json) {
+    private record HarnessOptions(String packName, boolean json, List<PlannerPolicyProfile> policyProfiles) {
         private static HarnessOptions parse(String[] args) {
             String packName = "default";
             boolean json = false;
+            List<PlannerPolicyProfile> policyProfiles = List.of(PlannerPolicyProfile.BALANCED);
             for (String arg : args) {
                 if ("--json".equals(arg)) {
                     json = true;
@@ -218,9 +245,26 @@ public final class DashboardComparisonHarness implements AutoCloseable {
                 }
                 if (arg.startsWith("--pack=")) {
                     packName = arg.substring("--pack=".length());
+                    continue;
+                }
+                if (arg.startsWith("--policies=")) {
+                    String rawValue = arg.substring("--policies=".length());
+                    policyProfiles = parseProfiles(rawValue);
                 }
             }
-            return new HarnessOptions(packName, json);
+            return new HarnessOptions(packName, json, policyProfiles);
+        }
+
+        private static List<PlannerPolicyProfile> parseProfiles(String rawValue) {
+            if (rawValue == null || rawValue.isBlank()) {
+                return List.of(PlannerPolicyProfile.BALANCED);
+            }
+            return java.util.Arrays.stream(rawValue.split(","))
+                .map(String::trim)
+                .filter(value -> !value.isBlank())
+                .map(PlannerPolicyProfile::fromConfigName)
+                .distinct()
+                .collect(Collectors.toList());
         }
     }
 }

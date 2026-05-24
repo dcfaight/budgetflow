@@ -9,6 +9,7 @@ public class BudgetFlowProperties {
     private boolean enabled = true;
     private Duration defaultBudget = Duration.ofMillis(250);
     private RuntimeSignals runtimeSignals = new RuntimeSignals();
+    private Planner planner = new Planner();
 
     public boolean isEnabled() {
         return enabled;
@@ -32,6 +33,26 @@ public class BudgetFlowProperties {
 
     public void setRuntimeSignals(RuntimeSignals runtimeSignals) {
         this.runtimeSignals = runtimeSignals;
+    }
+
+    public Planner getPlanner() {
+        return planner;
+    }
+
+    public void setPlanner(Planner planner) {
+        this.planner = planner;
+    }
+
+    public static class Planner {
+        private String policyProfile = "balanced";
+
+        public String getPolicyProfile() {
+            return policyProfile;
+        }
+
+        public void setPolicyProfile(String policyProfile) {
+            this.policyProfile = policyProfile;
+        }
     }
 
     public static class RuntimeSignals {

@@ -1,6 +1,7 @@
 package com.budgetflow.demo.fintech.benchmark;
 
 import com.budgetflow.demo.fintech.dashboard.SimulationSupport;
+import com.budgetflow.core.policy.PlannerPolicyProfile;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -53,6 +54,7 @@ class DashboardComparisonHarnessTest {
             new DashboardBenchmarkSummary(
                 scenario,
                 "budgetflow_adaptive",
+                "balanced",
                 4,
                 List.of("insights"),
                 List.of("rewards"),
@@ -65,8 +67,8 @@ class DashboardComparisonHarnessTest {
 
         assertTrue(output.contains("BudgetFlow dashboard comparison"));
         assertTrue(output.contains("Scenario: constrained_budget_elevated_pressure — Constrained budget / elevated pressure"));
-        assertTrue(output.contains("Strategy | Executed | Degraded | Work | Omitted | Fallback | Approx | Why"));
-        assertTrue(output.contains("budgetflow_adaptive | 4 | true | 430ms/123ms | insights | rewards | offers | offers=approximate_selected_by_policy"));
+        assertTrue(output.contains("Strategy | Policy | Executed | Degraded | Work | Omitted | Fallback | Approx | Why"));
+        assertTrue(output.contains("budgetflow_adaptive | balanced | 4 | true | 430ms/123ms | insights | rewards | offers | offers=approximate_selected_by_policy"));
     }
 
     @Test
@@ -101,6 +103,29 @@ class DashboardComparisonHarnessTest {
 
             assertEquals(12, summaries.size());
             summaries.forEach(s -> assertTrue(s.totalTasksExecuted() >= 0));
+        }
+    }
+
+    @Test
+    void policyProfileComparisonRunProducesVariantRowsAndDeltaLine() {
+        try (DashboardComparisonHarness harness = new DashboardComparisonHarness(new NoDelaySimulationSupport())) {
+            DashboardScenarioPack pack = PressureScenarios.policyPack();
+            String output = DashboardBenchmarkFormatter.format(
+                pack,
+                harness.run(
+                    pack.scenarios(),
+                    List.of(
+                        PlannerPolicyProfile.BALANCED,
+                        PlannerPolicyProfile.CONTINUITY,
+                        PlannerPolicyProfile.EFFICIENCY
+                    )
+                )
+            );
+
+            assertTrue(output.contains("budgetflow_adaptive | balanced"));
+            assertTrue(output.contains("budgetflow_adaptive | continuity"));
+            assertTrue(output.contains("budgetflow_adaptive | efficiency"));
+            assertTrue(output.contains("Policy delta vs balanced"));
         }
     }
 

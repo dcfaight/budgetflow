@@ -3,11 +3,17 @@ package com.budgetflow.spring.autoconfigure;
 import com.budgetflow.core.api.AdaptiveExecutor;
 import com.budgetflow.core.api.TaskSpec;
 import com.budgetflow.core.execution.ExecutionLifecycleListener;
+import com.budgetflow.core.policy.BudgetPolicyEngine;
 import com.budgetflow.core.policy.CompositeSystemPressureProvider;
 import com.budgetflow.core.policy.DefaultSystemPressureProvider;
+import com.budgetflow.core.policy.PolicyDecision;
+import com.budgetflow.core.policy.PolicyEvaluationInput;
+import com.budgetflow.core.policy.TaskDescriptor;
 import com.budgetflow.core.policy.RuntimeSignalPressureProvider;
 import com.budgetflow.core.policy.SystemPressureProvider;
 import com.budgetflow.core.policy.SystemPressureSnapshot;
+import com.budgetflow.core.classification.Importance;
+import com.budgetflow.core.classification.ExecutionMode;
 import com.budgetflow.spring.integration.RuntimePressureSignals;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.autoconfigure.AutoConfigurations;
@@ -86,6 +92,31 @@ class BudgetFlowAutoConfigurationTest {
                 assertEquals(1, listener.beforePolicyCalls.get());
                 assertEquals(1, listener.afterPolicyCalls.get());
                 assertEquals(1, listener.afterExecutionCalls.get());
+            });
+    }
+
+    @Test
+    void plannerPolicyProfilePropertySelectsDeterministicVariant() {
+        contextRunner
+            .withPropertyValues("budgetflow.planner.policy-profile=efficiency")
+            .run(context -> {
+                BudgetPolicyEngine policyEngine = context.getBean(BudgetPolicyEngine.class);
+                PolicyDecision decision = policyEngine.evaluate(new PolicyEvaluationInput(
+                    Duration.ofMillis(260),
+                    java.util.List.of(new TaskDescriptor(
+                        "offers",
+                        Importance.OPTIONAL,
+                        Duration.ofMillis(110),
+                        true,
+                        true,
+                        Duration.ofMillis(12),
+                        Duration.ofMillis(8)
+                    )),
+                    new SystemPressureSnapshot(0.90, 0.20, 0.20)
+                ));
+
+                assertEquals(ExecutionMode.OMIT, decision.directives().get(0).executionMode());
+                assertTrue(decision.directives().get(0).reason().contains("policy=efficiency"));
             });
     }
 

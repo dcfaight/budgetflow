@@ -262,6 +262,42 @@ class DefaultBudgetPolicyEngineTest {
         assertEquals(ExecutionMode.EXECUTE, decision.directives().get(1).executionMode());
     }
 
+    @Test
+    void namedPolicyProfilesProducePurposefulOptionalBehaviorDifferences() {
+        PolicyEvaluationInput input = new PolicyEvaluationInput(
+            Duration.ofMillis(260),
+            List.of(descriptorWithFallbackAndApproximate("offers", Importance.OPTIONAL, 120, 16, 9)),
+            new SystemPressureSnapshot(0.90, 0.20, 0.20)
+        );
+
+        PolicyDecision balanced = new DefaultBudgetPolicyEngine(PlannerPolicyProfile.BALANCED).evaluate(input);
+        PolicyDecision continuity = new DefaultBudgetPolicyEngine(PlannerPolicyProfile.CONTINUITY).evaluate(input);
+        PolicyDecision efficiency = new DefaultBudgetPolicyEngine(PlannerPolicyProfile.EFFICIENCY).evaluate(input);
+
+        assertEquals(ExecutionMode.EXECUTE_APPROXIMATE, balanced.directives().get(0).executionMode());
+        assertEquals(ExecutionMode.EXECUTE_APPROXIMATE, continuity.directives().get(0).executionMode());
+        assertEquals(ExecutionMode.OMIT, efficiency.directives().get(0).executionMode());
+
+        assertTrue(balanced.directives().get(0).reason().contains("policy=balanced"));
+        assertTrue(continuity.directives().get(0).reason().contains("policy=continuity"));
+        assertTrue(efficiency.directives().get(0).reason().contains("policy=efficiency"));
+    }
+
+    @Test
+    void continuityProfilePrefersDegradedPathOverOmissionForNoisyButNotSevereStress() {
+        PolicyEvaluationInput input = new PolicyEvaluationInput(
+            Duration.ofMillis(220),
+            List.of(descriptorWithFallback("offers", Importance.OPTIONAL, 170, 12)),
+            new SystemPressureSnapshot(0.86, 0.30, 0.20)
+        );
+
+        PolicyDecision balanced = new DefaultBudgetPolicyEngine(PlannerPolicyProfile.BALANCED).evaluate(input);
+        PolicyDecision continuity = new DefaultBudgetPolicyEngine(PlannerPolicyProfile.CONTINUITY).evaluate(input);
+
+        assertEquals(ExecutionMode.OMIT, balanced.directives().get(0).executionMode());
+        assertEquals(ExecutionMode.EXECUTE_WITH_FALLBACK, continuity.directives().get(0).executionMode());
+    }
+
     private TaskDescriptor descriptor(String taskName, Importance importance, long expectedLatencyMs) {
         Duration latency = Duration.ofMillis(expectedLatencyMs);
         return new TaskDescriptor(taskName, importance, latency, false, false, latency, latency);

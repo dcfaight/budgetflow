@@ -19,16 +19,35 @@ public class DefaultBudgetPolicyEngine implements BudgetPolicyEngine {
     private static final Duration LOW_BUDGET_THRESHOLD = Duration.ofMillis(200);
     private static final Duration VERY_LOW_BUDGET_THRESHOLD = Duration.ofMillis(120);
     private final OptionalTaskModeSelector optionalTaskModeSelector;
+    private final String policyProfileName;
 
     public DefaultBudgetPolicyEngine() {
-        this(new DefaultOptionalTaskModeSelector());
+        this(
+            PlannerPolicyProfiles.optionalTaskSelector(PlannerPolicyProfile.BALANCED),
+            PlannerPolicyProfile.BALANCED.configName()
+        );
+    }
+
+    public DefaultBudgetPolicyEngine(PlannerPolicyProfile profile) {
+        this(
+            PlannerPolicyProfiles.optionalTaskSelector(profile),
+            Objects.requireNonNull(profile, "profile must not be null").configName()
+        );
     }
 
     public DefaultBudgetPolicyEngine(OptionalTaskModeSelector optionalTaskModeSelector) {
+        this(optionalTaskModeSelector, "custom");
+    }
+
+    public DefaultBudgetPolicyEngine(
+        OptionalTaskModeSelector optionalTaskModeSelector,
+        String policyProfileName
+    ) {
         this.optionalTaskModeSelector = Objects.requireNonNull(
             optionalTaskModeSelector,
             "optionalTaskModeSelector must not be null"
         );
+        this.policyProfileName = Objects.requireNonNull(policyProfileName, "policyProfileName must not be null");
     }
 
     @Override
@@ -217,14 +236,14 @@ public class DefaultBudgetPolicyEngine implements BudgetPolicyEngine {
         String budgetBand = budgetBand(remainingBudget);
         String ratio = String.format("%.2f", latencyRatio);
         return switch (mode) {
-            case EXECUTE -> "normal[pressure=%s:%s,budget=%s,latency_ratio=%s]"
-                .formatted(pressureBand, snapshot.dominantSignal(), budgetBand, ratio);
-            case EXECUTE_WITH_FALLBACK -> "fallback_selected_by_policy[pressure=%s:%s,budget=%s,latency_ratio=%s]"
-                .formatted(pressureBand, snapshot.dominantSignal(), budgetBand, ratio);
-            case EXECUTE_APPROXIMATE -> "approximate_selected_by_policy[pressure=%s:%s,budget=%s,latency_ratio=%s]"
-                .formatted(pressureBand, snapshot.dominantSignal(), budgetBand, ratio);
-            case OMIT -> "omitted_by_policy[pressure=%s:%s,budget=%s,latency_ratio=%s]"
-                .formatted(pressureBand, snapshot.dominantSignal(), budgetBand, ratio);
+            case EXECUTE -> "normal[policy=%s,pressure=%s:%s,budget=%s,latency_ratio=%s]"
+                .formatted(policyProfileName, pressureBand, snapshot.dominantSignal(), budgetBand, ratio);
+            case EXECUTE_WITH_FALLBACK -> "fallback_selected_by_policy[policy=%s,pressure=%s:%s,budget=%s,latency_ratio=%s]"
+                .formatted(policyProfileName, pressureBand, snapshot.dominantSignal(), budgetBand, ratio);
+            case EXECUTE_APPROXIMATE -> "approximate_selected_by_policy[policy=%s,pressure=%s:%s,budget=%s,latency_ratio=%s]"
+                .formatted(policyProfileName, pressureBand, snapshot.dominantSignal(), budgetBand, ratio);
+            case OMIT -> "omitted_by_policy[policy=%s,pressure=%s:%s,budget=%s,latency_ratio=%s]"
+                .formatted(policyProfileName, pressureBand, snapshot.dominantSignal(), budgetBand, ratio);
         };
     }
 
