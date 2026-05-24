@@ -168,6 +168,7 @@ The default policy now also emits deterministic reason strings that include:
 - pressure band
 - dominant pressure source
 - active stressed-signal count
+- explicit decision layer (`layer=...`) to show whether runtime/budget/mixed guardrails drove the choice
 - mixed-constraint band
 - budget band
 - degraded-path preference signal

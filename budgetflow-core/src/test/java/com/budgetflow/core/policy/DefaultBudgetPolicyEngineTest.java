@@ -210,6 +210,7 @@ class DefaultBudgetPolicyEngineTest {
         assertTrue(reason.contains("budget=available"));
         assertTrue(reason.contains("fit=primary"));
         assertTrue(reason.contains("savings=high"));
+        assertTrue(reason.contains("layer=optional_runtime_degrade"));
         assertFalse(reason.isBlank());
     }
 
@@ -340,8 +341,11 @@ class DefaultBudgetPolicyEngineTest {
         assertEquals(ExecutionMode.OMIT, efficiency.directives().get(0).executionMode());
 
         assertTrue(balanced.directives().get(0).reason().contains("policy=balanced"));
+        assertTrue(balanced.directives().get(0).reason().contains("layer=optional_runtime_degrade"));
         assertTrue(continuity.directives().get(0).reason().contains("policy=continuity"));
+        assertTrue(continuity.directives().get(0).reason().contains("layer=optional_runtime_degrade"));
         assertTrue(efficiency.directives().get(0).reason().contains("policy=efficiency"));
+        assertTrue(efficiency.directives().get(0).reason().contains("layer=optional_runtime_omit"));
     }
 
     @Test

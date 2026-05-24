@@ -13,6 +13,7 @@ final class PolicyReasonFormatter {
     String format(
         String policyProfileName,
         ExecutionMode mode,
+        String decisionLayer,
         SystemPressureSnapshot snapshot,
         Duration remainingBudget,
         double latencyRatio,
@@ -29,9 +30,10 @@ final class PolicyReasonFormatter {
         String savingsBand = savingsBand(costSignals.degradedSavingsRatio(), costSignals.degradedSavingsMillis());
         return switch (mode) {
             case EXECUTE ->
-                "normal[policy=%s,pressure=%s:%s,active_signals=%d,mixed=%s,budget=%s,degrade_pref=%s,fit=%s,savings=%s,latency_ratio=%s]"
+                "normal[policy=%s,layer=%s,pressure=%s:%s,active_signals=%d,mixed=%s,budget=%s,degrade_pref=%s,fit=%s,savings=%s,latency_ratio=%s]"
                     .formatted(
                         policyProfileName,
+                        decisionLayer,
                         pressureBand,
                         snapshot.dominantSignal(),
                         stressedSignalCount,
@@ -43,9 +45,10 @@ final class PolicyReasonFormatter {
                         ratio
                     );
             case EXECUTE_WITH_FALLBACK ->
-                "fallback_selected_by_policy[policy=%s,pressure=%s:%s,active_signals=%d,mixed=%s,budget=%s,degrade_pref=%s,fit=%s,savings=%s,latency_ratio=%s]"
+                "fallback_selected_by_policy[policy=%s,layer=%s,pressure=%s:%s,active_signals=%d,mixed=%s,budget=%s,degrade_pref=%s,fit=%s,savings=%s,latency_ratio=%s]"
                     .formatted(
                         policyProfileName,
+                        decisionLayer,
                         pressureBand,
                         snapshot.dominantSignal(),
                         stressedSignalCount,
@@ -57,9 +60,10 @@ final class PolicyReasonFormatter {
                         ratio
                     );
             case EXECUTE_APPROXIMATE ->
-                "approximate_selected_by_policy[policy=%s,pressure=%s:%s,active_signals=%d,mixed=%s,budget=%s,degrade_pref=%s,fit=%s,savings=%s,latency_ratio=%s]"
+                "approximate_selected_by_policy[policy=%s,layer=%s,pressure=%s:%s,active_signals=%d,mixed=%s,budget=%s,degrade_pref=%s,fit=%s,savings=%s,latency_ratio=%s]"
                     .formatted(
                         policyProfileName,
+                        decisionLayer,
                         pressureBand,
                         snapshot.dominantSignal(),
                         stressedSignalCount,
@@ -71,9 +75,10 @@ final class PolicyReasonFormatter {
                         ratio
                     );
             case OMIT ->
-                "omitted_by_policy[policy=%s,pressure=%s:%s,active_signals=%d,mixed=%s,budget=%s,degrade_pref=%s,fit=%s,savings=%s,latency_ratio=%s]"
+                "omitted_by_policy[policy=%s,layer=%s,pressure=%s:%s,active_signals=%d,mixed=%s,budget=%s,degrade_pref=%s,fit=%s,savings=%s,latency_ratio=%s]"
                     .formatted(
                         policyProfileName,
+                        decisionLayer,
                         pressureBand,
                         snapshot.dominantSignal(),
                         stressedSignalCount,

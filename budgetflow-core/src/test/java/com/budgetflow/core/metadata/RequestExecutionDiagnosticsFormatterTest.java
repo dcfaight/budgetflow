@@ -27,7 +27,7 @@ class RequestExecutionDiagnosticsFormatterTest {
                 "rewards",
                 Importance.IMPORTANT,
                 ExecutionMode.EXECUTE_WITH_FALLBACK,
-                "fallback_selected_by_policy[pressure=high:downstream,budget=tight]",
+                "fallback_selected_by_policy[policy=balanced,layer=important_runtime_relief,pressure=high:downstream,budget=tight,degrade_pref=fallback,fit=degraded,savings=high]",
                 Duration.ofMillis(90),
                 Duration.ofMillis(10),
                 Duration.ofMillis(60),
@@ -37,7 +37,7 @@ class RequestExecutionDiagnosticsFormatterTest {
                 "offers",
                 Importance.OPTIONAL,
                 ExecutionMode.EXECUTE_APPROXIMATE,
-                "approximate_selected_by_policy[pressure=high:downstream,budget=tight]",
+                "approximate_selected_by_policy[policy=balanced,layer=optional_mixed_degrade,pressure=high:downstream,budget=tight,degrade_pref=approximate,fit=degraded,savings=high]",
                 Duration.ofMillis(110),
                 Duration.ofMillis(8),
                 Duration.ofMillis(40),
@@ -47,7 +47,7 @@ class RequestExecutionDiagnosticsFormatterTest {
                 "insights",
                 Importance.OPTIONAL,
                 ExecutionMode.OMIT,
-                "omitted_by_policy[pressure=high:downstream,budget=tight]",
+                "omitted_by_policy[policy=balanced,layer=optional_mixed_omit,pressure=high:downstream,budget=tight,degrade_pref=approximate,fit=none,savings=high]",
                 Duration.ofMillis(140),
                 Duration.ZERO,
                 Duration.ZERO,
@@ -58,9 +58,9 @@ class RequestExecutionDiagnosticsFormatterTest {
         String formatted = RequestExecutionDiagnosticsFormatter.formatSummary(diagnostics, trace);
         assertEquals(
             "budget[totalMs=430,remainingMs=60] degraded=true omitted=[insights] fallback=[rewards] approximated=[offers] "
-                + "trace=[rewards=EXECUTE_WITH_FALLBACK@10ms(fallback_selected_by_policy[pressure=high:downstream,budget=tight]), "
-                + "offers=EXECUTE_APPROXIMATE@8ms(approximate_selected_by_policy[pressure=high:downstream,budget=tight]), "
-                + "insights=OMIT@0ms(omitted_by_policy[pressure=high:downstream,budget=tight])]",
+                + "trace=[rewards=EXECUTE_WITH_FALLBACK@10ms{fallback_selected_by_policy(policy=balanced,layer=important_runtime_relief,fit=degraded,savings=high,pressure=high:downstream,budget=tight,degrade_pref=fallback)}, "
+                + "offers=EXECUTE_APPROXIMATE@8ms{approximate_selected_by_policy(policy=balanced,layer=optional_mixed_degrade,fit=degraded,savings=high,pressure=high:downstream,budget=tight,degrade_pref=approximate)}, "
+                + "insights=OMIT@0ms{omitted_by_policy(policy=balanced,layer=optional_mixed_omit,fit=none,savings=high,pressure=high:downstream,budget=tight,degrade_pref=approximate)}]",
             formatted
         );
     }
