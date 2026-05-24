@@ -33,8 +33,8 @@ See the concise guide: [docs/quickstart.md](docs/quickstart.md)
 BudgetFlow is published as a multi-module prototype with a deliberately simple default entry point:
 
 - **Default app dependency:** `budgetflow-spring-boot-starter`
-- **Transitively included at compile time:** `budgetflow-core` (public contracts + grouped request API)
-- **Transitively included at runtime:** `budgetflow-autoconfigure` (Spring Boot wiring)
+- **Transitively included at compile/runtime:** `budgetflow-core` (public contracts + grouped request API)
+- **Transitively included at compile/runtime:** `budgetflow-autoconfigure` (Spring Boot wiring + `@LatencyBudget`)
 - **Optional for local evaluation only:** `budgetflow-demo-fintech`
 
 For most Spring Boot services, depending only on the starter is enough.
@@ -282,7 +282,7 @@ The constrained-budget scenarios are the clearest before/after showcase:
 
 - `budgetflow-core` — core execution contracts, planning, policy, tracing, diagnostics, pressure abstraction, and ergonomic grouped request helpers.
 - `budgetflow-autoconfigure` — Spring Boot auto-configuration and latency budget aspect (runtime wiring module).
-- `budgetflow-spring-boot-starter` — default consumer dependency; exposes core API and pulls autoconfigure at runtime.
+- `budgetflow-spring-boot-starter` — default consumer dependency; exposes core API plus Spring integration annotations/autoconfiguration.
 - `budgetflow-demo-fintech` — demo dashboard application and comparison harness (evaluation tooling, not framework runtime dependency).
 
 ## Running the demo

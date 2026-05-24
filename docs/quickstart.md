@@ -15,7 +15,7 @@ dependencies {
 Consumption boundary:
 - `budgetflow-spring-boot-starter` is the default application dependency
 - it exposes core API types (`TaskKey`, `AdaptiveRequest`, `AdaptiveRequestResult`) for compile-time usage
-- it brings Spring auto-configuration at runtime so app code does not need to depend on `budgetflow-autoconfigure` directly
+- it also carries Spring integration annotations/autoconfiguration (including `@LatencyBudget`) so app code does not need to depend on `budgetflow-autoconfigure` directly
 
 ## 2) Establish a request budget
 
