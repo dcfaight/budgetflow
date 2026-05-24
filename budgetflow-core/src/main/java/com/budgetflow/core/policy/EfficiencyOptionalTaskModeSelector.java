@@ -18,12 +18,8 @@ public final class EfficiencyOptionalTaskModeSelector implements OptionalTaskMod
             return ExecutionMode.OMIT;
         }
 
-        if (stressConditions && task.approximateSupported()) {
-            return ExecutionMode.EXECUTE_APPROXIMATE;
-        }
-
-        if (stressConditions && task.fallbackSupported()) {
-            return ExecutionMode.EXECUTE_WITH_FALLBACK;
+        if (stressConditions) {
+            return context.degradedMode(task, false);
         }
 
         return ExecutionMode.EXECUTE;

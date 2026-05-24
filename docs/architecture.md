@@ -168,15 +168,18 @@ The default policy now also emits deterministic reason strings that include:
 - pressure band
 - dominant pressure source
 - active stressed-signal count
+- mixed-constraint band
 - budget band
+- degraded-path preference signal
 - latency ratio at planning time
 
-For optional work, the planner uses a deterministic degradation ladder under stress:
-- prefer approximate execution when supported
-- otherwise prefer fallback when supported
+For optional work, the planner uses deterministic profile-aware degradation selection under stress:
+- `balanced`: uses mixed-constraint signals to choose fallback-first under moderate stress or cheaper degraded paths under severe stress
+- `continuity`: prefers fallback before approximate to preserve response coverage/fidelity when possible
+- `efficiency`: prefers approximate before fallback and omits sooner under stress
 - omit primarily under severe budget/pressure or extreme latency-ratio conditions
 
-The latest planner pass keeps this ladder deterministic while adding dynamic latency-ratio thresholds based on pressure/budget bands, so moderate pressure no longer forces blanket degradation for very low-latency discretionary tasks.
+The latest planner pass keeps this selection deterministic while adding dynamic latency-ratio thresholds based on pressure/budget bands, so moderate pressure no longer forces blanket degradation for very low-latency discretionary tasks.
 
 Planner decisions are also path-fit aware under mixed constraints: when a primary path does not fit the remaining request budget but a degraded path does, degradation is preferred before omission where possible.
 

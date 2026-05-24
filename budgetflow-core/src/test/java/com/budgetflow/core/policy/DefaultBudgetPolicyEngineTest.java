@@ -188,9 +188,10 @@ class DefaultBudgetPolicyEngineTest {
         ));
 
         String reason = decision.directives().get(0).reason();
-        assertTrue(reason.startsWith("approximate_selected_by_policy["));
+        assertTrue(reason.startsWith("fallback_selected_by_policy["));
         assertTrue(reason.contains("pressure=moderate:downstream"));
         assertTrue(reason.contains("active_signals=1"));
+        assertTrue(reason.contains("mixed=low"));
         assertTrue(reason.contains("budget=available"));
         assertFalse(reason.isBlank());
     }
@@ -318,12 +319,42 @@ class DefaultBudgetPolicyEngineTest {
         PolicyDecision efficiency = new DefaultBudgetPolicyEngine(PlannerPolicyProfile.EFFICIENCY).evaluate(input);
 
         assertEquals(ExecutionMode.EXECUTE_APPROXIMATE, balanced.directives().get(0).executionMode());
-        assertEquals(ExecutionMode.EXECUTE_APPROXIMATE, continuity.directives().get(0).executionMode());
+        assertEquals(ExecutionMode.EXECUTE_WITH_FALLBACK, continuity.directives().get(0).executionMode());
         assertEquals(ExecutionMode.OMIT, efficiency.directives().get(0).executionMode());
 
         assertTrue(balanced.directives().get(0).reason().contains("policy=balanced"));
         assertTrue(continuity.directives().get(0).reason().contains("policy=continuity"));
         assertTrue(efficiency.directives().get(0).reason().contains("policy=efficiency"));
+    }
+
+    @Test
+    void balancedProfilePrefersFallbackWhenStressIsModerateAndQualityCanBePreserved() {
+        PolicyEvaluationInput input = new PolicyEvaluationInput(
+            Duration.ofMillis(220),
+            List.of(descriptorWithFallbackAndApproximate("offers", Importance.OPTIONAL, 120, 34, 16)),
+            new SystemPressureSnapshot(0.62, 0.20, 0.20)
+        );
+
+        PolicyDecision decision = new DefaultBudgetPolicyEngine(PlannerPolicyProfile.BALANCED).evaluate(input);
+
+        assertEquals(ExecutionMode.EXECUTE_WITH_FALLBACK, decision.directives().get(0).executionMode());
+        assertTrue(decision.directives().get(0).reason().contains("mixed=low"));
+        assertTrue(decision.directives().get(0).reason().contains("degrade_pref=fallback"));
+    }
+
+    @Test
+    void continuityProfilePrioritizesFallbackEvenWhenApproximateIsCheaper() {
+        PolicyEvaluationInput input = new PolicyEvaluationInput(
+            Duration.ofMillis(200),
+            List.of(descriptorWithFallbackAndApproximate("offers", Importance.OPTIONAL, 120, 30, 12)),
+            new SystemPressureSnapshot(0.62, 0.20, 0.20)
+        );
+
+        PolicyDecision continuity = new DefaultBudgetPolicyEngine(PlannerPolicyProfile.CONTINUITY).evaluate(input);
+        PolicyDecision efficiency = new DefaultBudgetPolicyEngine(PlannerPolicyProfile.EFFICIENCY).evaluate(input);
+
+        assertEquals(ExecutionMode.EXECUTE_WITH_FALLBACK, continuity.directives().get(0).executionMode());
+        assertEquals(ExecutionMode.EXECUTE_APPROXIMATE, efficiency.directives().get(0).executionMode());
     }
 
     @Test
