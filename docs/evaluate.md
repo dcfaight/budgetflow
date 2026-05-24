@@ -2,11 +2,20 @@
 
 This guide is for responsible, quick evaluation of BudgetFlow as an adaptive execution prototype.
 
+For milestone context, start with [milestone-public-prototype.md](milestone-public-prototype.md).  
+For likely next directions, see [status-roadmap.md](status-roadmap.md).
+
 ## Scope and maturity
 
-- BudgetFlow is a sophisticated prototype, not a production-ready platform.
+- BudgetFlow is a polished prototype milestone, not a production-ready platform.
 - Treat results as scenario evidence and architecture signal, not benchmark certification.
 - Focus on explainability and tradeoff shape, not absolute throughput claims.
+
+## Preferred evaluator entry path
+
+1. [docs/quickstart.md](quickstart.md) for the app-facing integration path
+2. `./gradlew :budgetflow-demo-fintech:runDashboardWalkthrough` for guided local flow
+3. This guide for scenario packs and interpretation
 
 ## 1) Run baseline app flow
 
