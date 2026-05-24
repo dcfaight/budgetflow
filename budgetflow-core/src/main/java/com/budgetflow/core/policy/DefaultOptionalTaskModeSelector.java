@@ -9,6 +9,7 @@ public final class DefaultOptionalTaskModeSelector implements OptionalTaskModeSe
     public ExecutionMode chooseMode(TaskDescriptor task, OptionalTaskPlanningContext context) {
         boolean severeBudgetOrPressure = context.veryLowBudget() || context.highPressure();
         boolean degradedPathProtectsHeadroom = context.degradedPathAvailable()
+            && !context.highPressure()
             && context.cheapestDegradedLatencyRatio() < context.optionalOmitThreshold();
         boolean stressConditions = severeBudgetOrPressure
             || context.lowBudget()

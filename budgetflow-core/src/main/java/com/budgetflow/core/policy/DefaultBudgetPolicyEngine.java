@@ -191,7 +191,7 @@ public class DefaultBudgetPolicyEngine implements BudgetPolicyEngine {
                 || lowBudget
                 || latencyRatio >= importantFallbackThreshold
                 || costSignals.primaryHeadroomMillis() < 20;
-            boolean fallbackClearlyCheaper = costSignals.fallbackLatencyRatio() < latencyRatio;
+            boolean fallbackClearlyCheaper = costSignals.fallbackLatencyRatio() <= latencyRatio;
             ExecutionMode mode = importantStress && task.fallbackSupported() && (fallbackClearlyCheaper || highPressure || lowBudget)
                 ? ExecutionMode.EXECUTE_WITH_FALLBACK
                 : ExecutionMode.EXECUTE;
