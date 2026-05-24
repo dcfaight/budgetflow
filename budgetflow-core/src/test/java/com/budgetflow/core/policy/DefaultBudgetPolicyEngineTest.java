@@ -100,6 +100,20 @@ class DefaultBudgetPolicyEngineTest {
     }
 
     @Test
+    void importantTaskFallsBackWhenPrimaryDoesNotFitButFallbackDoes() {
+        DefaultBudgetPolicyEngine engine = new DefaultBudgetPolicyEngine();
+
+        PolicyDecision decision = engine.evaluate(new PolicyEvaluationInput(
+            Duration.ofMillis(60),
+            List.of(descriptorWithFallback("rewards", Importance.IMPORTANT, 95, 20)),
+            new SystemPressureSnapshot(0.15, 0.10, 0.10)
+        ));
+
+        assertEquals(ExecutionMode.EXECUTE_WITH_FALLBACK, decision.directives().get(0).executionMode());
+        assertTrue(decision.directives().get(0).reason().startsWith("fallback_selected_by_policy["));
+    }
+
+    @Test
     void multiTaskPlanningOmitsOptionalWhilePreservingMandatoryWork() {
         DefaultBudgetPolicyEngine engine = new DefaultBudgetPolicyEngine();
 
@@ -229,6 +243,20 @@ class DefaultBudgetPolicyEngineTest {
         assertEquals(ExecutionMode.EXECUTE_WITH_FALLBACK, decision.directives().get(0).executionMode());
         assertEquals(Duration.ofMillis(10), decision.decisionTrace().get(0).plannedExecutionLatency());
         assertEquals(ExecutionMode.EXECUTE, decision.directives().get(1).executionMode());
+    }
+
+    @Test
+    void optionalTaskDegradesWhenPrimaryOverrunsBudgetButApproximateFits() {
+        DefaultBudgetPolicyEngine engine = new DefaultBudgetPolicyEngine();
+
+        PolicyDecision decision = engine.evaluate(new PolicyEvaluationInput(
+            Duration.ofMillis(75),
+            List.of(descriptorWithApproximate("offers", Importance.OPTIONAL, 110, 18)),
+            new SystemPressureSnapshot(0.58, 0.65, 0.56)
+        ));
+
+        assertEquals(ExecutionMode.EXECUTE_APPROXIMATE, decision.directives().get(0).executionMode());
+        assertFalse(decision.directives().get(0).omitted());
     }
 
     @Test

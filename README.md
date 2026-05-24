@@ -28,6 +28,17 @@ If you are new to the repository, start here:
 
 See the concise guide: [docs/quickstart.md](docs/quickstart.md)
 
+## Package consumption at a glance
+
+BudgetFlow is published as a multi-module prototype with a deliberately simple default entry point:
+
+- **Default app dependency:** `budgetflow-spring-boot-starter`
+- **Transitively included at compile/runtime:** `budgetflow-core` (public contracts + grouped request API)
+- **Transitively included at compile/runtime:** `budgetflow-autoconfigure` (Spring Boot wiring + `@LatencyBudget`)
+- **Optional for local evaluation only:** `budgetflow-demo-fintech`
+
+For most Spring Boot services, depending only on the starter is enough.
+
 ### Minimal adoption flow
 
 ```text
@@ -270,9 +281,9 @@ The constrained-budget scenarios are the clearest before/after showcase:
 ## Modules
 
 - `budgetflow-core` — core execution contracts, planning, policy, tracing, diagnostics, pressure abstraction, and ergonomic grouped request helpers.
-- `budgetflow-autoconfigure` — Spring Boot auto-configuration and latency budget aspect.
-- `budgetflow-spring-boot-starter` — starter dependency.
-- `budgetflow-demo-fintech` — demo dashboard application and comparison harness.
+- `budgetflow-autoconfigure` — Spring Boot auto-configuration and latency budget aspect (runtime wiring module).
+- `budgetflow-spring-boot-starter` — default consumer dependency; exposes core API plus Spring integration annotations/autoconfiguration.
+- `budgetflow-demo-fintech` — demo dashboard application and comparison harness (evaluation tooling, not framework runtime dependency).
 
 ## Running the demo
 
@@ -383,6 +394,7 @@ Optional harness arguments keep the tool lightweight while making demo output ea
 ./gradlew :budgetflow-demo-fintech:runDashboardComparison --args="--pack=extended"
 ./gradlew :budgetflow-demo-fintech:runDashboardComparison --args="--pack=realism --json"
 ./gradlew :budgetflow-demo-fintech:runDashboardComparison --args="--pack=policy --policies=balanced,continuity,efficiency"
+./gradlew :budgetflow-demo-fintech:runDashboardComparison --args="--pack=default --json --out=/tmp/budgetflow-report.json"
 ```
 
 `--policies=` also accepts `default` as an alias for `balanced`.
@@ -414,11 +426,23 @@ The optional JSON mode is intentionally simple and stable enough for demo automa
 
 Recent formatter output also includes a small confidence summary at the end of text output (and as `confidenceSummary` in JSON) so readers can quickly see how often adaptive planning reduced projected work in the selected scenario pack.
 
+### Evaluation interpretation checklist
+
+Use harness output as scenario evidence, not benchmark certification:
+
+- Start with `default` pack to validate baseline + constrained behavior.
+- Use `extended` or `realism` to inspect dominant-signal and mixed-constraint cases.
+- Use `policy` pack when choosing between `balanced`, `continuity`, and `efficiency`.
+- Prefer reading **decision trace reasons + scenario narratives** before drawing conclusions from single deltas.
+- Export reports with `--out=` for review/share, then compare across the same pack/profile inputs only.
+
 See the [Comparison harness output](#comparison-harness-output) section above for example output and interpretation guidance.
 
 ## Current status
 
 BudgetFlow is an **early prototype / design exploration**, not a production-ready framework.
+
+Versioning is currently pre-1.0 (`0.x`) and should be treated as exploratory framework evolution, not API stability guarantees.
 
 ### What it is today
 - a working request-aware adaptive execution prototype

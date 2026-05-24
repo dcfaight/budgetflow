@@ -148,6 +148,8 @@ For optional tasks, the default policy now prefers a degraded execution path (ap
 
 The planner now also interprets stacked runtime stress more explicitly: when multiple pressure signals are elevated together, optional work is treated more conservatively than in single-signal spikes. Decision reasons include `active_signals=<n>` to keep this behavior transparent.
 
+Mixed-constraint behavior is budget-fit aware: if a primary path overruns remaining budget but a degraded path fits, the planner can prefer degradation over omission so request quality remains as high as constraints allow.
+
 The helper methods reduce boilerplate, but task names, importance, and execution behavior remain explicit and inspectable through diagnostics and decision trace.
 
 ---

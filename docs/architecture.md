@@ -178,6 +178,8 @@ For optional work, the planner uses a deterministic degradation ladder under str
 
 The latest planner pass keeps this ladder deterministic while adding dynamic latency-ratio thresholds based on pressure/budget bands, so moderate pressure no longer forces blanket degradation for very low-latency discretionary tasks.
 
+Planner decisions are also path-fit aware under mixed constraints: when a primary path does not fit the remaining request budget but a degraded path does, degradation is preferred before omission where possible.
+
 When a task supplies explicit fallback/approximate latency hints, the planner now also carries those reduced costs forward into rolling request-budget allocation and decision trace.
 
 That keeps degradation decisions explainable without introducing opaque heuristics.
