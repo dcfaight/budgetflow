@@ -5,6 +5,9 @@ import com.budgetflow.core.policy.PlannerPolicyProfile;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.io.IOException;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -67,6 +70,8 @@ class DashboardComparisonHarnessTest {
 
         assertTrue(output.contains("BudgetFlow dashboard comparison"));
         assertTrue(output.contains("Scenario: constrained_budget_elevated_pressure — Constrained budget / elevated pressure"));
+        assertTrue(output.contains("Focus: Mixed-constraint stress: validates combined budget + runtime pressure behavior."));
+        assertTrue(output.contains("Interpretation: Interpret differences conservatively: this demonstrates policy reaction shape, not production throughput ceilings."));
         assertTrue(output.contains("Strategy | Policy | Executed | Degraded | Work | Omitted | Fallback | Approx | Why"));
         assertTrue(output.contains("budgetflow_adaptive | balanced | 4 | true | 430ms/123ms | insights | rewards | offers | offers=approximate_selected_by_policy"));
     }
@@ -145,6 +150,8 @@ class DashboardComparisonHarnessTest {
             assertTrue(json.contains("\"adaptiveChanges\":"));
             assertTrue(json.contains("\"profileSummary\":"));
             assertTrue(json.contains("\"profileGuidance\":"));
+            assertTrue(json.contains("\"evaluationFocus\":"));
+            assertTrue(json.contains("\"interpretationGuidance\":"));
         }
     }
 
@@ -178,6 +185,19 @@ class DashboardComparisonHarnessTest {
             assertTrue(json.contains("\"scenariosCompared\":"));
             assertTrue(json.contains("\"adaptiveLowerProjectedWorkCount\":"));
         }
+    }
+
+    @Test
+    void harnessMainCanExportJsonReportToFile() throws IOException {
+        Path outputPath = Path.of("/tmp/budgetflow-harness-export.json");
+        Files.deleteIfExists(outputPath);
+
+        DashboardComparisonHarness.main(new String[] {"--pack=default", "--json", "--out=" + outputPath});
+
+        assertTrue(Files.exists(outputPath));
+        String exported = Files.readString(outputPath);
+        assertTrue(exported.contains("\"tool\":\"budgetflow_dashboard_comparison\""));
+        assertTrue(exported.contains("\"scenarioPack\":{\"name\":\"default\""));
     }
 
     private DashboardBenchmarkSummary summaryFor(

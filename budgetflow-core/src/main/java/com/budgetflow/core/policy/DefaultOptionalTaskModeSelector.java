@@ -8,32 +8,42 @@ public final class DefaultOptionalTaskModeSelector implements OptionalTaskModeSe
     @Override
     public ExecutionMode chooseMode(TaskDescriptor task, OptionalTaskPlanningContext context) {
         boolean severeBudgetOrPressure = context.veryLowBudget() || context.highPressure();
+        boolean mixedConstraintPressure = context.mixedConstraintScore() >= 0.95;
+        boolean primaryDoesNotFitBudget = !context.primaryFitsBudget();
+        boolean degradedPathRecoversBudgetFit = context.degradedPathAvailable() && context.cheapestDegradedFitsBudget();
+        boolean noPathFitsBudget = primaryDoesNotFitBudget && !degradedPathRecoversBudgetFit;
         boolean degradedPathProtectsHeadroom = context.degradedPathAvailable()
             && !context.highPressure()
             && context.cheapestDegradedLatencyRatio() < context.optionalOmitThreshold();
         boolean stressConditions = severeBudgetOrPressure
             || context.multiSignalStress()
             || context.lowBudget()
+            || primaryDoesNotFitBudget
             || context.primaryLatencyRatio() >= context.optionalDegradeThreshold();
+        boolean degradeUnderStress = stressConditions || mixedConstraintPressure;
         boolean omitDueToExtremeRatio = severeBudgetOrPressure
             && context.primaryLatencyRatio() >= context.optionalOmitThreshold()
             && !degradedPathProtectsHeadroom;
         boolean omitDueToStackedSignals = context.multiSignalStress()
             && context.primaryLatencyRatio() >= context.optionalOmitThreshold()
             && !context.degradedPathAvailable();
+        boolean omitDueToNoPathFit = noPathFitsBudget
+            && (severeBudgetOrPressure
+            || context.multiSignalStress()
+            || context.primaryLatencyRatio() >= context.optionalOmitThreshold());
         boolean omitDueToNoDegradedPath = context.primaryLatencyRatio() >= OPTIONAL_EXTREME_OMIT_LATENCY_RATIO
             && !task.approximateSupported()
             && !task.fallbackSupported();
 
-        if (omitDueToExtremeRatio || omitDueToStackedSignals || omitDueToNoDegradedPath) {
+        if (omitDueToExtremeRatio || omitDueToStackedSignals || omitDueToNoDegradedPath || omitDueToNoPathFit) {
             return ExecutionMode.OMIT;
         }
 
-        if (stressConditions && task.approximateSupported()) {
+        if (degradeUnderStress && task.approximateSupported()) {
             return ExecutionMode.EXECUTE_APPROXIMATE;
         }
 
-        if (stressConditions && task.fallbackSupported()) {
+        if (degradeUnderStress && task.fallbackSupported()) {
             return ExecutionMode.EXECUTE_WITH_FALLBACK;
         }
 

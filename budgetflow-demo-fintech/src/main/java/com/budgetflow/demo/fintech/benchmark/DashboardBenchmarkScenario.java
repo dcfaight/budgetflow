@@ -9,6 +9,8 @@ public record DashboardBenchmarkScenario(
     String name,
     String displayName,
     String narrative,
+    String evaluationFocus,
+    String interpretationGuidance,
     String budgetProfile,
     String pressureProfile,
     Duration requestBudget,

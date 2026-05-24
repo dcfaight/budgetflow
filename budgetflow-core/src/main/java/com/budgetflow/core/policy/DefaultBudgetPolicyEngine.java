@@ -185,6 +185,13 @@ public class DefaultBudgetPolicyEngine implements BudgetPolicyEngine {
         boolean highPressure = pressureLevel >= HIGH_PRESSURE || multiSignalStress;
         boolean lowBudget = remainingBudget.compareTo(LOW_BUDGET_THRESHOLD) < 0;
         boolean veryLowBudget = remainingBudget.compareTo(VERY_LOW_BUDGET_THRESHOLD) < 0;
+        double mixedConstraintScore = mixedConstraintScore(
+            pressureLevel,
+            multiSignalStress,
+            lowBudget,
+            veryLowBudget,
+            latencyRatio
+        );
 
         if (task.importance() == Importance.IMPORTANT) {
             double importantFallbackThreshold = adjustedLatencyThreshold(
@@ -195,10 +202,14 @@ public class DefaultBudgetPolicyEngine implements BudgetPolicyEngine {
             );
             boolean importantStress = highPressure
                 || lowBudget
+                || !costSignals.primaryFitsBudget()
                 || latencyRatio >= importantFallbackThreshold
                 || costSignals.primaryHeadroomMillis() < 20;
             boolean fallbackClearlyCheaper = costSignals.fallbackLatencyRatio() <= latencyRatio;
-            ExecutionMode mode = importantStress && task.fallbackSupported() && (fallbackClearlyCheaper || highPressure || lowBudget)
+            boolean fallbackImprovesBudgetFit = costSignals.fallbackFitsBudget() && !costSignals.primaryFitsBudget();
+            ExecutionMode mode = importantStress
+                && task.fallbackSupported()
+                && (fallbackClearlyCheaper || fallbackImprovesBudgetFit || highPressure || lowBudget)
                 ? ExecutionMode.EXECUTE_WITH_FALLBACK
                 : ExecutionMode.EXECUTE;
             return new PolicySelection(mode, explainReason(mode, snapshot, remainingBudget, latencyRatio, stressedSignalCount));
@@ -225,11 +236,16 @@ public class DefaultBudgetPolicyEngine implements BudgetPolicyEngine {
                     stressedSignalCount,
                     multiSignalStress,
                     snapshot.averagePressure(),
+                    mixedConstraintScore,
                     latencyRatio,
                     costSignals.cheapestDegradedLatencyRatio(),
                     costSignals.degradedSavingsRatio(),
                     costSignals.degradedSavingsMillis(),
                     costSignals.degradedPathAvailable(),
+                    costSignals.primaryFitsBudget(),
+                    costSignals.cheapestDegradedFitsBudget(),
+                    costSignals.primaryOverrunMillis(),
+                    costSignals.cheapestDegradedOverrunMillis(),
                     lowBudget,
                     veryLowBudget,
                     highPressure,
@@ -368,6 +384,15 @@ public class DefaultBudgetPolicyEngine implements BudgetPolicyEngine {
             ? 0.0
             : (double) savingsMillis / Math.max(primaryLatency.toMillis(), 1L);
         long primaryHeadroomMillis = Math.max(remainingBudget.toMillis() - primaryLatency.toMillis(), 0L);
+        boolean primaryFitsBudget = fitsBudget(primaryLatency, remainingBudget);
+        boolean fallbackFitsBudget = fitsBudget(fallbackLatency, remainingBudget);
+        boolean approximateFitsBudget = fitsBudget(approximateLatency, remainingBudget);
+        boolean cheapestDegradedFitsBudget = fitsBudget(cheapestDegradedLatency, remainingBudget);
+        long primaryOverrunMillis = Math.max(primaryLatency.toMillis() - nonNegative(remainingBudget).toMillis(), 0L);
+        long degradedOverrunMillis = Math.max(
+            cheapestDegradedLatency.toMillis() - nonNegative(remainingBudget).toMillis(),
+            0L
+        );
 
         return new TaskCostSignals(
             primaryRatio,
@@ -377,7 +402,13 @@ public class DefaultBudgetPolicyEngine implements BudgetPolicyEngine {
             savingsMillis,
             savingsRatio,
             primaryHeadroomMillis,
-            task.fallbackSupported() || task.approximateSupported()
+            task.fallbackSupported() || task.approximateSupported(),
+            primaryFitsBudget,
+            fallbackFitsBudget,
+            approximateFitsBudget,
+            cheapestDegradedFitsBudget,
+            primaryOverrunMillis,
+            degradedOverrunMillis
         );
     }
 
@@ -385,6 +416,25 @@ public class DefaultBudgetPolicyEngine implements BudgetPolicyEngine {
         long remainingMillis = Math.max(nonNegative(remainingBudget).toMillis(), 1L);
         long latencyMillis = Math.max(nonNegative(latency).toMillis(), 0L);
         return (double) latencyMillis / (double) remainingMillis;
+    }
+
+    private boolean fitsBudget(Duration latency, Duration remainingBudget) {
+        return nonNegative(latency).compareTo(nonNegative(remainingBudget)) <= 0;
+    }
+
+    private double mixedConstraintScore(
+        double pressureLevel,
+        boolean multiSignalStress,
+        boolean lowBudget,
+        boolean veryLowBudget,
+        double latencyRatio
+    ) {
+        double pressureContribution = pressureLevel * 0.45;
+        double signalContribution = multiSignalStress ? 0.20 : 0.0;
+        double budgetContribution = veryLowBudget ? 0.20 : lowBudget ? 0.15 : 0.0;
+        double ratioContribution = Math.min(latencyRatio, 1.5) * 0.20;
+        double rawScore = pressureContribution + signalContribution + budgetContribution + ratioContribution;
+        return Math.max(0.0, Math.min(rawScore, 1.5));
     }
 
     private record TaskCostSignals(
@@ -395,7 +445,13 @@ public class DefaultBudgetPolicyEngine implements BudgetPolicyEngine {
         long degradedSavingsMillis,
         double degradedSavingsRatio,
         long primaryHeadroomMillis,
-        boolean degradedPathAvailable
+        boolean degradedPathAvailable,
+        boolean primaryFitsBudget,
+        boolean fallbackFitsBudget,
+        boolean approximateFitsBudget,
+        boolean cheapestDegradedFitsBudget,
+        long primaryOverrunMillis,
+        long cheapestDegradedOverrunMillis
     ) {
     }
 

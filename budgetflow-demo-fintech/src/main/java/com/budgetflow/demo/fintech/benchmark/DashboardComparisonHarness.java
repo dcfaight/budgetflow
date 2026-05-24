@@ -19,6 +19,9 @@ import com.budgetflow.demo.fintech.dashboard.SimulationSupport;
 import com.budgetflow.demo.fintech.dashboard.TransactionClient;
 
 import java.time.Duration;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.io.IOException;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -66,6 +69,7 @@ public final class DashboardComparisonHarness implements AutoCloseable {
                 ? DashboardBenchmarkFormatter.formatJson(pack, summaries)
                 : DashboardBenchmarkFormatter.format(pack, summaries);
             System.out.println(output);
+            options.outputPathOptional().ifPresent(path -> writeOutput(path, output));
         }
     }
 
@@ -232,11 +236,29 @@ public final class DashboardComparisonHarness implements AutoCloseable {
         return reason.substring(0, ratioIndex) + "]";
     }
 
-    private record HarnessOptions(String packName, boolean json, List<PlannerPolicyProfile> policyProfiles) {
+    private static void writeOutput(Path outputPath, String output) {
+        try {
+            Path parent = outputPath.getParent();
+            if (parent != null) {
+                Files.createDirectories(parent);
+            }
+            Files.writeString(outputPath, output);
+            System.out.println("Report exported to " + outputPath.toAbsolutePath());
+        } catch (IOException ioException) {
+            throw new IllegalStateException("Failed to export comparison report to " + outputPath, ioException);
+        }
+    }
+
+    private record HarnessOptions(String packName, boolean json, List<PlannerPolicyProfile> policyProfiles, Path outputPath) {
+        private java.util.Optional<Path> outputPathOptional() {
+            return java.util.Optional.ofNullable(outputPath);
+        }
+
         private static HarnessOptions parse(String[] args) {
             String packName = "default";
             boolean json = false;
             List<PlannerPolicyProfile> policyProfiles = List.of(PlannerPolicyProfile.BALANCED);
+            Path outputPath = null;
             for (String arg : args) {
                 if ("--json".equals(arg)) {
                     json = true;
@@ -249,9 +271,16 @@ public final class DashboardComparisonHarness implements AutoCloseable {
                 if (arg.startsWith("--policies=")) {
                     String rawValue = arg.substring("--policies=".length());
                     policyProfiles = parseProfiles(rawValue);
+                    continue;
+                }
+                if (arg.startsWith("--out=")) {
+                    String rawValue = arg.substring("--out=".length());
+                    if (!rawValue.isBlank()) {
+                        outputPath = Path.of(rawValue);
+                    }
                 }
             }
-            return new HarnessOptions(packName, json, policyProfiles);
+            return new HarnessOptions(packName, json, policyProfiles, outputPath);
         }
 
         private static List<PlannerPolicyProfile> parseProfiles(String rawValue) {

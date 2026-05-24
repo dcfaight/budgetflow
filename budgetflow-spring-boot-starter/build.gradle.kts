@@ -11,6 +11,6 @@ dependencyManagement {
 
 dependencies {
     api(project(":budgetflow-core"))
-    api(project(":budgetflow-autoconfigure"))
     api("org.springframework.boot:spring-boot-starter")
+    runtimeOnly(project(":budgetflow-autoconfigure"))
 }

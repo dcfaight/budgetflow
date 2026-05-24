@@ -65,6 +65,10 @@ class PressureScenariosTest {
         assertEquals("default", scenario.packName());
         assertEquals("generous_budget_low_pressure", scenario.name());
         assertEquals("Generous budget / low pressure", scenario.displayName());
+        assertEquals(
+            "Sanity baseline: verifies no unnecessary degradation under comfortable constraints.",
+            scenario.evaluationFocus()
+        );
         assertEquals(Duration.ofMillis(650), scenario.requestBudget());
         assertEquals(PressureScenarios.LOW_PRESSURE, scenario.pressureSnapshot());
     }
@@ -117,6 +121,10 @@ class PressureScenariosTest {
         DashboardBenchmarkScenario scenario = PressureScenarios.moderateBudgetElevatedPressure();
         assertEquals("policy", scenario.packName());
         assertEquals("moderate_budget_elevated_pressure", scenario.name());
+        assertEquals(
+            "Use deltas for policy selection guidance only; do not treat one scenario as proof of global superiority.",
+            scenario.interpretationGuidance()
+        );
         assertEquals(Duration.ofMillis(520), scenario.requestBudget());
         assertEquals(PressureScenarios.ELEVATED_PRESSURE, scenario.pressureSnapshot());
     }

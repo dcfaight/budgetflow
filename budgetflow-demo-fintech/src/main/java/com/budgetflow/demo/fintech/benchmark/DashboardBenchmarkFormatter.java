@@ -28,6 +28,8 @@ public final class DashboardBenchmarkFormatter {
             builder.append("Scenario: ").append(scenario.name())
                 .append(" — ").append(scenario.displayName()).append(System.lineSeparator());
             builder.append("Narrative: ").append(scenario.narrative()).append(System.lineSeparator());
+            builder.append("Focus: ").append(scenario.evaluationFocus()).append(System.lineSeparator());
+            builder.append("Interpretation: ").append(scenario.interpretationGuidance()).append(System.lineSeparator());
             builder.append("Budget profile: ").append(scenario.budgetProfile())
                 .append(" | Pressure profile: ").append(scenario.pressureProfile()).append(System.lineSeparator());
             builder.append("Request budget: ").append(scenario.requestBudget().toMillis()).append("ms")
@@ -134,6 +136,8 @@ public final class DashboardBenchmarkFormatter {
                 .append("\"name\":\"").append(escape(scenario.name())).append("\",")
                 .append("\"displayName\":\"").append(escape(scenario.displayName())).append("\",")
                 .append("\"narrative\":\"").append(escape(scenario.narrative())).append("\",")
+                .append("\"evaluationFocus\":\"").append(escape(scenario.evaluationFocus())).append("\",")
+                .append("\"interpretationGuidance\":\"").append(escape(scenario.interpretationGuidance())).append("\",")
                 .append("\"budgetProfile\":\"").append(escape(scenario.budgetProfile())).append("\",")
                 .append("\"pressureProfile\":\"").append(escape(scenario.pressureProfile())).append("\",")
                 .append("\"requestBudgetMs\":").append(scenario.requestBudget().toMillis()).append(",")

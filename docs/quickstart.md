@@ -12,6 +12,11 @@ dependencies {
 }
 ```
 
+Consumption boundary:
+- `budgetflow-spring-boot-starter` is the default application dependency
+- it exposes core API types (`TaskKey`, `AdaptiveRequest`, `AdaptiveRequestResult`) for compile-time usage
+- it brings Spring auto-configuration at runtime so app code does not need to depend on `budgetflow-autoconfigure` directly
+
 ## 2) Establish a request budget
 
 Annotate your endpoint/service entry point with `@LatencyBudget`:
@@ -129,6 +134,7 @@ Then run the side-by-side scenario comparison:
 ```bash
 ./gradlew :budgetflow-demo-fintech:runDashboardComparison
 ./gradlew :budgetflow-demo-fintech:runDashboardComparison --args="--pack=policy --policies=balanced,continuity,efficiency"
+./gradlew :budgetflow-demo-fintech:runDashboardComparison --args="--pack=default --json --out=/tmp/budgetflow-report.json"
 ```
 
 `budgetflow.planner.profile` is the recommended property name. `budgetflow.planner.policy-profile` remains supported for compatibility.
