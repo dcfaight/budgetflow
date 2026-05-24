@@ -14,8 +14,9 @@ BudgetFlow is **not** production hardened, benchmark-certified, or API-stable.
 ## What this maturity pass strengthens
 
 - release-facing framing and evaluation guidance
-- mixed-constraint planner strategy depth with explainable signals
+- clearer planner separation between signal analysis, policy selection, and trace/orchestration output
 - scenario mapping to recognizable real-world pressure patterns
+- a guided walkthrough path for first-time local exploration
 
 ## Near-term roadmap (incremental)
 

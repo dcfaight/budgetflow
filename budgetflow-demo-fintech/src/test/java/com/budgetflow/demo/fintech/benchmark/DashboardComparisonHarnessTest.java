@@ -8,6 +8,8 @@ import java.util.List;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.io.IOException;
+import java.io.ByteArrayOutputStream;
+import java.io.PrintStream;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -69,6 +71,8 @@ class DashboardComparisonHarnessTest {
         ));
 
         assertTrue(output.contains("BudgetFlow dashboard comparison"));
+        assertTrue(output.contains("Best for: first-time repo evaluation and baseline adaptive-vs-naive comparison"));
+        assertTrue(output.contains("Suggested run: ./gradlew :budgetflow-demo-fintech:runDashboardComparison --args=\"--pack=default\""));
         assertTrue(output.contains("Scenario: constrained_budget_elevated_pressure — Constrained budget / elevated pressure"));
         assertTrue(output.contains("Focus: Mixed-constraint stress: validates combined budget + runtime pressure behavior."));
         assertTrue(output.contains("Interpretation: Interpret differences conservatively: this demonstrates policy reaction shape, not production throughput ceilings."));
@@ -146,6 +150,8 @@ class DashboardComparisonHarnessTest {
 
             assertTrue(json.contains("\"tool\":\"budgetflow_dashboard_comparison\""));
             assertTrue(json.contains("\"scenarioPack\":{\"name\":\"realism\""));
+            assertTrue(json.contains("\"bestFor\":\"recognizable real-world pressure patterns and JSON-friendly sharing\""));
+            assertTrue(json.contains("\"suggestedCommand\":\"./gradlew :budgetflow-demo-fintech:runDashboardComparison --args=\\\"--pack=realism --json\\\"\""));
             assertTrue(json.contains("\"name\":\"budgetflow_adaptive\""));
             assertTrue(json.contains("\"policyProfile\":\"balanced\""));
             assertTrue(json.contains("\"comparison\":{"));
@@ -202,6 +208,26 @@ class DashboardComparisonHarnessTest {
         String exported = Files.readString(outputPath);
         assertTrue(exported.contains("\"tool\":\"budgetflow_dashboard_comparison\""));
         assertTrue(exported.contains("\"scenarioPack\":{\"name\":\"default\""));
+    }
+
+    @Test
+    void walkthroughProvidesGuidedAdoptionFlow() {
+        PrintStream originalOut = System.out;
+        ByteArrayOutputStream captured = new ByteArrayOutputStream();
+        try {
+            System.setOut(new PrintStream(captured));
+            DashboardWalkthrough.main(new String[0]);
+        } finally {
+            System.setOut(originalOut);
+        }
+
+        String output = captured.toString();
+        assertTrue(output.contains("BudgetFlow prototype walkthrough"));
+        assertTrue(output.contains("./gradlew :budgetflow-demo-fintech:bootRun"));
+        assertTrue(output.contains("./gradlew :budgetflow-demo-fintech:runDashboardComparison --args=\"--pack=default\""));
+        assertTrue(output.contains("./gradlew :budgetflow-demo-fintech:runDashboardComparison --args=\"--pack=policy --policies=balanced,continuity,efficiency\""));
+        assertTrue(output.contains("/tmp/budgetflow-realism.json"));
+        assertTrue(output.contains("not a production-ready platform"));
     }
 
     private DashboardBenchmarkSummary summaryFor(

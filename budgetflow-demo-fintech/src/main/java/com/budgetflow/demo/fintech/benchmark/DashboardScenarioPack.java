@@ -5,6 +5,8 @@ import java.util.List;
 public record DashboardScenarioPack(
     String name,
     String description,
+    String bestFor,
+    String suggestedCommand,
     List<DashboardBenchmarkScenario> scenarios
 ) {
     public DashboardScenarioPack {

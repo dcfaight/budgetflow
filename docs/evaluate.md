@@ -13,6 +13,7 @@ This guide is for responsible, quick evaluation of BudgetFlow as an adaptive exe
 From repository root:
 
 ```bash
+./gradlew :budgetflow-demo-fintech:runDashboardWalkthrough
 ./gradlew :budgetflow-demo-fintech:bootRun
 curl http://localhost:8080/api/accounts/acc-123/dashboard
 ```
@@ -21,6 +22,7 @@ Observe:
 - `diagnostics.degraded`
 - omitted/fallback/approximated task lists
 - decision trace reasons and `plannedExecutionLatency`
+- `executionSummary` for a compact human-readable interpretation of the response
 
 ## 2) Run scenario comparison packs
 
@@ -31,6 +33,7 @@ Observe:
 ```
 
 Observe per scenario:
+- pack-level `Best for` / `Suggested run` guidance at the top of the output
 - `Pattern` (real-world mapping)
 - `Observe` guidance
 - adaptive vs naive projected work delta
@@ -50,6 +53,7 @@ Choose profile by endpoint goals, not single-scenario wins.
 - Explainable degradation under constrained/mixed stress.
 - Stable, deterministic trace semantics across repeated runs.
 - Profile deltas that match intended tradeoffs for your workload.
+- Sample-app and harness observations that tell the same story instead of diverging.
 
 ## 5) What this guide does not claim
 

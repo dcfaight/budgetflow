@@ -11,6 +11,15 @@ BudgetFlow is a prototype Java/Spring framework for request-scoped orchestration
 
 > **Prototype status:** ready to share, demo, and explore in realistic Spring Boot integrations; not production-hardened or benchmarked as a platform claim.
 
+## Start here in order
+
+If you are exploring the repository for the first time, use this sequence:
+
+1. **Framework quickstart:** [docs/quickstart.md](docs/quickstart.md)
+2. **Guided local walkthrough:** `./gradlew :budgetflow-demo-fintech:runDashboardWalkthrough`
+3. **Evaluation runbook:** [docs/evaluate.md](docs/evaluate.md)
+4. **Architecture + extension boundaries:** [docs/architecture.md](docs/architecture.md)
+
 ## Why this matters in the first minute
 
 - **Request-scoped planning:** related work is planned together instead of timing out independently.
@@ -29,7 +38,13 @@ If you are new to the repository, start here:
 
 See the concise guide: [docs/quickstart.md](docs/quickstart.md)
 
-If you are evaluating BudgetFlow for potential adoption, use the opinionated walkthrough:
+If you want the shortest guided local tour, run:
+
+```bash
+./gradlew :budgetflow-demo-fintech:runDashboardWalkthrough
+```
+
+If you are evaluating BudgetFlow for potential adoption, continue with:
 [docs/evaluate.md](docs/evaluate.md)
 
 ## Package consumption at a glance
@@ -132,6 +147,16 @@ Use lower-level contracts when you need explicit framework/infrastructure contro
 - `RequestExecutionResult`
 
 Demo/comparison helpers (for example, the fintech benchmark harness and scenario packs) are sample tooling, not the preferred framework entry path.
+
+### Planner extension boundaries
+
+BudgetFlow keeps planner customization intentionally lightweight:
+
+- **Scoring/signals:** the core planner derives request-budget fit, pressure, and degraded-path signals before policy selection.
+- **Policy selection:** `OptionalTaskModeSelector` chooses the execution mode for optional tasks from those computed signals.
+- **Orchestration + trace:** `DefaultBudgetPolicyEngine` still owns planning order, budget allocation, diagnostics, and decision trace output.
+
+That keeps extension points explicit without turning the planner into a heavyweight plugin system.
 
 ### Dashboard example
 
@@ -293,13 +318,15 @@ The constrained-budget scenarios are the clearest before/after showcase:
 ## Running the demo
 
 ```bash
-./gradlew build
+./gradlew :budgetflow-demo-fintech:runDashboardWalkthrough
 ./gradlew :budgetflow-demo-fintech:bootRun
 curl http://localhost:8080/api/accounts/acc-123/dashboard
 ```
 
 The demo ships with a small, explicit config baseline in
 `budgetflow-demo-fintech/src/main/resources/application.yml`.
+
+The walkthrough task prints the preferred “what to run / what to observe / how to interpret it” sequence before you move into deeper harness comparisons.
 
 Example response (trimmed):
 
@@ -393,6 +420,13 @@ Run it with:
 ./gradlew :budgetflow-demo-fintech:runDashboardComparison
 ```
 
+For the preferred first-time evaluator flow, start with:
+
+```bash
+./gradlew :budgetflow-demo-fintech:runDashboardWalkthrough
+./gradlew :budgetflow-demo-fintech:runDashboardComparison --args="--pack=default"
+```
+
 Optional harness arguments keep the tool lightweight while making demo output easier to compare:
 
 ```bash
@@ -405,10 +439,10 @@ Optional harness arguments keep the tool lightweight while making demo output ea
 `--policies=` also accepts `default` as an alias for `balanced`.
 
 Available scenario packs:
-- `default` — the three core scenarios used in the basic comparison walkthrough
-- `extended` — adds generous-budget/elevated-pressure, DB-bound, and downstream-spike scenarios
-- `realism` — emphasizes richer pressure narratives while staying deterministic and explainable
-- `policy` — profile-comparison scenarios that make planner policy differences easier to inspect
+- `default` — the three core scenarios used in the basic comparison walkthrough; best for first-time repo evaluation
+- `extended` — adds generous-budget/elevated-pressure, DB-bound, and downstream-spike scenarios; best for broader local exploration
+- `realism` — emphasizes richer pressure narratives while staying deterministic and explainable; best for recognizable scenario sharing and JSON export
+- `policy` — profile-comparison scenarios that make planner policy differences easier to inspect; best for deliberate planner-profile selection
 
 Available adaptive policy profiles:
 - `balanced` — default middle-ground policy (recommended starting point)

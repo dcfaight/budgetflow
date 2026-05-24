@@ -17,3 +17,10 @@ tasks.register<JavaExec>("runDashboardComparison") {
     classpath = sourceSets["main"].runtimeClasspath
     mainClass.set("com.budgetflow.demo.fintech.benchmark.DashboardComparisonHarness")
 }
+
+tasks.register<JavaExec>("runDashboardWalkthrough") {
+    group = "application"
+    description = "Prints the preferred BudgetFlow demo and evaluation walkthrough."
+    classpath = sourceSets["main"].runtimeClasspath
+    mainClass.set("com.budgetflow.demo.fintech.benchmark.DashboardWalkthrough")
+}

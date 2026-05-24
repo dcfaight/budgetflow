@@ -11,44 +11,66 @@ import java.util.Objects;
 public class DefaultBudgetPolicyEngine implements BudgetPolicyEngine {
     private static final double HIGH_PRESSURE = 0.85;
     private static final double MODERATE_PRESSURE = 0.60;
-    private static final double STACKED_SIGNAL_PRESSURE = 0.70;
     private static final double IMPORTANT_FALLBACK_LATENCY_RATIO = 0.52;
     private static final double OPTIONAL_DEGRADE_LATENCY_RATIO = 0.58;
     private static final double OPTIONAL_OMIT_LATENCY_RATIO = 0.78;
     private static final double MIN_DYNAMIC_LATENCY_RATIO = 0.20;
     private static final double MAX_DYNAMIC_LATENCY_RATIO = 0.95;
-    private static final Duration LOW_BUDGET_THRESHOLD = Duration.ofMillis(200);
-    private static final Duration VERY_LOW_BUDGET_THRESHOLD = Duration.ofMillis(120);
     private final OptionalTaskModeSelector optionalTaskModeSelector;
     private final String policyProfileName;
+    private final OptionalTaskPlanningSignalsFactory planningSignalsFactory;
+    private final PolicyReasonFormatter reasonFormatter;
 
     public DefaultBudgetPolicyEngine() {
         this(
             PlannerPolicyProfiles.optionalTaskSelector(PlannerPolicyProfile.defaultProfile()),
-            PlannerPolicyProfile.defaultProfile().configName()
+            PlannerPolicyProfile.defaultProfile().configName(),
+            new OptionalTaskPlanningSignalsFactory(),
+            new PolicyReasonFormatter()
         );
     }
 
     public DefaultBudgetPolicyEngine(PlannerPolicyProfile profile) {
         this(
             PlannerPolicyProfiles.optionalTaskSelector(profile),
-            Objects.requireNonNull(profile, "profile must not be null").configName()
+            Objects.requireNonNull(profile, "profile must not be null").configName(),
+            new OptionalTaskPlanningSignalsFactory(),
+            new PolicyReasonFormatter()
         );
     }
 
     public DefaultBudgetPolicyEngine(OptionalTaskModeSelector optionalTaskModeSelector) {
-        this(optionalTaskModeSelector, "custom");
+        this(
+            optionalTaskModeSelector,
+            "custom",
+            new OptionalTaskPlanningSignalsFactory(),
+            new PolicyReasonFormatter()
+        );
     }
 
     public DefaultBudgetPolicyEngine(
         OptionalTaskModeSelector optionalTaskModeSelector,
         String policyProfileName
     ) {
+        this(optionalTaskModeSelector, policyProfileName, new OptionalTaskPlanningSignalsFactory(), new PolicyReasonFormatter());
+    }
+
+    DefaultBudgetPolicyEngine(
+        OptionalTaskModeSelector optionalTaskModeSelector,
+        String policyProfileName,
+        OptionalTaskPlanningSignalsFactory planningSignalsFactory,
+        PolicyReasonFormatter reasonFormatter
+    ) {
         this.optionalTaskModeSelector = Objects.requireNonNull(
             optionalTaskModeSelector,
             "optionalTaskModeSelector must not be null"
         );
         this.policyProfileName = Objects.requireNonNull(policyProfileName, "policyProfileName must not be null");
+        this.planningSignalsFactory = Objects.requireNonNull(
+            planningSignalsFactory,
+            "planningSignalsFactory must not be null"
+        );
+        this.reasonFormatter = Objects.requireNonNull(reasonFormatter, "reasonFormatter must not be null");
     }
 
     @Override
@@ -169,42 +191,27 @@ public class DefaultBudgetPolicyEngine implements BudgetPolicyEngine {
         SystemPressureSnapshot snapshot,
         Duration remainingBudget
     ) {
-        TaskCostSignals costSignals = taskCostSignals(task, remainingBudget);
-        double latencyRatio = costSignals.primaryLatencyRatio();
-
-        double pressureLevel = snapshot.peakPressure();
-        int stressedSignalCount = snapshot.signalsAtOrAbove(STACKED_SIGNAL_PRESSURE);
-        boolean multiSignalStress = stressedSignalCount >= 2;
-        boolean lowBudget = remainingBudget.compareTo(LOW_BUDGET_THRESHOLD) < 0;
-        boolean veryLowBudget = remainingBudget.compareTo(VERY_LOW_BUDGET_THRESHOLD) < 0;
-        boolean highPressure = pressureLevel >= HIGH_PRESSURE || multiSignalStress;
-        double mixedConstraintScore = mixedConstraintScore(
-            pressureLevel,
-            multiSignalStress,
-            lowBudget,
-            veryLowBudget,
-            latencyRatio
-        );
-        String mixedConstraintBand = mixedConstraintBand(mixedConstraintScore);
-        ExecutionMode suggestedDegradedMode = suggestedDegradedMode(
+        PolicyPlanningSignals planningSignals = planningSignalsFactory.analyze(
             task,
-            costSignals,
-            highPressure,
-            multiSignalStress,
-            lowBudget,
-            mixedConstraintScore
+            snapshot,
+            remainingBudget,
+            OPTIONAL_DEGRADE_LATENCY_RATIO,
+            OPTIONAL_OMIT_LATENCY_RATIO
         );
+        TaskCostSignals costSignals = planningSignals.taskCostSignals();
+        double latencyRatio = costSignals.primaryLatencyRatio();
         if (task.importance() == Importance.MANDATORY) {
             return new PolicySelection(
                 ExecutionMode.EXECUTE,
-                explainReason(
+                reasonFormatter.format(
+                    policyProfileName,
                     ExecutionMode.EXECUTE,
                     snapshot,
                     remainingBudget,
                     latencyRatio,
-                    stressedSignalCount,
-                    mixedConstraintBand,
-                    suggestedDegradedMode
+                    planningSignals.stressedSignalCount(),
+                    planningSignals.mixedConstraintBand(),
+                    planningSignals.suggestedDegradedMode()
                 )
             );
         }
@@ -212,12 +219,12 @@ public class DefaultBudgetPolicyEngine implements BudgetPolicyEngine {
         if (task.importance() == Importance.IMPORTANT) {
             double importantFallbackThreshold = adjustedLatencyThreshold(
                 IMPORTANT_FALLBACK_LATENCY_RATIO,
-                pressureLevel,
-                lowBudget,
-                veryLowBudget
+                snapshot.peakPressure(),
+                planningSignals.lowBudget(),
+                planningSignals.veryLowBudget()
             );
-            boolean importantStress = highPressure
-                || lowBudget
+            boolean importantStress = planningSignals.highPressure()
+                || planningSignals.lowBudget()
                 || !costSignals.primaryFitsBudget()
                 || latencyRatio >= importantFallbackThreshold
                 || costSignals.primaryHeadroomMillis() < 20;
@@ -225,166 +232,47 @@ public class DefaultBudgetPolicyEngine implements BudgetPolicyEngine {
             boolean fallbackImprovesBudgetFit = costSignals.fallbackFitsBudget() && !costSignals.primaryFitsBudget();
             ExecutionMode mode = importantStress
                 && task.fallbackSupported()
-                && (fallbackClearlyCheaper || fallbackImprovesBudgetFit || highPressure || lowBudget)
+                && (fallbackClearlyCheaper
+                || fallbackImprovesBudgetFit
+                || planningSignals.highPressure()
+                || planningSignals.lowBudget())
                 ? ExecutionMode.EXECUTE_WITH_FALLBACK
                 : ExecutionMode.EXECUTE;
             return new PolicySelection(
                 mode,
-                explainReason(
+                reasonFormatter.format(
+                    policyProfileName,
                     mode,
                     snapshot,
                     remainingBudget,
                     latencyRatio,
-                    stressedSignalCount,
-                    mixedConstraintBand,
-                    suggestedDegradedMode
+                    planningSignals.stressedSignalCount(),
+                    planningSignals.mixedConstraintBand(),
+                    planningSignals.suggestedDegradedMode()
                 )
             );
         }
 
-        double optionalDegradeThreshold = adjustedLatencyThreshold(
-            OPTIONAL_DEGRADE_LATENCY_RATIO,
-            pressureLevel,
-            lowBudget,
-            veryLowBudget
-        );
-        double optionalOmitThreshold = adjustedLatencyThreshold(
-            OPTIONAL_OMIT_LATENCY_RATIO,
-            pressureLevel,
-            lowBudget,
-            veryLowBudget
-        );
         ExecutionMode mode = Objects.requireNonNull(
             optionalTaskModeSelector.chooseMode(
                 task,
-                new OptionalTaskPlanningContext(
-                    snapshot,
-                    remainingBudget,
-                    stressedSignalCount,
-                    multiSignalStress,
-                    snapshot.averagePressure(),
-                    mixedConstraintScore,
-                    latencyRatio,
-                    costSignals.cheapestDegradedLatencyRatio(),
-                    costSignals.degradedSavingsRatio(),
-                    costSignals.degradedSavingsMillis(),
-                    costSignals.degradedPathAvailable(),
-                    costSignals.primaryFitsBudget(),
-                    costSignals.fallbackFitsBudget(),
-                    costSignals.approximateFitsBudget(),
-                    costSignals.cheapestDegradedFitsBudget(),
-                    costSignals.primaryOverrunMillis(),
-                    costSignals.fallbackOverrunMillis(),
-                    costSignals.approximateOverrunMillis(),
-                    costSignals.cheapestDegradedOverrunMillis(),
-                    lowBudget,
-                    veryLowBudget,
-                    highPressure,
-                    mixedConstraintBand,
-                    suggestedDegradedMode,
-                    optionalDegradeThreshold,
-                    optionalOmitThreshold
-                )
+                planningSignals.optionalTaskPlanningContext(task, snapshot, remainingBudget)
             ),
             "optionalTaskModeSelector must return a mode"
         );
         return new PolicySelection(
             mode,
-            explainReason(
+            reasonFormatter.format(
+                policyProfileName,
                 mode,
                 snapshot,
                 remainingBudget,
                 latencyRatio,
-                stressedSignalCount,
-                mixedConstraintBand,
-                suggestedDegradedMode
+                planningSignals.stressedSignalCount(),
+                planningSignals.mixedConstraintBand(),
+                planningSignals.suggestedDegradedMode()
             )
         );
-    }
-
-    private String explainReason(
-        ExecutionMode mode,
-        SystemPressureSnapshot snapshot,
-        Duration remainingBudget,
-        double latencyRatio,
-        int stressedSignalCount,
-        String mixedConstraintBand,
-        ExecutionMode suggestedDegradedMode
-    ) {
-        String pressureBand = pressureBand(snapshot.peakPressure());
-        String budgetBand = budgetBand(remainingBudget);
-        String ratio = String.format("%.2f", latencyRatio);
-        String degradedPreference = degradedPreferenceLabel(suggestedDegradedMode);
-        return switch (mode) {
-            case EXECUTE ->
-                "normal[policy=%s,pressure=%s:%s,active_signals=%d,mixed=%s,budget=%s,degrade_pref=%s,latency_ratio=%s]"
-                    .formatted(
-                        policyProfileName,
-                        pressureBand,
-                        snapshot.dominantSignal(),
-                        stressedSignalCount,
-                        mixedConstraintBand,
-                        budgetBand,
-                        degradedPreference,
-                        ratio
-                    );
-            case EXECUTE_WITH_FALLBACK ->
-                "fallback_selected_by_policy[policy=%s,pressure=%s:%s,active_signals=%d,mixed=%s,budget=%s,degrade_pref=%s,latency_ratio=%s]"
-                    .formatted(
-                        policyProfileName,
-                        pressureBand,
-                        snapshot.dominantSignal(),
-                        stressedSignalCount,
-                        mixedConstraintBand,
-                        budgetBand,
-                        degradedPreference,
-                        ratio
-                    );
-            case EXECUTE_APPROXIMATE ->
-                "approximate_selected_by_policy[policy=%s,pressure=%s:%s,active_signals=%d,mixed=%s,budget=%s,degrade_pref=%s,latency_ratio=%s]"
-                    .formatted(
-                        policyProfileName,
-                        pressureBand,
-                        snapshot.dominantSignal(),
-                        stressedSignalCount,
-                        mixedConstraintBand,
-                        budgetBand,
-                        degradedPreference,
-                        ratio
-                    );
-            case OMIT ->
-                "omitted_by_policy[policy=%s,pressure=%s:%s,active_signals=%d,mixed=%s,budget=%s,degrade_pref=%s,latency_ratio=%s]"
-                    .formatted(
-                        policyProfileName,
-                        pressureBand,
-                        snapshot.dominantSignal(),
-                        stressedSignalCount,
-                        mixedConstraintBand,
-                        budgetBand,
-                        degradedPreference,
-                        ratio
-                    );
-        };
-    }
-
-    private String pressureBand(double pressureLevel) {
-        if (pressureLevel >= HIGH_PRESSURE) {
-            return "high";
-        }
-        if (pressureLevel >= MODERATE_PRESSURE) {
-            return "moderate";
-        }
-        return "low";
-    }
-
-    private String budgetBand(Duration remainingBudget) {
-        if (remainingBudget.compareTo(VERY_LOW_BUDGET_THRESHOLD) < 0) {
-            return "very_low";
-        }
-        if (remainingBudget.compareTo(LOW_BUDGET_THRESHOLD) < 0) {
-            return "tight";
-        }
-        return "available";
     }
 
     private double adjustedLatencyThreshold(
@@ -435,163 +323,6 @@ public class DefaultBudgetPolicyEngine implements BudgetPolicyEngine {
 
     private Duration nonNegative(Duration value) {
         return value == null || value.isNegative() ? Duration.ZERO : value;
-    }
-
-    private TaskCostSignals taskCostSignals(TaskDescriptor task, Duration remainingBudget) {
-        Duration primaryLatency = expectedLatencyOrZero(task);
-        Duration fallbackLatency = latencyOrPrimary(task.fallbackExpectedLatency(), task);
-        Duration approximateLatency = latencyOrPrimary(task.approximateExpectedLatency(), task);
-        Duration cheapestDegradedLatency = task.fallbackSupported() && task.approximateSupported()
-            ? minPositive(fallbackLatency, approximateLatency)
-            : task.fallbackSupported()
-                ? fallbackLatency
-                : task.approximateSupported() ? approximateLatency : primaryLatency;
-        double primaryRatio = latencyRatio(primaryLatency, remainingBudget);
-        double fallbackRatio = latencyRatio(fallbackLatency, remainingBudget);
-        double approximateRatio = latencyRatio(approximateLatency, remainingBudget);
-        double degradedRatio = latencyRatio(cheapestDegradedLatency, remainingBudget);
-        long savingsMillis = Math.max(primaryLatency.toMillis() - cheapestDegradedLatency.toMillis(), 0L);
-        double savingsRatio = primaryLatency.isZero()
-            ? 0.0
-            : (double) savingsMillis / Math.max(primaryLatency.toMillis(), 1L);
-        long primaryHeadroomMillis = Math.max(remainingBudget.toMillis() - primaryLatency.toMillis(), 0L);
-        boolean primaryFitsBudget = fitsBudget(primaryLatency, remainingBudget);
-        boolean fallbackFitsBudget = fitsBudget(fallbackLatency, remainingBudget);
-        boolean approximateFitsBudget = fitsBudget(approximateLatency, remainingBudget);
-        boolean cheapestDegradedFitsBudget = fitsBudget(cheapestDegradedLatency, remainingBudget);
-        long primaryOverrunMillis = Math.max(primaryLatency.toMillis() - nonNegative(remainingBudget).toMillis(), 0L);
-        long fallbackOverrunMillis = Math.max(fallbackLatency.toMillis() - nonNegative(remainingBudget).toMillis(), 0L);
-        long approximateOverrunMillis = Math.max(
-            approximateLatency.toMillis() - nonNegative(remainingBudget).toMillis(),
-            0L
-        );
-        long degradedOverrunMillis = Math.max(
-            cheapestDegradedLatency.toMillis() - nonNegative(remainingBudget).toMillis(),
-            0L
-        );
-
-        return new TaskCostSignals(
-            primaryRatio,
-            fallbackRatio,
-            approximateRatio,
-            degradedRatio,
-            savingsMillis,
-            savingsRatio,
-            primaryHeadroomMillis,
-            task.fallbackSupported() || task.approximateSupported(),
-            primaryFitsBudget,
-            fallbackFitsBudget,
-            approximateFitsBudget,
-            cheapestDegradedFitsBudget,
-            primaryOverrunMillis,
-            fallbackOverrunMillis,
-            approximateOverrunMillis,
-            degradedOverrunMillis
-        );
-    }
-
-    private double latencyRatio(Duration latency, Duration remainingBudget) {
-        long remainingMillis = Math.max(nonNegative(remainingBudget).toMillis(), 1L);
-        long latencyMillis = Math.max(nonNegative(latency).toMillis(), 0L);
-        return (double) latencyMillis / (double) remainingMillis;
-    }
-
-    private boolean fitsBudget(Duration latency, Duration remainingBudget) {
-        return nonNegative(latency).compareTo(nonNegative(remainingBudget)) <= 0;
-    }
-
-    private double mixedConstraintScore(
-        double pressureLevel,
-        boolean multiSignalStress,
-        boolean lowBudget,
-        boolean veryLowBudget,
-        double latencyRatio
-    ) {
-        double pressureContribution = pressureLevel * 0.45;
-        double signalContribution = multiSignalStress ? 0.20 : 0.0;
-        double budgetContribution = veryLowBudget ? 0.20 : lowBudget ? 0.15 : 0.0;
-        double ratioContribution = Math.min(latencyRatio, 1.5) * 0.20;
-        double rawScore = pressureContribution + signalContribution + budgetContribution + ratioContribution;
-        return Math.max(0.0, Math.min(rawScore, 1.5));
-    }
-
-    private String mixedConstraintBand(double mixedConstraintScore) {
-        if (mixedConstraintScore >= 1.10) {
-            return "severe";
-        }
-        if (mixedConstraintScore >= 0.85) {
-            return "high";
-        }
-        if (mixedConstraintScore >= 0.55) {
-            return "moderate";
-        }
-        return "low";
-    }
-
-    private ExecutionMode suggestedDegradedMode(
-        TaskDescriptor task,
-        TaskCostSignals costSignals,
-        boolean highPressure,
-        boolean multiSignalStress,
-        boolean lowBudget,
-        double mixedConstraintScore
-    ) {
-        if (task.approximateSupported() && !task.fallbackSupported()) {
-            return ExecutionMode.EXECUTE_APPROXIMATE;
-        }
-        if (task.fallbackSupported() && !task.approximateSupported()) {
-            return ExecutionMode.EXECUTE_WITH_FALLBACK;
-        }
-        if (!task.approximateSupported() && !task.fallbackSupported()) {
-            return ExecutionMode.EXECUTE;
-        }
-
-        if (!costSignals.primaryFitsBudget()) {
-            if (costSignals.approximateFitsBudget() && !costSignals.fallbackFitsBudget()) {
-                return ExecutionMode.EXECUTE_APPROXIMATE;
-            }
-            if (costSignals.fallbackFitsBudget() && !costSignals.approximateFitsBudget()) {
-                return ExecutionMode.EXECUTE_WITH_FALLBACK;
-            }
-        }
-
-        boolean severeJointStress = highPressure || multiSignalStress || mixedConstraintScore >= 1.0;
-        if (severeJointStress || lowBudget) {
-            if (costSignals.approximateLatencyRatio() <= costSignals.fallbackLatencyRatio()) {
-                return ExecutionMode.EXECUTE_APPROXIMATE;
-            }
-            return ExecutionMode.EXECUTE_WITH_FALLBACK;
-        }
-
-        return ExecutionMode.EXECUTE_WITH_FALLBACK;
-    }
-
-    private String degradedPreferenceLabel(ExecutionMode mode) {
-        return switch (mode) {
-            case EXECUTE_WITH_FALLBACK -> "fallback";
-            case EXECUTE_APPROXIMATE -> "approximate";
-            default -> "none";
-        };
-    }
-
-    private record TaskCostSignals(
-        double primaryLatencyRatio,
-        double fallbackLatencyRatio,
-        double approximateLatencyRatio,
-        double cheapestDegradedLatencyRatio,
-        long degradedSavingsMillis,
-        double degradedSavingsRatio,
-        long primaryHeadroomMillis,
-        boolean degradedPathAvailable,
-        boolean primaryFitsBudget,
-        boolean fallbackFitsBudget,
-        boolean approximateFitsBudget,
-        boolean cheapestDegradedFitsBudget,
-        long primaryOverrunMillis,
-        long fallbackOverrunMillis,
-        long approximateOverrunMillis,
-        long cheapestDegradedOverrunMillis
-    ) {
     }
 
     private record PolicySelection(ExecutionMode mode, String reason) {
