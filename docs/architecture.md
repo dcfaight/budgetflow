@@ -1,6 +1,6 @@
 # BudgetFlow architecture
 
-BudgetFlow is a prototype framework for **latency-budget-aware adaptive execution** in Spring Boot applications.
+BudgetFlow is a prototype framework for **adaptive orchestration under latency budgets and runtime pressure** in Spring Boot applications. The reusable core lives in the framework modules; the fintech application in this repository is the reference workload used to demonstrate and evaluate that core.
 
 Its purpose is to help a request stay within a target latency budget by:
 - planning related work together under a shared budget,
@@ -29,6 +29,36 @@ BudgetFlow then:
 - **Preferred application-facing API:** `TaskKey<T>`, `AdaptiveRequest`, `AdaptiveRequestResult`
 - **Core foundational contracts:** `AdaptiveExecutor`, `TaskSpec<T>`, `RequestExecutionResult`, `TaskResult<T>`, `ExecutionBudget`
 - **Demo-only utilities:** dashboard comparison harness/scenarios/reporting under `com.budgetflow.demo.fintech.benchmark`
+
+---
+
+## Positioning and repository boundaries
+
+### What BudgetFlow is
+BudgetFlow is a reusable adaptive-orchestration framework pattern with a concrete Spring Boot implementation. Its central claim is that a request budget should shape how related work is planned, degraded, and explained.
+
+### What is reusable framework/core
+The reusable parts of the repository are:
+- `budgetflow-core`
+- `budgetflow-autoconfigure`
+- `budgetflow-spring-boot-starter`
+
+Those modules provide the orchestration model, planner policies, pressure abstractions, diagnostics, decision trace, and the ergonomic grouped-request API.
+
+### What is fintech-demo-specific
+`budgetflow-demo-fintech` is the current reference application. It contributes:
+- a recognizable dashboard workload
+- synthetic scenario datasets
+- evaluator UI and walkthrough
+- comparison harness/reporting
+
+These pieces validate and explain the framework; they are not the framework boundary itself.
+
+### Why the evaluator exists
+The evaluator exists so a reviewer can inspect how the reusable orchestration model behaves under realistic pressure narratives without having to infer planner semantics from tests or source code alone. It is evidence and explanation tooling, not the product definition.
+
+### Future direction
+The same framework concepts can extend to agent orchestration where the planned work items are agents, tools, and subtasks instead of dashboard calls. See [agent-orchestration.md](agent-orchestration.md) for the proposed extension architecture.
 
 ---
 
@@ -403,6 +433,7 @@ The most important next steps are likely:
 - refine public developer ergonomics
 - expand comparison scenarios and realism
 - add richer architectural documentation and examples
+- introduce a minimal agent-oriented abstraction layer only after the positioning and extension architecture are clear
 
 ---
 
