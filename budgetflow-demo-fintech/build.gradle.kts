@@ -24,3 +24,10 @@ tasks.register<JavaExec>("runDashboardWalkthrough") {
     classpath = sourceSets["main"].runtimeClasspath
     mainClass.set("com.budgetflow.demo.fintech.benchmark.DashboardWalkthrough")
 }
+
+tasks.register<JavaExec>("runAgentTurnDemo") {
+    group = "application"
+    description = "Runs the minimal AgentWorkSpec demo: one agent turn under healthy and constrained budget scenarios."
+    classpath = sourceSets["main"].runtimeClasspath
+    mainClass.set("com.budgetflow.demo.fintech.agent.AgentTurnDemo")
+}

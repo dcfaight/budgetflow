@@ -9,6 +9,48 @@ public final class RequestExecutionDiagnosticsFormatter {
     private RequestExecutionDiagnosticsFormatter() {
     }
 
+    /**
+     * Formats a step-by-step agent turn summary from the decision trace.
+     * <p>
+     * Each line shows one work item's name, execution mode, planned latency, and importance.
+     * Degraded steps are annotated with a short note so the summary is self-explanatory
+     * without needing to read the full policy trace.
+     * <p>
+     * This is designed for display alongside agent-oriented work built with
+     * {@link com.budgetflow.core.api.AgentWorkSpec}, but it works for any request trace.
+     */
+    public static String formatAgentSteps(RequestExecutionDiagnostics diagnostics, List<DecisionTraceEntry> decisionTrace) {
+        StringBuilder sb = new StringBuilder();
+        sb.append(String.format("Agent turn: budget=%dms, remaining=%dms, degraded=%s%n",
+            diagnostics.totalRequestBudget().toMillis(),
+            diagnostics.remainingRequestBudget().toMillis(),
+            diagnostics.degraded()));
+        for (DecisionTraceEntry entry : decisionTrace) {
+            String modeLabel = switch (entry.selectedExecutionMode()) {
+                case EXECUTE -> "NORMAL";
+                case EXECUTE_WITH_FALLBACK -> "FALLBACK";
+                case EXECUTE_APPROXIMATE -> "APPROXIMATE";
+                case OMIT -> "OMIT";
+            };
+            String latency = entry.selectedExecutionMode() == com.budgetflow.core.classification.ExecutionMode.OMIT
+                ? "--"
+                : entry.plannedExecutionLatency().toMillis() + "ms";
+            String note = switch (entry.selectedExecutionMode()) {
+                case EXECUTE_WITH_FALLBACK -> "  ← fallback used";
+                case EXECUTE_APPROXIMATE -> "  ← approximate result";
+                case OMIT -> "  ← omitted";
+                default -> "";
+            };
+            sb.append(String.format("  %-26s %-11s %-6s [%s]%s%n",
+                entry.taskName(),
+                modeLabel,
+                latency,
+                entry.taskImportance().name().toLowerCase(),
+                note));
+        }
+        return sb.toString().stripTrailing();
+    }
+
     public static String formatSummary(RequestExecutionDiagnostics diagnostics, List<DecisionTraceEntry> decisionTrace) {
         String traceSummary = decisionTrace.stream()
             .map(entry -> entry.taskName()
