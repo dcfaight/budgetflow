@@ -25,6 +25,7 @@ public class EvaluatorDashboardController {
     public String evaluatorDashboard(
         @RequestParam(name = "pack", defaultValue = "default") String packName,
         @RequestParam(name = "scenario", required = false) String scenarioName,
+        @RequestParam(name = "compareScenarios", required = false) String compareScenarios,
         @RequestParam(name = "profile", defaultValue = "balanced") String profileName,
         @RequestParam(name = "compareProfiles", defaultValue = "balanced,continuity,efficiency") String compareProfiles,
         @RequestParam(name = "walkthroughStep", required = false) String walkthroughStep
@@ -33,10 +34,12 @@ public class EvaluatorDashboardController {
         DashboardScenarioPack resolvedPack = PressureScenarios.packNamed(safePack);
         PlannerPolicyProfile safeProfile = sanitizeProfile(profileName);
         String safeScenario = sanitizeScenarioName(scenarioName, resolvedPack);
+        String safeCompareScenarios = sanitizeCompareScenarios(compareScenarios, resolvedPack, safeScenario);
         String safeCompareProfiles = sanitizeCompareProfiles(compareProfiles, safeProfile);
         return evaluatorDashboardService.render(
             safePack,
             safeScenario,
+            safeCompareScenarios,
             safeProfile.configName(),
             safeCompareProfiles,
             walkthroughStep
@@ -80,6 +83,28 @@ public class EvaluatorDashboardController {
         if (!sanitized.contains(selectedProfile.configName())) {
             sanitized = new java.util.ArrayList<>(sanitized);
             sanitized.add(selectedProfile.configName());
+        }
+        return String.join(",", sanitized);
+    }
+
+    private String sanitizeCompareScenarios(String compareScenarios, DashboardScenarioPack pack, String selectedScenario) {
+        if (compareScenarios == null || compareScenarios.isBlank()) {
+            return selectedScenario == null || selectedScenario.isBlank()
+                ? ""
+                : selectedScenario;
+        }
+        List<String> scenarioNames = pack.scenarios().stream()
+            .map(scenario -> scenario.name())
+            .collect(Collectors.toList());
+        List<String> sanitized = Arrays.stream(compareScenarios.split(","))
+            .map(String::trim)
+            .filter(value -> !value.isBlank())
+            .filter(scenarioNames::contains)
+            .distinct()
+            .limit(4)
+            .collect(Collectors.toList());
+        if (sanitized.isEmpty() && selectedScenario != null && !selectedScenario.isBlank()) {
+            return selectedScenario;
         }
         return String.join(",", sanitized);
     }
