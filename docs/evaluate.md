@@ -33,6 +33,15 @@ Then open the lightweight evaluator UI:
 http://localhost:8080/dashboard/evaluator
 ```
 
+To run the same flow against a specific synthetic dataset pack:
+
+```bash
+./gradlew :budgetflow-demo-fintech:bootRun --args="--budgetflow.demo.dataset=scenarios/overspending-user"
+```
+
+Dataset-pack structure and schema notes are documented in
+`budgetflow-demo-fintech/src/main/resources/demo-data/README.md`.
+
 Use it to browse scenarios, switch profiles, inspect request-level outcomes, and review planner trace reasoning in a visual prototype surface.
 The page now provides first-time “Start here” guidance plus walkthrough-mode progression, narrative phase panels, recommended next comparisons, profile recommendation callouts, compact analytics cards, multi-scenario storyline synthesis, and deeper planner explainability sections.
 

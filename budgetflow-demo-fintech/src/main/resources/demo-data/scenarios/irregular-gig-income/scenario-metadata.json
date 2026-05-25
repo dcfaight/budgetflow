@@ -1,0 +1,8 @@
+{
+  "scenarioId": "irregular-gig-income",
+  "displayName": "Irregular gig income",
+  "intent": "Capture uneven payout timing with bursts of credits and narrow cash cushions between payouts.",
+  "expectedEvaluatorBehavior": "Evaluator should highlight variable income risk and sensitivity to timing gaps even with similar monthly totals.",
+  "realWorldPattern": "App-based gig payouts and ad-hoc freelance transfers.",
+  "sanitizedNotice": "All entities, amounts, and identifiers are fabricated for non-production testing."
+}

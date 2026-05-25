@@ -1,0 +1,11 @@
+[
+  {
+    "accountId": "acc-123",
+    "customerId": "cust-hsl-001",
+    "accountType": "checking",
+    "nickname": "Subscriptions",
+    "currency": "USD",
+    "availableBalance": 845.64,
+    "currentBalance": 860.64
+  }
+]

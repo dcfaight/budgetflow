@@ -1,0 +1,11 @@
+[
+  {
+    "accountId": "acc-123",
+    "customerId": "cust-msc-001",
+    "accountType": "checking",
+    "nickname": "Card Heavy",
+    "currency": "USD",
+    "availableBalance": 512.09,
+    "currentBalance": 534.09
+  }
+]

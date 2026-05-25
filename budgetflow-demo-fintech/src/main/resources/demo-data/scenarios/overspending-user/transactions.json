@@ -1,0 +1,57 @@
+[
+  {
+    "id": "txn-osu-001",
+    "accountId": "acc-123",
+    "postedAt": "2026-05-24T20:44:00Z",
+    "merchant": "Payroll Deposit",
+    "category": "income",
+    "amount": 2200.0,
+    "direction": "credit",
+    "channel": "ach",
+    "description": "Biweekly salary"
+  },
+  {
+    "id": "txn-osu-002",
+    "accountId": "acc-123",
+    "postedAt": "2026-05-24T21:01:00Z",
+    "merchant": "QuickCart",
+    "category": "shopping",
+    "amount": 198.45,
+    "direction": "debit",
+    "channel": "card",
+    "description": "Impulse purchases"
+  },
+  {
+    "id": "txn-osu-003",
+    "accountId": "acc-123",
+    "postedAt": "2026-05-23T19:12:00Z",
+    "merchant": "DineNow",
+    "category": "dining",
+    "amount": 74.3,
+    "direction": "debit",
+    "channel": "card",
+    "description": "Restaurant spend"
+  },
+  {
+    "id": "txn-osu-004",
+    "accountId": "acc-123",
+    "postedAt": "2026-05-22T23:03:00Z",
+    "merchant": "RideFast",
+    "category": "transportation",
+    "amount": 39.1,
+    "direction": "debit",
+    "channel": "card",
+    "description": "Late-night ride"
+  },
+  {
+    "id": "txn-osu-005",
+    "accountId": "acc-123",
+    "postedAt": "2026-05-22T12:15:00Z",
+    "merchant": "StyleHub",
+    "category": "shopping",
+    "amount": 129.99,
+    "direction": "debit",
+    "channel": "card",
+    "description": "Apparel"
+  }
+]

@@ -1,0 +1,8 @@
+{
+  "scenarioId": "low-cash-buffer",
+  "displayName": "Low cash buffer",
+  "intent": "Model a customer who remains one or two unplanned debits away from account stress.",
+  "expectedEvaluatorBehavior": "Evaluator should emphasize low remaining liquidity and heightened risk from small shocks.",
+  "realWorldPattern": "Rent-heavy budget with little post-bill checking buffer.",
+  "sanitizedNotice": "Synthetic profile only; no real account balances or personal details."
+}

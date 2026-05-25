@@ -1,0 +1,26 @@
+[
+  {
+    "budgetId": "bud-osu-001",
+    "customerId": "cust-osu-001",
+    "category": "shopping",
+    "monthlyLimit": 300.0,
+    "spentToDate": 514.6,
+    "period": "2026-05"
+  },
+  {
+    "budgetId": "bud-osu-002",
+    "customerId": "cust-osu-001",
+    "category": "dining",
+    "monthlyLimit": 180.0,
+    "spentToDate": 241.75,
+    "period": "2026-05"
+  },
+  {
+    "budgetId": "bud-osu-003",
+    "customerId": "cust-osu-001",
+    "category": "transportation",
+    "monthlyLimit": 140.0,
+    "spentToDate": 152.3,
+    "period": "2026-05"
+  }
+]

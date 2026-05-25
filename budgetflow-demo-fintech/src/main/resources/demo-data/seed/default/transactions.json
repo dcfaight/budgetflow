@@ -1,0 +1,57 @@
+[
+  {
+    "id": "txn-1001",
+    "accountId": "acc-123",
+    "postedAt": "2026-05-24T13:12:00Z",
+    "merchant": "Coffee Shop",
+    "category": "food_and_drink",
+    "amount": 4.95,
+    "direction": "debit",
+    "channel": "card",
+    "description": "Morning coffee"
+  },
+  {
+    "id": "txn-1002",
+    "accountId": "acc-123",
+    "postedAt": "2026-05-23T19:03:00Z",
+    "merchant": "Grocer",
+    "category": "groceries",
+    "amount": 54.2,
+    "direction": "debit",
+    "channel": "card",
+    "description": "Weekly groceries"
+  },
+  {
+    "id": "txn-1003",
+    "accountId": "acc-123",
+    "postedAt": "2026-05-23T07:41:00Z",
+    "merchant": "Transit",
+    "category": "transportation",
+    "amount": 2.75,
+    "direction": "debit",
+    "channel": "card",
+    "description": "Bus fare"
+  },
+  {
+    "id": "txn-1004",
+    "accountId": "acc-456",
+    "postedAt": "2026-05-24T17:08:00Z",
+    "merchant": "Payroll Deposit",
+    "category": "income",
+    "amount": 2100.0,
+    "direction": "credit",
+    "channel": "ach",
+    "description": "Biweekly paycheck"
+  },
+  {
+    "id": "txn-1005",
+    "accountId": "acc-456",
+    "postedAt": "2026-05-22T11:15:00Z",
+    "merchant": "City Utilities",
+    "category": "utilities",
+    "amount": 138.4,
+    "direction": "debit",
+    "channel": "ach",
+    "description": "Electric and water"
+  }
+]

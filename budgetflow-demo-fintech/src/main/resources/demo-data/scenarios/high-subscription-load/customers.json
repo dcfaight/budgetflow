@@ -1,0 +1,9 @@
+[
+  {
+    "customerId": "cust-hsl-001",
+    "firstName": "Casey",
+    "lastName": "Nguyen",
+    "email": "casey.nguyen+subs@budgetflow.test",
+    "segment": "subscription-heavy"
+  }
+]

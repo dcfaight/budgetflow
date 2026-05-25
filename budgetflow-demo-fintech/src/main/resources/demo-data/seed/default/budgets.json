@@ -1,0 +1,26 @@
+[
+  {
+    "budgetId": "bud-seed-001",
+    "customerId": "cust-seed-001",
+    "category": "groceries",
+    "monthlyLimit": 420.0,
+    "spentToDate": 218.55,
+    "period": "2026-05"
+  },
+  {
+    "budgetId": "bud-seed-002",
+    "customerId": "cust-seed-001",
+    "category": "dining",
+    "monthlyLimit": 180.0,
+    "spentToDate": 74.25,
+    "period": "2026-05"
+  },
+  {
+    "budgetId": "bud-seed-003",
+    "customerId": "cust-seed-002",
+    "category": "utilities",
+    "monthlyLimit": 250.0,
+    "spentToDate": 138.4,
+    "period": "2026-05"
+  }
+]

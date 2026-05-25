@@ -1,0 +1,46 @@
+[
+  {
+    "id": "txn-lcb-001",
+    "accountId": "acc-123",
+    "postedAt": "2026-05-24T09:00:00Z",
+    "merchant": "Payroll Deposit",
+    "category": "income",
+    "amount": 1650.0,
+    "direction": "credit",
+    "channel": "ach",
+    "description": "Biweekly paycheck"
+  },
+  {
+    "id": "txn-lcb-002",
+    "accountId": "acc-123",
+    "postedAt": "2026-05-03T08:00:00Z",
+    "merchant": "Harbor View Apartments",
+    "category": "housing",
+    "amount": 1125.0,
+    "direction": "debit",
+    "channel": "ach",
+    "description": "Rent"
+  },
+  {
+    "id": "txn-lcb-003",
+    "accountId": "acc-123",
+    "postedAt": "2026-05-21T13:41:00Z",
+    "merchant": "Neighborhood Market",
+    "category": "groceries",
+    "amount": 118.77,
+    "direction": "debit",
+    "channel": "card",
+    "description": "Groceries"
+  },
+  {
+    "id": "txn-lcb-004",
+    "accountId": "acc-123",
+    "postedAt": "2026-05-23T16:35:00Z",
+    "merchant": "Clinic CoPay",
+    "category": "healthcare",
+    "amount": 40.0,
+    "direction": "debit",
+    "channel": "card",
+    "description": "Urgent care copay"
+  }
+]

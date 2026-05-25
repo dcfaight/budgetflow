@@ -5,6 +5,8 @@ spring:
 budgetflow:
   enabled: true
   default-budget: 250ms
+  demo:
+    dataset: seed/default
   planner:
     profile: default
   runtime-signals:

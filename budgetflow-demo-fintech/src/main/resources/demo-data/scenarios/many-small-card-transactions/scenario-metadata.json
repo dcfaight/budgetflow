@@ -1,0 +1,8 @@
+{
+  "scenarioId": "many-small-card-transactions",
+  "displayName": "Many small-card transactions",
+  "intent": "Stress categorization and trend summaries with dense, low-value card activity.",
+  "expectedEvaluatorBehavior": "Evaluator should identify high transaction frequency even when per-transaction amounts are small.",
+  "realWorldPattern": "Tap-to-pay heavy daily spend pattern.",
+  "sanitizedNotice": "Transactions are fabricated and do not map to real consumers or cards."
+}

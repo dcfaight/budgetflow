@@ -1,19 +1,25 @@
 package com.budgetflow.demo.fintech.dashboard;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
-
-import java.math.BigDecimal;
 
 @Component
 public class BalanceClient {
     private final SimulationSupport simulationSupport;
+    private final DemoDatasetCatalog demoDatasetCatalog;
 
     public BalanceClient(SimulationSupport simulationSupport) {
+        this(simulationSupport, DemoDatasetCatalog.seedDefaultCatalog());
+    }
+
+    @Autowired
+    public BalanceClient(SimulationSupport simulationSupport, DemoDatasetCatalog demoDatasetCatalog) {
         this.simulationSupport = simulationSupport;
+        this.demoDatasetCatalog = demoDatasetCatalog;
     }
 
     public Balance getBalance(String accountId) {
         simulationSupport.delay(40);
-        return new Balance(accountId, BigDecimal.valueOf(1024.56));
+        return demoDatasetCatalog.resolveBalance(accountId);
     }
 }

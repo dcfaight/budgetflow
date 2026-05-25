@@ -1,0 +1,8 @@
+{
+  "scenarioId": "overspending-user",
+  "displayName": "Overspending user",
+  "intent": "Represent a customer whose discretionary outflows repeatedly exceed intended category budgets.",
+  "expectedEvaluatorBehavior": "Evaluator should flag repeated budget overruns and declining month-end resilience.",
+  "realWorldPattern": "Frequent impulse spending and above-target dining/shopping.",
+  "sanitizedNotice": "Entirely synthetic transaction stream with non-real merchants and profiles."
+}

@@ -1,0 +1,46 @@
+[
+  {
+    "id": "txn-igi-001",
+    "accountId": "acc-123",
+    "postedAt": "2026-05-24T22:11:00Z",
+    "merchant": "RideShare Payout",
+    "category": "income",
+    "amount": 184.25,
+    "direction": "credit",
+    "channel": "ach",
+    "description": "Weekly gig payout"
+  },
+  {
+    "id": "txn-igi-002",
+    "accountId": "acc-123",
+    "postedAt": "2026-05-19T18:25:00Z",
+    "merchant": "Freelance Platform",
+    "category": "income",
+    "amount": 72.4,
+    "direction": "credit",
+    "channel": "ach",
+    "description": "Project payout"
+  },
+  {
+    "id": "txn-igi-003",
+    "accountId": "acc-123",
+    "postedAt": "2026-05-20T14:52:00Z",
+    "merchant": "Fuel Stop",
+    "category": "transportation",
+    "amount": 58.71,
+    "direction": "debit",
+    "channel": "card",
+    "description": "Fuel for shifts"
+  },
+  {
+    "id": "txn-igi-004",
+    "accountId": "acc-123",
+    "postedAt": "2026-05-02T10:04:00Z",
+    "merchant": "Willow Rentals",
+    "category": "housing",
+    "amount": 925.0,
+    "direction": "debit",
+    "channel": "ach",
+    "description": "Rent"
+  }
+]

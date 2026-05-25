@@ -1,0 +1,26 @@
+[
+  {
+    "budgetId": "bud-msc-001",
+    "customerId": "cust-msc-001",
+    "category": "food_and_drink",
+    "monthlyLimit": 260.0,
+    "spentToDate": 239.8,
+    "period": "2026-05"
+  },
+  {
+    "budgetId": "bud-msc-002",
+    "customerId": "cust-msc-001",
+    "category": "transportation",
+    "monthlyLimit": 120.0,
+    "spentToDate": 98.55,
+    "period": "2026-05"
+  },
+  {
+    "budgetId": "bud-msc-003",
+    "customerId": "cust-msc-001",
+    "category": "misc",
+    "monthlyLimit": 140.0,
+    "spentToDate": 124.6,
+    "period": "2026-05"
+  }
+]

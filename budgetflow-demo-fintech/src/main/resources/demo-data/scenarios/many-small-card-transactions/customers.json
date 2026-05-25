@@ -1,0 +1,9 @@
+[
+  {
+    "customerId": "cust-msc-001",
+    "firstName": "Drew",
+    "lastName": "Bennett",
+    "email": "drew.bennett+card@budgetflow.test",
+    "segment": "high-frequency-card"
+  }
+]

@@ -1,0 +1,26 @@
+[
+  {
+    "budgetId": "bud-igi-001",
+    "customerId": "cust-igi-001",
+    "category": "housing",
+    "monthlyLimit": 950.0,
+    "spentToDate": 925.0,
+    "period": "2026-05"
+  },
+  {
+    "budgetId": "bud-igi-002",
+    "customerId": "cust-igi-001",
+    "category": "transportation",
+    "monthlyLimit": 220.0,
+    "spentToDate": 198.35,
+    "period": "2026-05"
+  },
+  {
+    "budgetId": "bud-igi-003",
+    "customerId": "cust-igi-001",
+    "category": "food",
+    "monthlyLimit": 260.0,
+    "spentToDate": 244.8,
+    "period": "2026-05"
+  }
+]
