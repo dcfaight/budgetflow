@@ -24,4 +24,9 @@ public class TransactionClient {
         simulationSupport.delay(65);
         return demoDatasetCatalog.resolveTransactions(accountId);
     }
+
+    public List<Transaction> getTransactions(String accountId, String datasetId) {
+        simulationSupport.delay(65);
+        return demoDatasetCatalog.resolveTransactions(accountId, datasetId);
+    }
 }

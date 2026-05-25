@@ -3,6 +3,8 @@
   "displayName": "Stable monthly income",
   "intent": "Model a salary-funded household with predictable cash inflows and consistent monthly obligations.",
   "expectedEvaluatorBehavior": "Evaluator should show low volatility, high budget adherence, and minimal degradation flags across checks.",
+  "customerProfileSummary": "Salary-earner profile with consistent checking buffer and recurring essentials.",
+  "whatToLookFor": "Steady cash pressure, stable budget utilization, and low subscription concentration.",
   "realWorldPattern": "Regular payroll cadence with steady recurring expenses.",
   "sanitizedNotice": "Synthetic identities, synthetic account IDs, and fabricated merchants only."
 }

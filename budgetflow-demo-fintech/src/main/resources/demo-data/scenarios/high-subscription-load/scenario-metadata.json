@@ -3,6 +3,8 @@
   "displayName": "High subscription load",
   "intent": "Stress fixed recurring digital-service charges that consume discretionary headroom.",
   "expectedEvaluatorBehavior": "Evaluator should surface concentration in recurring micro-obligations and potential cancellation opportunities.",
+  "customerProfileSummary": "Subscription-heavy profile with many recurring card debits each cycle.",
+  "whatToLookFor": "High subscription load percentage, reduced discretionary headroom, and recurring-spend concentration.",
   "realWorldPattern": "Many recurring streaming/app/software charges posting in the same window.",
   "sanitizedNotice": "No production subscriptions, user identities, or payment credentials are present."
 }

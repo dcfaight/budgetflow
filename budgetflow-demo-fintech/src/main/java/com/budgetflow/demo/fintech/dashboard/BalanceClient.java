@@ -22,4 +22,9 @@ public class BalanceClient {
         simulationSupport.delay(40);
         return demoDatasetCatalog.resolveBalance(accountId);
     }
+
+    public Balance getBalance(String accountId, String datasetId) {
+        simulationSupport.delay(40);
+        return demoDatasetCatalog.resolveBalance(accountId, datasetId);
+    }
 }

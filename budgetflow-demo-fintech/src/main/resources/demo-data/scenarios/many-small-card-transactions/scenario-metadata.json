@@ -3,6 +3,8 @@
   "displayName": "Many small-card transactions",
   "intent": "Stress categorization and trend summaries with dense, low-value card activity.",
   "expectedEvaluatorBehavior": "Evaluator should identify high transaction frequency even when per-transaction amounts are small.",
+  "customerProfileSummary": "Card-centric daily-spend profile with high transaction count and low average ticket size.",
+  "whatToLookFor": "High small-card transaction count and subtle pressure from cumulative micro-spend.",
   "realWorldPattern": "Tap-to-pay heavy daily spend pattern.",
   "sanitizedNotice": "Transactions are fabricated and do not map to real consumers or cards."
 }

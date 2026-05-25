@@ -37,6 +37,8 @@ class DemoDatasetCatalogTest {
         DemoDatasetCatalog.DatasetPack scenario = catalog.loadDataset("scenarios/overspending-user");
         assertEquals("overspending-user", scenario.scenarioMetadata().scenarioId());
         assertTrue(scenario.scenarioMetadata().expectedEvaluatorBehavior().contains("budget overruns"));
+        assertTrue(scenario.scenarioMetadata().customerProfileSummary().contains("profile"));
+        assertTrue(scenario.scenarioMetadata().whatToLookFor().contains("cash pressure"));
         assertFalse(scenario.customers().isEmpty());
         assertFalse(scenario.accounts().isEmpty());
         assertFalse(scenario.transactions().isEmpty());

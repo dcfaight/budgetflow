@@ -21,6 +21,7 @@ import com.budgetflow.demo.fintech.benchmark.PressureScenarios;
 import org.springframework.stereotype.Service;
 
 import java.net.URLEncoder;
+import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.ArrayList;
@@ -46,6 +47,11 @@ public class EvaluatorDashboardService {
         PlannerPolicyProfile.CONTINUITY,
         PlannerPolicyProfile.EFFICIENCY
     );
+    private final DemoDatasetCatalog demoDatasetCatalog;
+
+    public EvaluatorDashboardService(DemoDatasetCatalog demoDatasetCatalog) {
+        this.demoDatasetCatalog = demoDatasetCatalog;
+    }
 
     public String render(
         String requestedPackName,
@@ -53,6 +59,8 @@ public class EvaluatorDashboardService {
         String requestedCompareScenarios,
         String requestedProfileName,
         String requestedCompareProfiles,
+        String requestedDatasetId,
+        String requestedCompareDatasets,
         String requestedWalkthroughStep
     ) {
         List<String> notes = new ArrayList<>();
@@ -66,6 +74,14 @@ public class EvaluatorDashboardService {
         );
         PlannerPolicyProfile profile = resolveProfile(requestedProfileName, "profile", notes);
         List<PlannerPolicyProfile> compareProfiles = resolveCompareProfiles(requestedCompareProfiles, profile, notes);
+        String selectedDatasetId = resolveDatasetId(requestedDatasetId, notes);
+        List<String> compareDatasetIds = resolveCompareDatasets(requestedCompareDatasets, selectedDatasetId);
+        DemoDatasetCatalog.DatasetPack selectedDataset = demoDatasetCatalog.loadDataset(selectedDatasetId);
+        DatasetScenarioMetrics selectedDatasetMetrics = datasetMetrics(selectedDataset);
+        List<DatasetScenarioMetrics> compareDatasetMetrics = compareDatasetIds.stream()
+            .map(demoDatasetCatalog::loadDataset)
+            .map(this::datasetMetrics)
+            .toList();
         String walkthroughStep = resolveWalkthroughStep(requestedWalkthroughStep);
 
         List<DashboardBenchmarkSummary> comparisonSummaries;
@@ -79,13 +95,16 @@ public class EvaluatorDashboardService {
             );
             storylineSummaries = harness.run(compareScenarios, List.of(profile));
         }
-        ScenarioExecution execution = executeScenario(scenario, profile);
+        ScenarioExecution execution = executeScenario(scenario, profile, selectedDatasetId);
         return renderHtml(
             pack,
             scenario,
             compareScenarios,
             profile,
             compareProfiles,
+            selectedDataset,
+            selectedDatasetMetrics,
+            compareDatasetMetrics,
             comparisonSummaries,
             packTrendSummaries,
             storylineSummaries,
@@ -237,9 +256,43 @@ public class EvaluatorDashboardService {
         return List.copyOf(resolved);
     }
 
+    private String resolveDatasetId(String requestedDatasetId, List<String> notes) {
+        String fallback = demoDatasetCatalog.selectedDatasetId();
+        if (requestedDatasetId == null || requestedDatasetId.isBlank()) {
+            return fallback;
+        }
+        if (!demoDatasetCatalog.availableDatasetIds().contains(requestedDatasetId)) {
+            notes.add("Unknown dataset '" + requestedDatasetId + "'. Showing " + fallback + ".");
+            return fallback;
+        }
+        return requestedDatasetId;
+    }
+
+    private List<String> resolveCompareDatasets(String requestedCompareDatasets, String selectedDatasetId) {
+        if (requestedCompareDatasets == null || requestedCompareDatasets.isBlank()) {
+            List<String> available = demoDatasetCatalog.availableDatasetIds();
+            int selectedIndex = available.indexOf(selectedDatasetId);
+            if (selectedIndex > 0) {
+                return List.of(available.get(selectedIndex - 1), selectedDatasetId);
+            }
+            if (available.size() > 1) {
+                return List.of(selectedDatasetId, available.get(1));
+            }
+            return List.of(selectedDatasetId);
+        }
+        LinkedHashSet<String> compareDatasets = Arrays.stream(requestedCompareDatasets.split(","))
+            .map(String::trim)
+            .filter(value -> !value.isBlank())
+            .filter(demoDatasetCatalog.availableDatasetIds()::contains)
+            .collect(Collectors.toCollection(LinkedHashSet::new));
+        compareDatasets.add(selectedDatasetId);
+        return compareDatasets.stream().limit(2).toList();
+    }
+
     private ScenarioExecution executeScenario(
         DashboardBenchmarkScenario scenario,
-        PlannerPolicyProfile profile
+        PlannerPolicyProfile profile,
+        String datasetId
     ) {
         ExecutorService executorService = Executors.newFixedThreadPool(8);
         SimulationSupport noDelay = noDelaySimulationSupport();
@@ -247,8 +300,9 @@ public class EvaluatorDashboardService {
             BudgetContextHolder.set(new BudgetContext(new DefaultExecutionBudget(scenario.requestBudget())));
             AdaptiveRequest request = DashboardTaskSpecs.forAccount(
                 ACCOUNT_ID,
-                new BalanceClient(noDelay),
-                new TransactionClient(noDelay),
+                datasetId,
+                new BalanceClient(noDelay, demoDatasetCatalog),
+                new TransactionClient(noDelay, demoDatasetCatalog),
                 new RewardsClient(noDelay),
                 new OffersClient(noDelay),
                 new InsightsClient(noDelay)
@@ -294,6 +348,9 @@ public class EvaluatorDashboardService {
         List<DashboardBenchmarkScenario> compareScenarios,
         PlannerPolicyProfile selectedProfile,
         List<PlannerPolicyProfile> compareProfiles,
+        DemoDatasetCatalog.DatasetPack selectedDataset,
+        DatasetScenarioMetrics selectedDatasetMetrics,
+        List<DatasetScenarioMetrics> compareDatasetMetrics,
         List<DashboardBenchmarkSummary> comparisonSummaries,
         List<DashboardBenchmarkSummary> packTrendSummaries,
         List<DashboardBenchmarkSummary> storylineSummaries,
@@ -306,6 +363,9 @@ public class EvaluatorDashboardService {
             .collect(Collectors.joining(","));
         String compareScenariosParam = compareScenarios.stream()
             .map(DashboardBenchmarkScenario::name)
+            .collect(Collectors.joining(","));
+        String compareDatasetsParam = compareDatasetMetrics.stream()
+            .map(DatasetScenarioMetrics::datasetId)
             .collect(Collectors.joining(","));
         Duration projectedWork = execution.decisionTrace().stream()
             .map(DecisionTraceEntry::plannedExecutionLatency)
@@ -362,6 +422,7 @@ public class EvaluatorDashboardService {
             .append("<div class='row'>")
             .append(card("Current scenario", escape(selectedScenario.displayName()), "card-emphasis"))
             .append(card("Current profile", escape(selectedProfile.configName()), "card-emphasis"))
+            .append(card("Active dataset", escape(selectedDatasetMetrics.displayName()), "card-emphasis"))
             .append(card("Request budget", requestBudgetMs + "ms", "card-emphasis"))
             .append(card("Planned work (selected profile)", projectedWorkMs + "ms", "card-emphasis"))
             .append("</div>")
@@ -375,16 +436,122 @@ public class EvaluatorDashboardService {
             html.append("</ul></div>");
         }
 
+        html.append("<h2>Scenario lab datasets</h2><div>");
+        for (String datasetId : demoDatasetCatalog.availableDatasetIds()) {
+            DatasetScenarioMetrics metrics = datasetMetrics(demoDatasetCatalog.loadDataset(datasetId));
+            boolean active = datasetId.equals(selectedDataset.datasetId());
+            html.append("<span class='pill ")
+                .append(active ? "pill-active" : "")
+                .append("'>")
+                .append(active ? "<strong>" : "")
+                .append("<a href='").append(dashboardLink(
+                    pack.name(),
+                    selectedScenario.name(),
+                    selectedProfile.configName(),
+                    compareScenariosParam,
+                    compareProfilesParam,
+                    datasetId,
+                    compareDatasetsParam,
+                    walkthroughStep
+                )).append("'>")
+                .append(escape(metrics.displayName()))
+                .append("</a>")
+                .append(active ? " (active)</strong>" : "")
+                .append("</span>");
+        }
+        html.append("</div>")
+            .append("<div class='row'>")
+            .append(card("Scenario intent", escape(selectedDatasetMetrics.intent())))
+            .append(card("Expected evaluator behavior", escape(selectedDatasetMetrics.expectedEvaluatorBehavior())))
+            .append(card("Customer/profile summary", escape(selectedDatasetMetrics.profileSummary())))
+            .append(card("What to look for", escape(selectedDatasetMetrics.whatToLookFor())))
+            .append("</div>")
+            .append("<div class='tip'><strong>Sanitized dataset notice:</strong> ")
+            .append(escape(selectedDatasetMetrics.sanitizedNotice()))
+            .append("</div>")
+            .append("<div class='row'>")
+            .append(card("Cash pressure (dataset signal)", selectedDatasetMetrics.cashPressure() + "/100"))
+            .append(card("Subscription load", selectedDatasetMetrics.subscriptionLoadPercent() + "% of debit spend"))
+            .append(card("Low-value card tx volume", String.valueOf(selectedDatasetMetrics.smallCardTransactionCount())))
+            .append(card("Available balance", formatCurrency(selectedDatasetMetrics.availableBalance())))
+            .append("</div>")
+            .append("<div class='tip'><strong>Scenario playback controls:</strong> ")
+            .append(playbackControls(
+                selectedDataset.datasetId(),
+                pack,
+                selectedScenario,
+                selectedProfile,
+                compareScenariosParam,
+                compareProfilesParam,
+                compareDatasetsParam,
+                walkthroughStep
+            ))
+            .append("</div>")
+            .append("<h3>Quick compare (current vs previous scenario dataset)</h3>")
+            .append(datasetCompareTable(
+                compareDatasetMetrics,
+                pack,
+                selectedScenario,
+                selectedProfile,
+                compareScenariosParam,
+                compareProfilesParam,
+                walkthroughStep
+            ));
+
         html.append("<div class='walkthrough-banner'>")
             .append("<strong>Scenario walkthrough mode</strong>")
             .append("<div class='mini'>Current phase: ")
             .append(escape(walkthroughLabel(walkthroughStep)))
             .append(". Follow the highlighted phase, then use recommended next comparisons.</div>")
             .append("<div class='walkthrough-steps'>")
-            .append(stepPill("start", "1) orient", walkthroughStep, pack.name(), selectedScenario.name(), selectedProfile.configName(), compareScenariosParam, compareProfilesParam))
-            .append(stepPill("compare", "2) compare", walkthroughStep, pack.name(), selectedScenario.name(), selectedProfile.configName(), compareScenariosParam, compareProfilesParam))
-            .append(stepPill("profile", "3) profile tradeoff", walkthroughStep, pack.name(), selectedScenario.name(), selectedProfile.configName(), compareScenariosParam, compareProfilesParam))
-            .append(stepPill("trace", "4) trace explain", walkthroughStep, pack.name(), selectedScenario.name(), selectedProfile.configName(), compareScenariosParam, compareProfilesParam))
+            .append(stepPill(
+                "start",
+                "1) orient",
+                walkthroughStep,
+                pack.name(),
+                selectedScenario.name(),
+                selectedProfile.configName(),
+                compareScenariosParam,
+                compareProfilesParam,
+                selectedDataset.datasetId(),
+                compareDatasetsParam
+            ))
+            .append(stepPill(
+                "compare",
+                "2) compare",
+                walkthroughStep,
+                pack.name(),
+                selectedScenario.name(),
+                selectedProfile.configName(),
+                compareScenariosParam,
+                compareProfilesParam,
+                selectedDataset.datasetId(),
+                compareDatasetsParam
+            ))
+            .append(stepPill(
+                "profile",
+                "3) profile tradeoff",
+                walkthroughStep,
+                pack.name(),
+                selectedScenario.name(),
+                selectedProfile.configName(),
+                compareScenariosParam,
+                compareProfilesParam,
+                selectedDataset.datasetId(),
+                compareDatasetsParam
+            ))
+            .append(stepPill(
+                "trace",
+                "4) trace explain",
+                walkthroughStep,
+                pack.name(),
+                selectedScenario.name(),
+                selectedProfile.configName(),
+                compareScenariosParam,
+                compareProfilesParam,
+                selectedDataset.datasetId(),
+                compareDatasetsParam
+            ))
             .append("</div>")
             .append("<div class='mini' style='margin-top:8px'>")
             .append("Recommended next comparison: ")
@@ -394,6 +561,8 @@ public class EvaluatorDashboardService {
                 selectedProfile,
                 compareScenariosParam,
                 compareProfilesParam,
+                selectedDataset.datasetId(),
+                compareDatasetsParam,
                 walkthroughStep
             ))
             .append("</div>")
@@ -417,6 +586,8 @@ public class EvaluatorDashboardService {
                 selectedScenario,
                 selectedProfile,
                 compareProfilesParam,
+                selectedDataset.datasetId(),
+                compareDatasetsParam,
                 walkthroughStep
             ))
             .append("</div></div>");
@@ -455,6 +626,8 @@ public class EvaluatorDashboardService {
                     selectedProfile.configName(),
                     compareScenariosParam,
                     compareProfilesParam,
+                    selectedDataset.datasetId(),
+                    compareDatasetsParam,
                     walkthroughStep
                 )).append("'>")
                 .append(escape(packName))
@@ -480,6 +653,8 @@ public class EvaluatorDashboardService {
                     selectedProfile.configName(),
                     compareScenariosParam,
                     compareProfilesParam,
+                    selectedDataset.datasetId(),
+                    compareDatasetsParam,
                     walkthroughStep
                 )).append("'>")
                 .append(escape(scenario.displayName()))
@@ -522,6 +697,8 @@ public class EvaluatorDashboardService {
                 selectedScenario,
                 selectedProfile,
                 compareProfilesParam,
+                selectedDataset.datasetId(),
+                compareDatasetsParam,
                 walkthroughStep
             ))
             .append("</div>");
@@ -538,6 +715,8 @@ public class EvaluatorDashboardService {
                 storylineSummaries,
                 selectedProfile,
                 compareProfilesParam,
+                selectedDataset.datasetId(),
+                compareDatasetsParam,
                 walkthroughStep
             ));
 
@@ -555,6 +734,8 @@ public class EvaluatorDashboardService {
                     profile.configName(),
                     compareScenariosParam,
                     compareProfilesParam,
+                    selectedDataset.datasetId(),
+                    compareDatasetsParam,
                     walkthroughStep
                 )).append("'>")
                 .append(escape(profile.configName()))
@@ -629,7 +810,15 @@ public class EvaluatorDashboardService {
             .append(" profile):</strong> ")
             .append(escape(packTrendSummary(packTrendSummaries, selectedProfile)))
             .append("<div class='mini'>")
-            .append(compactPackScenarioLinks(pack, selectedProfile, compareScenariosParam, compareProfilesParam, walkthroughStep))
+            .append(compactPackScenarioLinks(
+                pack,
+                selectedProfile,
+                compareScenariosParam,
+                compareProfilesParam,
+                selectedDataset.datasetId(),
+                compareDatasetsParam,
+                walkthroughStep
+            ))
             .append("</div></div>");
 
         int totalTasks = execution.decisionTrace().size();
@@ -903,9 +1092,11 @@ public class EvaluatorDashboardService {
         String scenario,
         String profile,
         String compareProfiles,
+        String datasetId,
+        String compareDatasets,
         String walkthroughStep
     ) {
-        return dashboardLink(pack, scenario, profile, "", compareProfiles, walkthroughStep);
+        return dashboardLink(pack, scenario, profile, "", compareProfiles, datasetId, compareDatasets, walkthroughStep);
     }
 
     private String dashboardLink(
@@ -914,6 +1105,8 @@ public class EvaluatorDashboardService {
         String profile,
         String compareScenarios,
         String compareProfiles,
+        String datasetId,
+        String compareDatasets,
         String walkthroughStep
     ) {
         return "/dashboard/evaluator?pack=" + url(pack)
@@ -921,6 +1114,8 @@ public class EvaluatorDashboardService {
             + "&profile=" + url(profile)
             + "&compareScenarios=" + url(compareScenarios == null ? "" : compareScenarios)
             + "&compareProfiles=" + url(compareProfiles)
+            + "&dataset=" + url(datasetId == null ? "" : datasetId)
+            + "&compareDatasets=" + url(compareDatasets == null ? "" : compareDatasets)
             + "&walkthroughStep=" + url(walkthroughStep);
     }
 
@@ -941,11 +1136,13 @@ public class EvaluatorDashboardService {
         String scenario,
         String profile,
         String compareScenarios,
-        String compareProfiles
+        String compareProfiles,
+        String datasetId,
+        String compareDatasets
     ) {
         String classes = "step-pill" + (step.equals(activeStep) ? " active" : "");
         return "<a class='" + classes + "' href='"
-            + dashboardLink(pack, scenario, profile, compareScenarios, compareProfiles, step)
+            + dashboardLink(pack, scenario, profile, compareScenarios, compareProfiles, datasetId, compareDatasets, step)
             + "'>" + escape(label) + "</a>";
     }
 
@@ -955,6 +1152,8 @@ public class EvaluatorDashboardService {
         PlannerPolicyProfile selectedProfile,
         String compareScenarios,
         String compareProfiles,
+        String datasetId,
+        String compareDatasets,
         String walkthroughStep
     ) {
         int scenarioIndex = pack.scenarios().indexOf(selectedScenario);
@@ -967,6 +1166,8 @@ public class EvaluatorDashboardService {
                     selectedProfile.configName(),
                     compareScenarios,
                     compareProfiles,
+                    datasetId,
+                    compareDatasets,
                     "compare"
                 ) + "'>Compare with next scenario: " + escape(nextScenario.displayName()) + "</a>";
             }
@@ -976,6 +1177,8 @@ public class EvaluatorDashboardService {
                 selectedProfile.configName(),
                 compareScenarios,
                 compareProfiles,
+                datasetId,
+                compareDatasets,
                 "compare"
             ) + "'>Move to next storyline pack for broader comparison evidence</a>";
         }
@@ -989,6 +1192,8 @@ public class EvaluatorDashboardService {
                 nextProfile.configName(),
                 compareScenarios,
                 compareProfiles,
+                datasetId,
+                compareDatasets,
                 "profile"
             ) + "'>Run same scenario with " + escape(nextProfile.configName()) + " for directional delta</a>";
         }
@@ -998,6 +1203,8 @@ public class EvaluatorDashboardService {
             selectedProfile.configName(),
             compareScenarios,
             compareProfiles,
+            datasetId,
+            compareDatasets,
             "start"
         ) + "'>Restart walkthrough orientation for a new evaluator pass</a>";
     }
@@ -1048,6 +1255,8 @@ public class EvaluatorDashboardService {
         DashboardBenchmarkScenario selectedScenario,
         PlannerPolicyProfile selectedProfile,
         String compareProfiles,
+        String datasetId,
+        String compareDatasets,
         String walkthroughStep
     ) {
         String activeSet = compareScenarios.stream()
@@ -1066,6 +1275,8 @@ public class EvaluatorDashboardService {
                     selectedProfile.configName(),
                     scenarioSet.isBlank() ? activeSet : scenarioSet,
                     compareProfiles,
+                    datasetId,
+                    compareDatasets,
                     walkthroughStep
                 ) + "'>" + escape(label) + "</a>";
             })
@@ -1147,6 +1358,8 @@ public class EvaluatorDashboardService {
         List<DashboardBenchmarkSummary> storylineSummaries,
         PlannerPolicyProfile selectedProfile,
         String compareProfiles,
+        String datasetId,
+        String compareDatasets,
         String walkthroughStep
     ) {
         String compareScenariosParam = compareScenarios.stream()
@@ -1181,6 +1394,8 @@ public class EvaluatorDashboardService {
                     selectedProfile.configName(),
                     compareScenariosParam,
                     compareProfiles,
+                    datasetId,
+                    compareDatasets,
                     walkthroughStep
                 ))
                 .append("'>")
@@ -1244,6 +1459,8 @@ public class EvaluatorDashboardService {
         PlannerPolicyProfile selectedProfile,
         String compareScenarios,
         String compareProfiles,
+        String datasetId,
+        String compareDatasets,
         String walkthroughStep
     ) {
         return pack.scenarios().stream()
@@ -1253,6 +1470,8 @@ public class EvaluatorDashboardService {
                 selectedProfile.configName(),
                 compareScenarios,
                 compareProfiles,
+                datasetId,
+                compareDatasets,
                 walkthroughStep
             ) + "'>" + escape(scenario.displayName()) + "</a>")
             .collect(Collectors.joining(" · "));
@@ -1379,6 +1598,196 @@ public class EvaluatorDashboardService {
             .collect(Collectors.joining(" · "));
     }
 
+    private DatasetScenarioMetrics datasetMetrics(DemoDatasetCatalog.DatasetPack datasetPack) {
+        BigDecimal availableBalance = datasetPack.accounts().stream()
+            .map(DemoDatasetCatalog.DemoAccount::availableBalance)
+            .reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal totalDebit = datasetPack.transactions().stream()
+            .filter(transaction -> "debit".equalsIgnoreCase(transaction.direction()))
+            .map(DemoDatasetCatalog.DemoTransaction::amount)
+            .reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal totalCredit = datasetPack.transactions().stream()
+            .filter(transaction -> "credit".equalsIgnoreCase(transaction.direction()))
+            .map(DemoDatasetCatalog.DemoTransaction::amount)
+            .reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal subscriptionDebit = datasetPack.transactions().stream()
+            .filter(transaction -> "debit".equalsIgnoreCase(transaction.direction()))
+            .filter(transaction -> transaction.category() != null && transaction.category().toLowerCase().contains("subscription"))
+            .map(DemoDatasetCatalog.DemoTransaction::amount)
+            .reduce(BigDecimal.ZERO, BigDecimal::add);
+        long smallCardTransactions = datasetPack.transactions().stream()
+            .filter(transaction -> "debit".equalsIgnoreCase(transaction.direction()))
+            .filter(transaction -> "card".equalsIgnoreCase(transaction.channel()))
+            .filter(transaction -> transaction.amount() != null && transaction.amount().compareTo(BigDecimal.valueOf(20)) <= 0)
+            .count();
+        BigDecimal budgetLimit = datasetPack.budgets().stream()
+            .map(DemoDatasetCatalog.DemoBudget::monthlyLimit)
+            .reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal budgetSpent = datasetPack.budgets().stream()
+            .map(DemoDatasetCatalog.DemoBudget::spentToDate)
+            .reduce(BigDecimal.ZERO, BigDecimal::add);
+        long budgetUtilizationPercent = budgetLimit.compareTo(BigDecimal.ZERO) == 0
+            ? 0
+            : Math.round(budgetSpent.divide(budgetLimit, 4, java.math.RoundingMode.HALF_UP)
+                .multiply(BigDecimal.valueOf(100))
+                .doubleValue());
+        long subscriptionLoadPercent = totalDebit.compareTo(BigDecimal.ZERO) == 0
+            ? 0
+            : Math.round(subscriptionDebit.divide(totalDebit, 4, java.math.RoundingMode.HALF_UP)
+                .multiply(BigDecimal.valueOf(100))
+                .doubleValue());
+        int balanceRisk = availableBalance.compareTo(BigDecimal.valueOf(250)) < 0
+            ? 85
+            : availableBalance.compareTo(BigDecimal.valueOf(600)) < 0
+                ? 60
+                : availableBalance.compareTo(BigDecimal.valueOf(1200)) < 0 ? 35 : 15;
+        int budgetRisk = budgetUtilizationPercent >= 100 ? 85
+            : budgetUtilizationPercent >= 85 ? 60
+            : budgetUtilizationPercent >= 70 ? 40 : 20;
+        int subscriptionRisk = subscriptionLoadPercent >= 40 ? 70
+            : subscriptionLoadPercent >= 25 ? 45
+            : subscriptionLoadPercent >= 10 ? 25 : 10;
+        long cashPressure = Math.min(100, Math.round((balanceRisk * 0.5) + (budgetRisk * 0.35) + (subscriptionRisk * 0.15)));
+        DemoDatasetCatalog.DemoScenarioMetadata metadata = datasetPack.scenarioMetadata();
+        String primarySegment = datasetPack.customers().isEmpty()
+            ? "general"
+            : datasetPack.customers().stream()
+                .map(DemoDatasetCatalog.DemoCustomer::segment)
+                .filter(java.util.Objects::nonNull)
+                .findFirst()
+                .orElse("general");
+        String profileSummary = datasetPack.customers().size() + " synthetic customer(s), "
+            + datasetPack.accounts().size() + " account(s), segment " + primarySegment + ".";
+        if (metadata.customerProfileSummary() != null && !metadata.customerProfileSummary().isBlank()) {
+            profileSummary = metadata.customerProfileSummary();
+        }
+        String whatToLookFor = metadata.whatToLookFor() == null || metadata.whatToLookFor().isBlank()
+            ? metadata.realWorldPattern()
+            : metadata.whatToLookFor();
+        return new DatasetScenarioMetrics(
+            datasetPack.datasetId(),
+            metadata.displayName(),
+            metadata.intent(),
+            metadata.expectedEvaluatorBehavior(),
+            profileSummary,
+            whatToLookFor,
+            metadata.sanitizedNotice(),
+            availableBalance,
+            totalDebit,
+            totalCredit,
+            subscriptionLoadPercent,
+            budgetUtilizationPercent,
+            smallCardTransactions,
+            cashPressure
+        );
+    }
+
+    private String playbackControls(
+        String activeDatasetId,
+        DashboardScenarioPack pack,
+        DashboardBenchmarkScenario selectedScenario,
+        PlannerPolicyProfile selectedProfile,
+        String compareScenarios,
+        String compareProfiles,
+        String compareDatasets,
+        String walkthroughStep
+    ) {
+        List<String> datasets = demoDatasetCatalog.availableDatasetIds();
+        int currentIndex = datasets.indexOf(activeDatasetId);
+        String previousDatasetId = currentIndex > 0 ? datasets.get(currentIndex - 1) : activeDatasetId;
+        String nextDatasetId = currentIndex >= 0 && currentIndex < datasets.size() - 1
+            ? datasets.get(currentIndex + 1)
+            : activeDatasetId;
+        String compareWithPrevious = previousDatasetId.equals(activeDatasetId)
+            ? activeDatasetId
+            : previousDatasetId + "," + activeDatasetId;
+        return "<a href='" + dashboardLink(
+            pack.name(),
+            selectedScenario.name(),
+            selectedProfile.configName(),
+            compareScenarios,
+            compareProfiles,
+            previousDatasetId,
+            compareDatasets,
+            walkthroughStep
+        ) + "'>◀ previous dataset</a>"
+            + " · <a href='" + dashboardLink(
+            pack.name(),
+            selectedScenario.name(),
+            selectedProfile.configName(),
+            compareScenarios,
+            compareProfiles,
+            nextDatasetId,
+            compareDatasets,
+            walkthroughStep
+        ) + "'>next dataset ▶</a>"
+            + " · <a href='" + dashboardLink(
+            pack.name(),
+            selectedScenario.name(),
+            selectedProfile.configName(),
+            compareScenarios,
+            compareProfiles,
+            activeDatasetId,
+            compareWithPrevious,
+            walkthroughStep
+        ) + "'>compare current vs previous</a>";
+    }
+
+    private String datasetCompareTable(
+        List<DatasetScenarioMetrics> datasetMetrics,
+        DashboardScenarioPack pack,
+        DashboardBenchmarkScenario selectedScenario,
+        PlannerPolicyProfile selectedProfile,
+        String compareScenarios,
+        String compareProfiles,
+        String walkthroughStep
+    ) {
+        StringBuilder html = new StringBuilder("<table><thead><tr>")
+            .append("<th>Dataset</th><th>Cash pressure</th><th>Subscription load</th>")
+            .append("<th>Budget utilization</th><th>Small card tx</th><th>Available balance</th><th>Guidance delta</th>")
+            .append("</tr></thead><tbody>");
+        DatasetScenarioMetrics previous = null;
+        for (DatasetScenarioMetrics metrics : datasetMetrics) {
+            String compareSet = previous == null ? metrics.datasetId() : previous.datasetId() + "," + metrics.datasetId();
+            html.append("<tr>")
+                .append("<td><a href='")
+                .append(dashboardLink(
+                    pack.name(),
+                    selectedScenario.name(),
+                    selectedProfile.configName(),
+                    compareScenarios,
+                    compareProfiles,
+                    metrics.datasetId(),
+                    compareSet,
+                    walkthroughStep
+                ))
+                .append("'>")
+                .append(escape(metrics.displayName()))
+                .append("</a><div class='mini'>").append(escape(metrics.datasetId())).append("</div></td>")
+                .append("<td>").append(metrics.cashPressure()).append("/100</td>")
+                .append("<td>").append(metrics.subscriptionLoadPercent()).append("%</td>")
+                .append("<td>").append(metrics.budgetUtilizationPercent()).append("%</td>")
+                .append("<td>").append(metrics.smallCardTransactionCount()).append("</td>")
+                .append("<td>").append(escape(formatCurrency(metrics.availableBalance()))).append("</td>")
+                .append("<td>");
+            if (previous == null) {
+                html.append("starting point");
+            } else {
+                html.append("Δpressure ").append(signed(metrics.cashPressure() - previous.cashPressure()))
+                    .append(", Δsubs ").append(signed(metrics.subscriptionLoadPercent() - previous.subscriptionLoadPercent())).append("%")
+                    .append(", Δsmall-card ").append(signed(metrics.smallCardTransactionCount() - previous.smallCardTransactionCount()));
+            }
+            html.append("</td></tr>");
+            previous = metrics;
+        }
+        html.append("</tbody></table>");
+        return html.toString();
+    }
+
+    private String formatCurrency(BigDecimal value) {
+        return "$" + value.setScale(2, java.math.RoundingMode.HALF_UP);
+    }
+
     private String url(String value) {
         return URLEncoder.encode(value, StandardCharsets.UTF_8);
     }
@@ -1397,6 +1806,24 @@ public class EvaluatorDashboardService {
         RequestExecutionDiagnostics diagnostics,
         List<DecisionTraceEntry> decisionTrace,
         String executionSummary
+    ) {
+    }
+
+    private record DatasetScenarioMetrics(
+        String datasetId,
+        String displayName,
+        String intent,
+        String expectedEvaluatorBehavior,
+        String profileSummary,
+        String whatToLookFor,
+        String sanitizedNotice,
+        BigDecimal availableBalance,
+        BigDecimal totalDebit,
+        BigDecimal totalCredit,
+        long subscriptionLoadPercent,
+        long budgetUtilizationPercent,
+        long smallCardTransactionCount,
+        long cashPressure
     ) {
     }
 }
