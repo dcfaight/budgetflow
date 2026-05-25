@@ -23,7 +23,10 @@ class EvaluatorDashboardIntegrationTest {
             .andExpect(status().isOk())
             .andExpect(content().contentTypeCompatibleWith("text/html"))
             .andExpect(content().string(containsString("BudgetFlow evaluator dashboard (prototype)")))
+            .andExpect(content().string(containsString("Start here (first-time evaluator flow)")))
+            .andExpect(content().string(containsString("Guided progression:")))
             .andExpect(content().string(containsString("Scenarios in pack: default")))
+            .andExpect(content().string(containsString("Decision path (lightweight visual summary)")))
             .andExpect(content().string(containsString("Planner trace / explanation")))
             .andExpect(content().string(containsString("Execution summary:")))
             .andExpect(content().string(containsString("Prototype reminder")));
@@ -39,7 +42,9 @@ class EvaluatorDashboardIntegrationTest {
             .andExpect(status().isOk())
             .andExpect(content().string(containsString("Moderate budget / elevated pressure")))
                 .andExpect(content().string(containsString("Selected profile intent: Favors preserving optional signal coverage")))
+            .andExpect(content().string(containsString("Budget fit (planned selected path)")))
             .andExpect(content().string(containsString("<th>pressure</th><th>layer</th><th>fit</th><th>savings</th>")))
+            .andExpect(content().string(containsString("Delta vs balanced")))
             .andExpect(content().string(containsString("budgetflow_adaptive")))
             .andExpect(content().string(containsString("continuity")))
             .andExpect(content().string(containsString("efficiency")));
