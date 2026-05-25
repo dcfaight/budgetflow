@@ -1,19 +1,21 @@
 # BudgetFlow
 
-**Latency-budget-aware adaptive execution for Spring Boot.**
+**Adaptive orchestration under latency budgets and runtime pressure.**
 
 [![Java 17](https://img.shields.io/badge/java-17-437291.svg)](https://adoptium.net/)
 [![Spring Boot 3.5](https://img.shields.io/badge/spring--boot-3.5.x-6DB33F.svg)](https://spring.io/projects/spring-boot)
 [![Status: Prototype](https://img.shields.io/badge/status-prototype-orange.svg)](#current-status)
 [![Version: 0.x](https://img.shields.io/badge/version-0.x-lightgrey.svg)](#current-status)
 
-BudgetFlow is a polished Spring Boot prototype framework for latency-budget-aware adaptive execution. It explores request-scoped orchestration where mandatory, important, and optional work is planned together, degraded deterministically under budget/runtime pressure, and explained through decision trace plus request-level diagnostics.
+BudgetFlow is a polished prototype for adaptive orchestration under latency budgets and runtime pressure. The reusable core is a Spring Boot-oriented framework for planning related work together, degrading it deliberately, and explaining the resulting response; the fintech application in this repository is the reference demo/evaluator that makes those behaviors concrete.
 
 > **Prototype status:** polished and evaluator-ready for realistic Spring Boot demos; not production-hardened, benchmark-certified, or API-stable as a platform claim.
 
 > **Milestone narrative (May 2026):** see [docs/milestone-public-prototype.md](docs/milestone-public-prototype.md) for what this milestone represents and why it matters.
 >
 > **Next-step roadmap:** see [docs/status-roadmap.md](docs/status-roadmap.md) for realistic near-term exploration priorities.
+>
+> **Future direction:** see [docs/agent-orchestration.md](docs/agent-orchestration.md) for the proposed path from today's request-scoped orchestration model toward adaptive orchestration for agent systems.
 
 ## Start here in order
 
@@ -25,6 +27,7 @@ If you are exploring the repository for the first time, use this sequence:
 4. **Evaluation runbook:** [docs/evaluate.md](docs/evaluate.md)
 5. **Planner defaults vs customization:** [docs/planner-customization.md](docs/planner-customization.md)
 6. **Architecture + extension boundaries:** [docs/architecture.md](docs/architecture.md)
+7. **Agent orchestration direction:** [docs/agent-orchestration.md](docs/agent-orchestration.md)
 
 ## Why this matters in the first minute
 
@@ -32,6 +35,15 @@ If you are exploring the repository for the first time, use this sequence:
 - **Explainable degradation:** decision trace shows *why* work executed, fell back, approximated, or was omitted.
 - **Planner maturity with explicit boundaries:** configurable profiles, path-aware costs, mixed-constraint semantics, and lightweight customization boundaries keep behavior deliberate and inspectable.
 - **Tryable Spring Boot story:** starter wiring, demo app, and comparison harness make the behavior easy to inspect locally.
+
+## Project positioning
+
+- **What BudgetFlow is:** a reusable adaptive orchestration pattern/framework for request-scoped work under latency budgets and runtime pressure.
+- **What is reusable core/framework:** `budgetflow-core`, `budgetflow-autoconfigure`, and `budgetflow-spring-boot-starter`, including grouped request APIs, planner profiles, pressure abstractions, decision trace, and diagnostics.
+- **What is fintech-demo-specific:** `budgetflow-demo-fintech`, its dashboard domain model, datasets, evaluator UI, comparison harness, and scenario narratives.
+- **What problem the framework solves:** it helps services preserve the most valuable work when not everything can fit, instead of treating every downstream call as equally important until timeout.
+- **Why the evaluator exists:** it is the concrete reference workload used to inspect planner behavior, validate explainability, and share scenario evidence without claiming the fintech demo is the product.
+- **Future direction:** the same orchestration model can extend to multi-agent systems where agents, tools, and subtasks compete for latency and budget headroom; see [docs/agent-orchestration.md](docs/agent-orchestration.md).
 
 ## Quickstart first (5 minutes)
 
@@ -222,7 +234,7 @@ The lower-level `TaskSpec<T>` / `RequestExecutionResult` model remains available
 
 ## Current prototype capabilities
 
-BudgetFlow currently includes:
+### Reusable framework/core capabilities
 
 - Gradle Kotlin DSL multi-module project structure
 - Spring Boot starter and auto-configuration
@@ -245,9 +257,14 @@ BudgetFlow currently includes:
 - optional runtime pressure adapters (`RuntimeSignalPressureProvider`, `CompositeSystemPressureProvider`)
 - optional property-only runtime signal inputs (`budgetflow.runtime-signals.*`) for quick starter/demo setup without custom beans
 - optional execution lifecycle hooks (`ExecutionLifecycleListener`)
+
+### Fintech demo and evaluator capabilities
+
 - fintech dashboard demo application
 - lightweight evaluator dashboard UI for scenario/profile/trace exploration (`/dashboard/evaluator`), including multi-scenario storyline synthesis, walkthrough-mode storytelling guidance, compact comparison analytics, and grouped planner/signal explainability cues (budget fit, degradation states, profile deltas, lane grouping, signal-to-mode, branch-path deltas)
 - naive-vs-adaptive comparison harness with scenario packs, grouped reporting, and optional JSON output
+
+The fintech demo is the current reference workload for the framework. It exists to make adaptive-orchestration behavior reviewable, not to narrow BudgetFlow's identity to fintech-only usage.
 
 ## Comparison harness output
 
@@ -328,7 +345,7 @@ The constrained-budget scenarios are the clearest before/after showcase:
 - `budgetflow-core` — core execution contracts, planning, policy, tracing, diagnostics, pressure abstraction, and ergonomic grouped request helpers.
 - `budgetflow-autoconfigure` — Spring Boot auto-configuration and latency budget aspect (runtime wiring module).
 - `budgetflow-spring-boot-starter` — default consumer dependency; exposes core API plus Spring integration annotations/autoconfiguration.
-- `budgetflow-demo-fintech` — demo dashboard application and comparison harness (evaluation tooling, not framework runtime dependency).
+- `budgetflow-demo-fintech` — reference fintech workload, evaluator dashboard, and comparison harness used to inspect the reusable orchestration model (evaluation tooling, not framework runtime dependency).
 
 ## Running the demo
 

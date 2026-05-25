@@ -8,6 +8,7 @@ For likely next directions, see [status-roadmap.md](status-roadmap.md).
 ## Scope and maturity
 
 - BudgetFlow is a polished prototype milestone, not a production-ready platform.
+- The evaluator is attached to a fintech reference workload so the reusable orchestration model can be reviewed through a realistic scenario surface.
 - Treat results as scenario evidence and architecture signal, not benchmark certification.
 - Focus on explainability and tradeoff shape, not absolute throughput claims.
 

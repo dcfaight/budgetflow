@@ -1,6 +1,6 @@
 # BudgetFlow concept (prototype)
 
-BudgetFlow is a Spring Boot-oriented prototype for latency-budget-aware adaptive execution.
+BudgetFlow is a Spring Boot-oriented prototype for reusable adaptive orchestration under latency budgets and runtime pressure. The framework modules are the reusable core; the fintech application in this repository is the reference workload used to demonstrate and evaluate that core.
 
 ## Core claim
 
@@ -16,7 +16,7 @@ A request-level latency budget can drive deterministic planning decisions so:
 - mixed-constraint planning with path-aware latency hints (fallback/approximate)
 - runtime pressure integration hooks (`RuntimeSignalPressureProvider`, `ExecutionLifecycleListener`)
 - transparent reason semantics (`mixed`, `degrade_pref`, `fit`, `savings`, `latency_ratio`)
-- realistic but compact fintech sample app + scenario comparison packs
+- realistic but compact fintech reference workload + scenario comparison packs
 
 ## Prototype boundaries
 
