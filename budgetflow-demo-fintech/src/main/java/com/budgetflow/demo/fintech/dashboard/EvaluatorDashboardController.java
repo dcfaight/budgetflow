@@ -26,7 +26,8 @@ public class EvaluatorDashboardController {
         @RequestParam(name = "pack", defaultValue = "default") String packName,
         @RequestParam(name = "scenario", required = false) String scenarioName,
         @RequestParam(name = "profile", defaultValue = "balanced") String profileName,
-        @RequestParam(name = "compareProfiles", defaultValue = "balanced,continuity,efficiency") String compareProfiles
+        @RequestParam(name = "compareProfiles", defaultValue = "balanced,continuity,efficiency") String compareProfiles,
+        @RequestParam(name = "walkthroughStep", required = false) String walkthroughStep
     ) {
         String safePack = sanitizePack(packName);
         DashboardScenarioPack resolvedPack = PressureScenarios.packNamed(safePack);
@@ -37,7 +38,8 @@ public class EvaluatorDashboardController {
             safePack,
             safeScenario,
             safeProfile.configName(),
-            safeCompareProfiles
+            safeCompareProfiles,
+            walkthroughStep
         );
     }
 

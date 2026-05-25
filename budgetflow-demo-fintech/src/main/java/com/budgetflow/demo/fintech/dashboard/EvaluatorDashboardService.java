@@ -4,6 +4,7 @@ import com.budgetflow.core.api.AdaptiveRequest;
 import com.budgetflow.core.api.AdaptiveRequestResult;
 import com.budgetflow.core.budget.DefaultExecutionBudget;
 import com.budgetflow.core.classification.ExecutionMode;
+import com.budgetflow.core.classification.Importance;
 import com.budgetflow.core.context.BudgetContext;
 import com.budgetflow.core.context.BudgetContextHolder;
 import com.budgetflow.core.execution.DefaultAdaptiveExecutor;
@@ -50,20 +51,37 @@ public class EvaluatorDashboardService {
         String requestedPackName,
         String requestedScenarioName,
         String requestedProfileName,
-        String requestedCompareProfiles
+        String requestedCompareProfiles,
+        String requestedWalkthroughStep
     ) {
         List<String> notes = new ArrayList<>();
         DashboardScenarioPack pack = resolvePack(requestedPackName, notes);
         DashboardBenchmarkScenario scenario = resolveScenario(pack, requestedScenarioName, notes);
         PlannerPolicyProfile profile = resolveProfile(requestedProfileName, "profile", notes);
         List<PlannerPolicyProfile> compareProfiles = resolveCompareProfiles(requestedCompareProfiles, profile, notes);
+        String walkthroughStep = resolveWalkthroughStep(requestedWalkthroughStep);
 
         List<DashboardBenchmarkSummary> comparisonSummaries;
+        List<DashboardBenchmarkSummary> packTrendSummaries;
         try (DashboardComparisonHarness harness = new DashboardComparisonHarness(noDelaySimulationSupport())) {
             comparisonSummaries = harness.run(List.of(scenario), compareProfiles);
+            packTrendSummaries = harness.run(
+                pack.scenarios(),
+                ensureSelectedProfile(List.of(PlannerPolicyProfile.BALANCED), profile)
+            );
         }
         ScenarioExecution execution = executeScenario(scenario, profile);
-        return renderHtml(pack, scenario, profile, compareProfiles, comparisonSummaries, execution, notes);
+        return renderHtml(
+            pack,
+            scenario,
+            profile,
+            compareProfiles,
+            comparisonSummaries,
+            packTrendSummaries,
+            execution,
+            notes,
+            walkthroughStep
+        );
     }
 
     private DashboardScenarioPack resolvePack(String requestedPackName, List<String> notes) {
@@ -133,6 +151,17 @@ public class EvaluatorDashboardService {
         }
     }
 
+    private String resolveWalkthroughStep(String requestedWalkthroughStep) {
+        if (requestedWalkthroughStep == null || requestedWalkthroughStep.isBlank()) {
+            return "start";
+        }
+        String normalized = requestedWalkthroughStep.trim().toLowerCase();
+        if (List.of("start", "compare", "profile", "trace").contains(normalized)) {
+            return normalized;
+        }
+        return "start";
+    }
+
     private List<PlannerPolicyProfile> ensureSelectedProfile(
         List<PlannerPolicyProfile> compareProfiles,
         PlannerPolicyProfile selectedProfile
@@ -199,8 +228,10 @@ public class EvaluatorDashboardService {
         PlannerPolicyProfile selectedProfile,
         List<PlannerPolicyProfile> compareProfiles,
         List<DashboardBenchmarkSummary> comparisonSummaries,
+        List<DashboardBenchmarkSummary> packTrendSummaries,
         ScenarioExecution execution,
-        List<String> notes
+        List<String> notes,
+        String walkthroughStep
     ) {
         String compareProfilesParam = compareProfiles.stream()
             .map(PlannerPolicyProfile::configName)
@@ -236,6 +267,13 @@ public class EvaluatorDashboardService {
             .append(".metric{min-width:280px;background:#fff;border:1px solid #dbe2ef;border-radius:12px;padding:10px;} .metric-label{font-size:13px;font-weight:600;}")
             .append(".bar{margin-top:8px;height:10px;background:#e2e8f0;border-radius:999px;overflow:hidden;} .bar-fill{height:100%;background:linear-gradient(90deg,#60a5fa,#2563eb);} .bar-fill.over{background:linear-gradient(90deg,#f59e0b,#dc2626);} ")
             .append(".decision-path{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;} .decision-step{background:#fff;border:1px solid #dbe2ef;border-radius:10px;padding:7px 9px;font-size:12px;} .arrow{color:#94a3b8;font-size:12px;align-self:center;}")
+            .append(".walkthrough-banner{background:#eef6ff;border:1px solid #bfdbfe;border-radius:12px;padding:12px;margin:14px 0;} .walkthrough-steps{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;}")
+            .append(".step-pill{padding:4px 9px;border-radius:999px;background:#dbeafe;color:#1e3a8a;font-size:12px;} .step-pill.active{background:#1d4ed8;color:#fff;font-weight:600;}")
+            .append(".trend-grid{display:flex;gap:10px;flex-wrap:wrap;} .trend-card{border:1px solid #dbe2ef;background:#fff;border-radius:12px;padding:10px;min-width:260px;}")
+            .append(".spark{height:8px;background:#e2e8f0;border-radius:999px;overflow:hidden;margin-top:6px;} .spark-fill{height:100%;background:linear-gradient(90deg,#34d399,#10b981);} .spark-fill.warn{background:linear-gradient(90deg,#f59e0b,#dc2626);}")
+            .append(".diff-stack{display:flex;gap:4px;align-items:center;} .diff-chip{font-size:11px;padding:2px 6px;border-radius:999px;background:#e2e8f0;color:#334155;}")
+            .append(".lane{border:1px solid #dbe2ef;border-radius:12px;background:#fff;padding:10px;min-width:250px;} .lane h3{margin-bottom:6px;} .mini{font-size:12px;color:#475569;}")
+            .append(".trace-summary{background:#fff;border:1px solid #dbe2ef;border-radius:12px;padding:10px;margin-top:10px;}")
             .append(".delta{font-weight:600;} .delta-up{color:#14532d;} .delta-down{color:#9a3412;} .delta-neutral{color:#475569;}")
             .append("ul,ol{margin:6px 0 0 18px;padding:0;}li{margin:4px 0;}a{color:#1d4ed8;text-decoration:none;}a:hover{text-decoration:underline;}")
             .append("</style></head><body>");
@@ -259,6 +297,23 @@ public class EvaluatorDashboardService {
             }
             html.append("</ul></div>");
         }
+
+        html.append("<div class='walkthrough-banner'>")
+            .append("<strong>Scenario walkthrough mode</strong>")
+            .append("<div class='mini'>Current phase: ")
+            .append(escape(walkthroughLabel(walkthroughStep)))
+            .append(". Follow the highlighted phase, then use recommended next comparisons.</div>")
+            .append("<div class='walkthrough-steps'>")
+            .append(stepPill("start", "1) orient", walkthroughStep, pack.name(), selectedScenario.name(), selectedProfile.configName(), compareProfilesParam))
+            .append(stepPill("compare", "2) compare", walkthroughStep, pack.name(), selectedScenario.name(), selectedProfile.configName(), compareProfilesParam))
+            .append(stepPill("profile", "3) profile tradeoff", walkthroughStep, pack.name(), selectedScenario.name(), selectedProfile.configName(), compareProfilesParam))
+            .append(stepPill("trace", "4) trace explain", walkthroughStep, pack.name(), selectedScenario.name(), selectedProfile.configName(), compareProfilesParam))
+            .append("</div>")
+            .append("<div class='mini' style='margin-top:8px'>")
+            .append("Recommended next comparison: ")
+            .append(recommendedNextComparison(pack, selectedScenario, selectedProfile, compareProfilesParam, walkthroughStep))
+            .append("</div>")
+            .append("</div>");
 
         html.append("<h2>Start here (first-time evaluator flow)</h2>")
             .append("<div class='row'>")
@@ -288,9 +343,13 @@ public class EvaluatorDashboardService {
                 .append("default".equals(packName) ? "pill-recommended" : "")
                 .append("'>")
                 .append(active ? "<strong>" : "")
-                .append("<a href='/dashboard/evaluator?pack=").append(url(packName))
-                .append("&scenario=&profile=").append(url(selectedProfile.configName()))
-                .append("&compareProfiles=").append(url(compareProfilesParam)).append("'>")
+                .append("<a href='").append(dashboardLink(
+                    packName,
+                    "",
+                    selectedProfile.configName(),
+                    compareProfilesParam,
+                    walkthroughStep
+                )).append("'>")
                 .append(escape(packName))
                 .append("</a>")
                 .append(active ? " (selected)</strong>" : "")
@@ -308,10 +367,13 @@ public class EvaluatorDashboardService {
             boolean active = selectedScenario.name().equals(scenario.name());
             html.append("<li>")
                 .append(active ? "<strong>" : "")
-                .append("<a href='/dashboard/evaluator?pack=").append(url(pack.name()))
-                .append("&scenario=").append(url(scenario.name()))
-                .append("&profile=").append(url(selectedProfile.configName()))
-                .append("&compareProfiles=").append(url(compareProfilesParam)).append("'>")
+                .append("<a href='").append(dashboardLink(
+                    pack.name(),
+                    scenario.name(),
+                    selectedProfile.configName(),
+                    compareProfilesParam,
+                    walkthroughStep
+                )).append("'>")
                 .append(escape(scenario.displayName()))
                 .append("</a>")
                 .append(active ? " (selected)</strong>" : "")
@@ -336,6 +398,9 @@ public class EvaluatorDashboardService {
             .append("</div>")
             .append("<div class='tip'><strong>Interpretation guidance:</strong> ")
             .append(escape(selectedScenario.interpretationGuidance()))
+            .append("</div>")
+            .append("<div class='tip'><strong>Profile recommendation (prototype guidance):</strong> ")
+            .append(escape(profileRecommendation(selectedScenario)))
             .append("</div>");
 
         html.append("<h2>Profile selection</h2><div>");
@@ -346,10 +411,13 @@ public class EvaluatorDashboardService {
                 .append(profile == PlannerPolicyProfile.BALANCED ? " pill-recommended" : "")
                 .append("'>")
                 .append(active ? "<strong>" : "")
-                .append("<a href='/dashboard/evaluator?pack=").append(url(pack.name()))
-                .append("&scenario=").append(url(selectedScenario.name()))
-                .append("&profile=").append(url(profile.configName()))
-                .append("&compareProfiles=").append(url(compareProfilesParam)).append("'>")
+                .append("<a href='").append(dashboardLink(
+                    pack.name(),
+                    selectedScenario.name(),
+                    profile.configName(),
+                    compareProfilesParam,
+                    walkthroughStep
+                )).append("'>")
                 .append(escape(profile.configName()))
                 .append("</a>")
                 .append(active ? " (selected)</strong>" : "")
@@ -363,6 +431,67 @@ public class EvaluatorDashboardService {
         html.append("</div><p class='muted'>Selected profile intent: ")
             .append(escape(selectedProfile.intent()))
             .append("</p>");
+
+        DashboardBenchmarkSummary balancedAdaptive = comparisonSummaries.stream()
+            .filter(summary -> STRATEGY_ADAPTIVE.equals(summary.executionStrategy()))
+            .filter(summary -> PlannerPolicyProfile.BALANCED.configName().equals(summary.policyProfile()))
+            .findFirst()
+            .orElse(null);
+        DashboardBenchmarkSummary selectedAdaptive = comparisonSummaries.stream()
+            .filter(summary -> STRATEGY_ADAPTIVE.equals(summary.executionStrategy()))
+            .filter(summary -> selectedProfile.configName().equals(summary.policyProfile()))
+            .findFirst()
+            .orElse(null);
+        DashboardBenchmarkSummary naiveSummary = comparisonSummaries.stream()
+            .filter(summary -> STRATEGY_NAIVE.equals(summary.executionStrategy()))
+            .findFirst()
+            .orElse(null);
+
+        html.append("<h2>Compact analytics snapshot</h2>")
+            .append("<p class='muted'>Quick-scan trend cards for what changed, by how much, and whether it looks meaningful in this prototype context.</p>")
+            .append("<div class='trend-grid'>")
+            .append(trendCard(
+                "Selected adaptive budget fit",
+                selectedAdaptive == null ? "-" : selectedAdaptive.projectedWork().toMillis() + "ms / "
+                    + selectedAdaptive.requestBudget().toMillis() + "ms",
+                selectedAdaptive == null ? 0 : safePercent(
+                    selectedAdaptive.projectedWork().toMillis(),
+                    selectedAdaptive.requestBudget().toMillis()
+                ),
+                false
+            ))
+            .append(trendCard(
+                "Adaptive vs naive projected work",
+                selectedAdaptive == null || naiveSummary == null
+                    ? "-"
+                    : signed(selectedAdaptive.projectedWork().toMillis() - naiveSummary.projectedWork().toMillis()) + "ms",
+                selectedAdaptive == null || naiveSummary == null
+                    ? 0
+                    : Math.abs((int) (selectedAdaptive.projectedWork().toMillis() - naiveSummary.projectedWork().toMillis())),
+                true
+            ))
+            .append(trendCard(
+                "Adaptive degraded task count",
+                selectedAdaptive == null
+                    ? "-"
+                    : String.valueOf(selectedAdaptive.omittedTasks().size()
+                    + selectedAdaptive.fallbackTasks().size()
+                    + selectedAdaptive.approximatedTasks().size()),
+                selectedAdaptive == null
+                    ? 0
+                    : (selectedAdaptive.omittedTasks().size()
+                    + selectedAdaptive.fallbackTasks().size()
+                    + selectedAdaptive.approximatedTasks().size()) * 20,
+                true
+            ))
+            .append("</div>")
+            .append("<div class='trace-summary'><strong>Pack trend (")
+            .append(escape(selectedProfile.configName()))
+            .append(" profile):</strong> ")
+            .append(escape(packTrendSummary(packTrendSummaries, selectedProfile)))
+            .append("<div class='mini'>")
+            .append(compactPackScenarioLinks(pack, selectedProfile, compareProfilesParam, walkthroughStep))
+            .append("</div></div>");
 
         int totalTasks = execution.decisionTrace().size();
         int executed = (int) execution.decisionTrace().stream()
@@ -413,6 +542,25 @@ public class EvaluatorDashboardService {
         html.append("</div>")
             .append("<p class='muted'>Use this as a quick path overview, then verify details in the planner trace table.</p>");
 
+        html.append("<h2>Planner lanes by importance</h2>")
+            .append("<div class='row'>")
+            .append(importanceLane("Mandatory", execution.decisionTrace(), Importance.MANDATORY))
+            .append(importanceLane("Important", execution.decisionTrace(), Importance.IMPORTANT))
+            .append(importanceLane("Optional", execution.decisionTrace(), Importance.OPTIONAL))
+            .append("</div>")
+            .append("<div class='tip'><strong>Importance interpretation:</strong> ")
+            .append("Read optional lane changes first for adaptive tradeoffs, then verify mandatory/important stability.</div>");
+
+        html.append("<h2>Signal-to-decision map (compressed)</h2>")
+            .append("<div class='trace-summary'>")
+            .append(signalDecisionSummary(execution.decisionTrace()))
+            .append("</div>");
+
+        html.append("<h2>Trace compression: changed decisions first</h2>")
+            .append("<div class='trace-summary'>")
+            .append(compactChangedDecisions(execution.decisionTrace()))
+            .append("</div>");
+
         html.append("<h2>Planner trace / explanation</h2>")
             .append("<table><thead><tr>")
             .append("<th>Task</th><th>Importance</th><th>Selected mode</th><th>Planned latency</th>")
@@ -442,19 +590,14 @@ public class EvaluatorDashboardService {
         }
         html.append("</tbody></table>");
 
-        DashboardBenchmarkSummary balancedAdaptive = comparisonSummaries.stream()
-            .filter(summary -> STRATEGY_ADAPTIVE.equals(summary.executionStrategy()))
-            .filter(summary -> PlannerPolicyProfile.BALANCED.configName().equals(summary.policyProfile()))
-            .findFirst()
-            .orElse(null);
-
         html.append("<h2>Profile comparison (selected scenario)</h2>")
             .append("<p class='muted'>Includes naive_parallel and selected adaptive profile set: ")
             .append(escape(compareProfilesParam))
             .append(". Deltas are directional and should be interpreted with scenario context.</p>")
             .append("<table><thead><tr>")
             .append("<th>Strategy</th><th>Profile</th><th>Executed</th><th>Degraded</th>")
-            .append("<th>Budget fit</th><th>Delta vs balanced</th><th>Omitted</th><th>Fallback</th><th>Approximate</th><th>Why</th>")
+            .append("<th>Budget fit</th><th>Delta vs balanced</th><th>Compact visual diff</th><th>Interpret</th>")
+            .append("<th>Omitted</th><th>Fallback</th><th>Approximate</th><th>Why</th>")
             .append("</tr></thead><tbody>");
         for (DashboardBenchmarkSummary summary : comparisonSummaries.stream()
             .sorted(Comparator.comparing(DashboardBenchmarkSummary::executionStrategy)
@@ -474,6 +617,8 @@ public class EvaluatorDashboardService {
                 .append("<td>").append(summary.projectedWork().toMillis()).append("ms / ")
                 .append(summary.requestBudget().toMillis()).append("ms (").append(fitPercent).append("%)</td>")
                 .append("<td>").append(deltaVsBalanced).append("</td>")
+                .append("<td>").append(compactDiffStack(summary, balancedAdaptive)).append("</td>")
+                .append("<td>").append(escape(interpretSummary(summary, balancedAdaptive))).append("</td>")
                 .append("<td>").append(escape(formatList(summary.omittedTasks()))).append("</td>")
                 .append("<td>").append(escape(formatList(summary.fallbackTasks()))).append("</td>")
                 .append("<td>").append(escape(formatList(summary.approximatedTasks()))).append("</td>")
@@ -603,6 +748,233 @@ public class EvaluatorDashboardService {
             return "+" + value;
         }
         return String.valueOf(value);
+    }
+
+    private String dashboardLink(
+        String pack,
+        String scenario,
+        String profile,
+        String compareProfiles,
+        String walkthroughStep
+    ) {
+        return "/dashboard/evaluator?pack=" + url(pack)
+            + "&scenario=" + url(scenario == null ? "" : scenario)
+            + "&profile=" + url(profile)
+            + "&compareProfiles=" + url(compareProfiles)
+            + "&walkthroughStep=" + url(walkthroughStep);
+    }
+
+    private String walkthroughLabel(String step) {
+        return switch (step) {
+            case "compare" -> "Compare scenario outcomes";
+            case "profile" -> "Profile tradeoff exploration";
+            case "trace" -> "Planner trace interpretation";
+            default -> "Start and orient";
+        };
+    }
+
+    private String stepPill(
+        String step,
+        String label,
+        String activeStep,
+        String pack,
+        String scenario,
+        String profile,
+        String compareProfiles
+    ) {
+        String classes = "step-pill" + (step.equals(activeStep) ? " active" : "");
+        return "<a class='" + classes + "' href='"
+            + dashboardLink(pack, scenario, profile, compareProfiles, step)
+            + "'>" + escape(label) + "</a>";
+    }
+
+    private String recommendedNextComparison(
+        DashboardScenarioPack pack,
+        DashboardBenchmarkScenario selectedScenario,
+        PlannerPolicyProfile selectedProfile,
+        String compareProfiles,
+        String walkthroughStep
+    ) {
+        int scenarioIndex = pack.scenarios().indexOf(selectedScenario);
+        if ("start".equals(walkthroughStep) || "compare".equals(walkthroughStep)) {
+            if (scenarioIndex >= 0 && scenarioIndex < pack.scenarios().size() - 1) {
+                DashboardBenchmarkScenario nextScenario = pack.scenarios().get(scenarioIndex + 1);
+                return "<a href='" + dashboardLink(
+                    pack.name(),
+                    nextScenario.name(),
+                    selectedProfile.configName(),
+                    compareProfiles,
+                    "compare"
+                ) + "'>Compare with next scenario: " + escape(nextScenario.displayName()) + "</a>";
+            }
+            return "<a href='" + dashboardLink(
+                "adoption".equals(pack.name()) ? "realism" : "adoption",
+                "",
+                selectedProfile.configName(),
+                compareProfiles,
+                "compare"
+            ) + "'>Move to next storyline pack for broader comparison evidence</a>";
+        }
+        if ("profile".equals(walkthroughStep)) {
+            PlannerPolicyProfile nextProfile = selectedProfile == PlannerPolicyProfile.BALANCED
+                ? PlannerPolicyProfile.CONTINUITY
+                : PlannerPolicyProfile.EFFICIENCY;
+            return "<a href='" + dashboardLink(
+                pack.name(),
+                selectedScenario.name(),
+                nextProfile.configName(),
+                compareProfiles,
+                "profile"
+            ) + "'>Run same scenario with " + escape(nextProfile.configName()) + " for directional delta</a>";
+        }
+        return "<a href='" + dashboardLink(
+            pack.name(),
+            selectedScenario.name(),
+            selectedProfile.configName(),
+            compareProfiles,
+            "start"
+        ) + "'>Restart walkthrough orientation for a new evaluator pass</a>";
+    }
+
+    private String profileRecommendation(DashboardBenchmarkScenario scenario) {
+        String pressure = scenario.pressureProfile();
+        String budget = scenario.budgetProfile();
+        if (pressure.contains("high") || pressure.contains("elevated")) {
+            return "Start balanced, then check continuity if preserving optional signal continuity is important under pressure.";
+        }
+        if (budget.contains("constrained") || budget.contains("tight")) {
+            return "Start balanced, then compare efficiency to inspect latency headroom tradeoffs under tighter budgets.";
+        }
+        return "Balanced is still the conservative starting point; compare continuity and efficiency only for directional interpretation.";
+    }
+
+    private String trendCard(String title, String value, long percentHint, boolean warnOnHigh) {
+        long clamped = Math.max(0, Math.min(100, percentHint));
+        String fillClass = warnOnHigh && clamped >= 70 ? "spark-fill warn" : "spark-fill";
+        return "<div class='trend-card'><strong>" + escape(title)
+            + "</strong><div>" + escape(value)
+            + "</div><div class='spark'><div class='" + fillClass
+            + "' style='width:" + clamped + "%'></div></div></div>";
+    }
+
+    private String packTrendSummary(
+        List<DashboardBenchmarkSummary> packTrendSummaries,
+        PlannerPolicyProfile selectedProfile
+    ) {
+        List<DashboardBenchmarkSummary> adaptiveSummaries = packTrendSummaries.stream()
+            .filter(summary -> STRATEGY_ADAPTIVE.equals(summary.executionStrategy()))
+            .filter(summary -> selectedProfile.configName().equals(summary.policyProfile()))
+            .toList();
+        if (adaptiveSummaries.isEmpty()) {
+            return "No pack trend data available.";
+        }
+        long degradedScenarios = adaptiveSummaries.stream().filter(DashboardBenchmarkSummary::degraded).count();
+        DashboardBenchmarkSummary heaviest = adaptiveSummaries.stream()
+            .max(Comparator.comparing(summary -> summary.projectedWork().toMillis()))
+            .orElse(adaptiveSummaries.get(0));
+        return "degraded scenarios: " + degradedScenarios + "/" + adaptiveSummaries.size()
+            + ", heaviest projected work: " + heaviest.scenario().displayName()
+            + " (" + heaviest.projectedWork().toMillis() + "ms).";
+    }
+
+    private String compactPackScenarioLinks(
+        DashboardScenarioPack pack,
+        PlannerPolicyProfile selectedProfile,
+        String compareProfiles,
+        String walkthroughStep
+    ) {
+        return pack.scenarios().stream()
+            .map(scenario -> "<a href='" + dashboardLink(
+                pack.name(),
+                scenario.name(),
+                selectedProfile.configName(),
+                compareProfiles,
+                walkthroughStep
+            ) + "'>" + escape(scenario.displayName()) + "</a>")
+            .collect(Collectors.joining(" · "));
+    }
+
+    private String compactDiffStack(DashboardBenchmarkSummary summary, DashboardBenchmarkSummary balancedAdaptive) {
+        if (balancedAdaptive == null || !STRATEGY_ADAPTIVE.equals(summary.executionStrategy())) {
+            return "<span class='diff-chip'>reference</span>";
+        }
+        long workDeltaMs = summary.projectedWork().toMillis() - balancedAdaptive.projectedWork().toMillis();
+        int executedDelta = summary.totalTasksExecuted() - balancedAdaptive.totalTasksExecuted();
+        int degradeSignalDelta = (summary.omittedTasks().size() + summary.fallbackTasks().size() + summary.approximatedTasks().size())
+            - (balancedAdaptive.omittedTasks().size() + balancedAdaptive.fallbackTasks().size() + balancedAdaptive.approximatedTasks().size());
+        return "<span class='diff-stack'>"
+            + "<span class='diff-chip'>work " + signed(workDeltaMs) + "ms</span>"
+            + "<span class='diff-chip'>exec " + signed(executedDelta) + "</span>"
+            + "<span class='diff-chip'>degrade " + signed(degradeSignalDelta) + "</span>"
+            + "</span>";
+    }
+
+    private String interpretSummary(DashboardBenchmarkSummary summary, DashboardBenchmarkSummary balancedAdaptive) {
+        if (!STRATEGY_ADAPTIVE.equals(summary.executionStrategy())) {
+            return "Naive baseline reference only.";
+        }
+        if (balancedAdaptive == null || PlannerPolicyProfile.BALANCED.configName().equals(summary.policyProfile())) {
+            return "Balanced baseline for directional comparison.";
+        }
+        int degradeDelta = (summary.omittedTasks().size() + summary.fallbackTasks().size() + summary.approximatedTasks().size())
+            - (balancedAdaptive.omittedTasks().size() + balancedAdaptive.fallbackTasks().size() + balancedAdaptive.approximatedTasks().size());
+        if (degradeDelta > 0) {
+            return "More adaptation than balanced; inspect whether added degradation is acceptable for this endpoint.";
+        }
+        if (degradeDelta < 0) {
+            return "Less adaptation than balanced; verify budget headroom still looks safe.";
+        }
+        return "Similar adaptation to balanced; focus on work/coverage deltas.";
+    }
+
+    private String importanceLane(String title, List<DecisionTraceEntry> trace, Importance importance) {
+        List<DecisionTraceEntry> laneEntries = trace.stream()
+            .filter(entry -> entry.taskImportance() == importance)
+            .toList();
+        if (laneEntries.isEmpty()) {
+            return "<div class='lane'><h3>" + escape(title) + "</h3><div class='mini'>No tasks in this lane.</div></div>";
+        }
+        long degraded = laneEntries.stream().filter(entry -> entry.selectedExecutionMode() != ExecutionMode.EXECUTE).count();
+        String steps = laneEntries.stream()
+            .map(entry -> "<span class='diff-chip'>" + escape(entry.taskName()) + " · " + escape(entry.selectedExecutionMode().name()) + "</span>")
+            .collect(Collectors.joining(" "));
+        return "<div class='lane'><h3>" + escape(title) + "</h3><div class='mini'>"
+            + laneEntries.size() + " tasks, " + degraded + " degraded/omitted</div><div style='margin-top:6px'>"
+            + steps + "</div></div>";
+    }
+
+    private String signalDecisionSummary(List<DecisionTraceEntry> trace) {
+        Map<String, Integer> pressureCounts = new LinkedHashMap<>();
+        Map<String, Integer> layerCounts = new LinkedHashMap<>();
+        for (DecisionTraceEntry entry : trace) {
+            Map<String, String> fields = parseReasonFields(entry.reason());
+            String pressure = fields.getOrDefault("pressure", "unspecified");
+            String layer = fields.getOrDefault("layer", "unspecified");
+            pressureCounts.put(pressure, pressureCounts.getOrDefault(pressure, 0) + 1);
+            layerCounts.put(layer, layerCounts.getOrDefault(layer, 0) + 1);
+        }
+        return "pressure influence: " + formatCountMap(pressureCounts)
+            + " | decision layers: " + formatCountMap(layerCounts)
+            + ". Use planner trace rows below for exact per-task reasoning.";
+    }
+
+    private String formatCountMap(Map<String, Integer> counts) {
+        return counts.entrySet().stream()
+            .map(entry -> entry.getKey() + "=" + entry.getValue())
+            .collect(Collectors.joining(", "));
+    }
+
+    private String compactChangedDecisions(List<DecisionTraceEntry> trace) {
+        List<DecisionTraceEntry> changed = trace.stream()
+            .filter(entry -> entry.selectedExecutionMode() != ExecutionMode.EXECUTE)
+            .toList();
+        if (changed.isEmpty()) {
+            return "No changed decisions in this run; all tasks executed on primary path.";
+        }
+        return changed.stream()
+            .map(entry -> entry.taskName() + " → " + entry.selectedExecutionMode().name()
+                + " (" + parseReasonFields(entry.reason()).getOrDefault("layer", "layer=unknown") + ")")
+            .collect(Collectors.joining(" · "));
     }
 
     private String url(String value) {

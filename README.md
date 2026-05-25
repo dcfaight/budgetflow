@@ -21,7 +21,7 @@ If you are exploring the repository for the first time, use this sequence:
 
 1. **Framework quickstart:** [docs/quickstart.md](docs/quickstart.md)
 2. **Guided local walkthrough:** `./gradlew :budgetflow-demo-fintech:runDashboardWalkthrough`
-3. **Visual evaluator dashboard:** run `./gradlew :budgetflow-demo-fintech:bootRun`, then open `http://localhost:8080/dashboard/evaluator` (includes a guided “start here” flow, budget-fit bars, and profile-delta comparison cues for first-time evaluators)
+3. **Visual evaluator dashboard:** run `./gradlew :budgetflow-demo-fintech:bootRun`, then open `http://localhost:8080/dashboard/evaluator` (includes walkthrough-mode guidance, compact analytics/trend cards, recommended next comparisons, and grouped planner/signal explainability cues)
 4. **Evaluation runbook:** [docs/evaluate.md](docs/evaluate.md)
 5. **Planner defaults vs customization:** [docs/planner-customization.md](docs/planner-customization.md)
 6. **Architecture + extension boundaries:** [docs/architecture.md](docs/architecture.md)
@@ -246,7 +246,7 @@ BudgetFlow currently includes:
 - optional property-only runtime signal inputs (`budgetflow.runtime-signals.*`) for quick starter/demo setup without custom beans
 - optional execution lifecycle hooks (`ExecutionLifecycleListener`)
 - fintech dashboard demo application
-- lightweight evaluator dashboard UI for scenario/profile/trace exploration (`/dashboard/evaluator`), including guided progression callouts and visual explainability cues (budget fit, degradation states, profile deltas)
+- lightweight evaluator dashboard UI for scenario/profile/trace exploration (`/dashboard/evaluator`), including walkthrough-mode storytelling guidance, compact comparison analytics, and grouped planner/signal explainability cues (budget fit, degradation states, profile deltas, lane grouping)
 - naive-vs-adaptive comparison harness with scenario packs, grouped reporting, and optional JSON output
 
 ## Comparison harness output
