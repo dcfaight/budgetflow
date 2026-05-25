@@ -34,12 +34,14 @@ http://localhost:8080/dashboard/evaluator
 ```
 
 Use it to browse scenarios, switch profiles, inspect request-level outcomes, and review planner trace reasoning in a visual prototype surface.
-The page now provides first-time “Start here” guidance plus walkthrough-mode progression, recommended next comparisons, profile recommendation callouts, compact analytics cards, and compressed planner explainability sections.
+The page now provides first-time “Start here” guidance plus walkthrough-mode progression, narrative phase panels, recommended next comparisons, profile recommendation callouts, compact analytics cards, multi-scenario storyline synthesis, and deeper planner explainability sections.
 
 Observe:
 - guided progression and profile-chooser recommendations (`default` then `adoption`/`realism`, `balanced` first)
 - walkthrough steps (`start`, `compare`, `profile`, `trace`) for intentional evaluator flow
 - recommended next comparison links for next scenario/profile moves
+- storyline compare sets that summarize what changed across several scenarios
+- pack-level overview cards and compact cross-scenario progression tables
 - `diagnostics.degraded`
 - omitted/fallback/approximated task lists
 - budget-fit bars (planned work vs request budget, remaining headroom)
@@ -47,7 +49,8 @@ Observe:
 - decision trace reasons and `plannedExecutionLatency`
 - decision-path summary chips for quick path reading before table inspection
 - planner lanes grouped by importance (mandatory / important / optional)
-- signal-to-decision compressed mapping (`pressure` and `layer` counts)
+- explicit signal-to-mode summaries (`pressure`/`layer` plus selected-mode counts)
+- baseline-vs-selected branch/path summaries for changed decisions
 - trace compression section listing changed decisions before full table review
 - decision layer + fit/savings markers in reasons (`layer=...`, `fit=...`, `savings=...`)
 - profile comparison deltas vs balanced (`Δwork`, `Δexec`, `Δdegrade`) plus compact visual diff chips as directional evidence
