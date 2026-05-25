@@ -1,0 +1,11 @@
+[
+  {
+    "accountId": "acc-123",
+    "customerId": "cust-osu-001",
+    "accountType": "checking",
+    "nickname": "Daily Spend",
+    "currency": "USD",
+    "availableBalance": 186.42,
+    "currentBalance": 198.42
+  }
+]

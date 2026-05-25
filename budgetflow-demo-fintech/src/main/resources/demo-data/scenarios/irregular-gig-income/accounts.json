@@ -1,0 +1,11 @@
+[
+  {
+    "accountId": "acc-123",
+    "customerId": "cust-igi-001",
+    "accountType": "checking",
+    "nickname": "Flexible Income",
+    "currency": "USD",
+    "availableBalance": 612.17,
+    "currentBalance": 638.17
+  }
+]

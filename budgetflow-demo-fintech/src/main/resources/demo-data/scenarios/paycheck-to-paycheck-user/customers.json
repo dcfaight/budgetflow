@@ -1,0 +1,9 @@
+[
+  {
+    "customerId": "cust-ptp-001",
+    "firstName": "Alex",
+    "lastName": "Ramirez",
+    "email": "alex.ramirez+ptp@budgetflow.test",
+    "segment": "paycheck-to-paycheck"
+  }
+]

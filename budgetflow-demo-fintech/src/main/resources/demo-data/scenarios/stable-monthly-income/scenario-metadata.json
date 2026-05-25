@@ -1,0 +1,8 @@
+{
+  "scenarioId": "stable-monthly-income",
+  "displayName": "Stable monthly income",
+  "intent": "Model a salary-funded household with predictable cash inflows and consistent monthly obligations.",
+  "expectedEvaluatorBehavior": "Evaluator should show low volatility, high budget adherence, and minimal degradation flags across checks.",
+  "realWorldPattern": "Regular payroll cadence with steady recurring expenses.",
+  "sanitizedNotice": "Synthetic identities, synthetic account IDs, and fabricated merchants only."
+}

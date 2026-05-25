@@ -1,0 +1,26 @@
+[
+  {
+    "budgetId": "bud-lcb-001",
+    "customerId": "cust-lcb-001",
+    "category": "housing",
+    "monthlyLimit": 1125.0,
+    "spentToDate": 1125.0,
+    "period": "2026-05"
+  },
+  {
+    "budgetId": "bud-lcb-002",
+    "customerId": "cust-lcb-001",
+    "category": "groceries",
+    "monthlyLimit": 280.0,
+    "spentToDate": 269.1,
+    "period": "2026-05"
+  },
+  {
+    "budgetId": "bud-lcb-003",
+    "customerId": "cust-lcb-001",
+    "category": "emergency-buffer",
+    "monthlyLimit": 300.0,
+    "spentToDate": 236.82,
+    "period": "2026-05"
+  }
+]

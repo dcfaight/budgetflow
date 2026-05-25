@@ -1,0 +1,11 @@
+[
+  {
+    "accountId": "acc-123",
+    "customerId": "cust-smi-001",
+    "accountType": "checking",
+    "nickname": "Main Checking",
+    "currency": "USD",
+    "availableBalance": 3415.22,
+    "currentBalance": 3450.22
+  }
+]

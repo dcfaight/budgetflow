@@ -1,0 +1,20 @@
+[
+  {
+    "accountId": "acc-123",
+    "customerId": "cust-seed-001",
+    "accountType": "checking",
+    "nickname": "Primary Checking",
+    "currency": "USD",
+    "availableBalance": 1024.56,
+    "currentBalance": 1029.56
+  },
+  {
+    "accountId": "acc-456",
+    "customerId": "cust-seed-002",
+    "accountType": "checking",
+    "nickname": "Household Checking",
+    "currency": "USD",
+    "availableBalance": 2485.12,
+    "currentBalance": 2520.12
+  }
+]

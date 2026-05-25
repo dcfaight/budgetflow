@@ -1,0 +1,11 @@
+[
+  {
+    "accountId": "acc-123",
+    "customerId": "cust-lcb-001",
+    "accountType": "checking",
+    "nickname": "Primary",
+    "currency": "USD",
+    "availableBalance": 63.18,
+    "currentBalance": 79.18
+  }
+]

@@ -1,0 +1,8 @@
+{
+  "scenarioId": "paycheck-to-paycheck-user",
+  "displayName": "Paycheck-to-paycheck user",
+  "intent": "Represent a household where most inflow is committed to essentials shortly after deposit.",
+  "expectedEvaluatorBehavior": "Evaluator should show tight liquidity cycles and limited flexibility between pay periods.",
+  "realWorldPattern": "Income arrives regularly but is consumed quickly by mandatory obligations.",
+  "sanitizedNotice": "No real users, accounts, identifiers, or production records are included."
+}

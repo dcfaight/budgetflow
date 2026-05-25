@@ -1,0 +1,26 @@
+[
+  {
+    "budgetId": "bud-hsl-001",
+    "customerId": "cust-hsl-001",
+    "category": "subscriptions",
+    "monthlyLimit": 180.0,
+    "spentToDate": 164.72,
+    "period": "2026-05"
+  },
+  {
+    "budgetId": "bud-hsl-002",
+    "customerId": "cust-hsl-001",
+    "category": "groceries",
+    "monthlyLimit": 420.0,
+    "spentToDate": 295.4,
+    "period": "2026-05"
+  },
+  {
+    "budgetId": "bud-hsl-003",
+    "customerId": "cust-hsl-001",
+    "category": "entertainment",
+    "monthlyLimit": 220.0,
+    "spentToDate": 187.35,
+    "period": "2026-05"
+  }
+]

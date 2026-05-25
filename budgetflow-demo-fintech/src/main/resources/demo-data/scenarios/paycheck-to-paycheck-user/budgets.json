@@ -1,0 +1,26 @@
+[
+  {
+    "budgetId": "bud-ptp-001",
+    "customerId": "cust-ptp-001",
+    "category": "housing",
+    "monthlyLimit": 980.0,
+    "spentToDate": 980.0,
+    "period": "2026-05"
+  },
+  {
+    "budgetId": "bud-ptp-002",
+    "customerId": "cust-ptp-001",
+    "category": "utilities",
+    "monthlyLimit": 230.0,
+    "spentToDate": 214.18,
+    "period": "2026-05"
+  },
+  {
+    "budgetId": "bud-ptp-003",
+    "customerId": "cust-ptp-001",
+    "category": "groceries",
+    "monthlyLimit": 310.0,
+    "spentToDate": 284.63,
+    "period": "2026-05"
+  }
+]

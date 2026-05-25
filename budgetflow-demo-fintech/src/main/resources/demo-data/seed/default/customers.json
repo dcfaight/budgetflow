@@ -1,0 +1,16 @@
+[
+  {
+    "customerId": "cust-seed-001",
+    "firstName": "Avery",
+    "lastName": "Carter",
+    "email": "avery.carter+demo@budgetflow.test",
+    "segment": "everyday-banking"
+  },
+  {
+    "customerId": "cust-seed-002",
+    "firstName": "Jordan",
+    "lastName": "Reed",
+    "email": "jordan.reed+demo@budgetflow.test",
+    "segment": "family-household"
+  }
+]

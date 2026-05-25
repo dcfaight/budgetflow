@@ -1,0 +1,68 @@
+[
+  {
+    "id": "txn-msc-001",
+    "accountId": "acc-123",
+    "postedAt": "2026-05-24T08:05:00Z",
+    "merchant": "Corner Coffee",
+    "category": "food_and_drink",
+    "amount": 3.85,
+    "direction": "debit",
+    "channel": "card",
+    "description": "Coffee"
+  },
+  {
+    "id": "txn-msc-002",
+    "accountId": "acc-123",
+    "postedAt": "2026-05-24T09:10:00Z",
+    "merchant": "Metro Kiosk",
+    "category": "transportation",
+    "amount": 2.75,
+    "direction": "debit",
+    "channel": "card",
+    "description": "Subway fare"
+  },
+  {
+    "id": "txn-msc-003",
+    "accountId": "acc-123",
+    "postedAt": "2026-05-24T12:40:00Z",
+    "merchant": "Quick Bites",
+    "category": "food_and_drink",
+    "amount": 8.2,
+    "direction": "debit",
+    "channel": "card",
+    "description": "Lunch"
+  },
+  {
+    "id": "txn-msc-004",
+    "accountId": "acc-123",
+    "postedAt": "2026-05-24T15:18:00Z",
+    "merchant": "Office Vending",
+    "category": "food_and_drink",
+    "amount": 2.15,
+    "direction": "debit",
+    "channel": "card",
+    "description": "Snack"
+  },
+  {
+    "id": "txn-msc-005",
+    "accountId": "acc-123",
+    "postedAt": "2026-05-24T18:03:00Z",
+    "merchant": "Neighborhood Pharmacy",
+    "category": "healthcare",
+    "amount": 6.49,
+    "direction": "debit",
+    "channel": "card",
+    "description": "OTC supplies"
+  },
+  {
+    "id": "txn-msc-006",
+    "accountId": "acc-123",
+    "postedAt": "2026-05-24T21:22:00Z",
+    "merchant": "Late Night Market",
+    "category": "groceries",
+    "amount": 11.34,
+    "direction": "debit",
+    "channel": "card",
+    "description": "Top-up groceries"
+  }
+]

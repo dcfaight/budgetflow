@@ -1,0 +1,9 @@
+[
+  {
+    "customerId": "cust-smi-001",
+    "firstName": "Taylor",
+    "lastName": "Morgan",
+    "email": "taylor.morgan+stable@budgetflow.test",
+    "segment": "salary-earner"
+  }
+]

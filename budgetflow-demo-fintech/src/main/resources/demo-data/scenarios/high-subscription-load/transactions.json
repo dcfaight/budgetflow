@@ -1,0 +1,57 @@
+[
+  {
+    "id": "txn-hsl-001",
+    "accountId": "acc-123",
+    "postedAt": "2026-05-24T16:20:00Z",
+    "merchant": "Payroll Deposit",
+    "category": "income",
+    "amount": 2350.0,
+    "direction": "credit",
+    "channel": "ach",
+    "description": "Biweekly salary"
+  },
+  {
+    "id": "txn-hsl-002",
+    "accountId": "acc-123",
+    "postedAt": "2026-05-15T05:00:00Z",
+    "merchant": "StreamFlix",
+    "category": "subscriptions",
+    "amount": 18.99,
+    "direction": "debit",
+    "channel": "card",
+    "description": "Monthly streaming"
+  },
+  {
+    "id": "txn-hsl-003",
+    "accountId": "acc-123",
+    "postedAt": "2026-05-15T05:02:00Z",
+    "merchant": "FitLoop Premium",
+    "category": "subscriptions",
+    "amount": 29.99,
+    "direction": "debit",
+    "channel": "card",
+    "description": "Fitness app"
+  },
+  {
+    "id": "txn-hsl-004",
+    "accountId": "acc-123",
+    "postedAt": "2026-05-15T05:04:00Z",
+    "merchant": "Cloud Notes Pro",
+    "category": "subscriptions",
+    "amount": 12.0,
+    "direction": "debit",
+    "channel": "card",
+    "description": "Productivity app"
+  },
+  {
+    "id": "txn-hsl-005",
+    "accountId": "acc-123",
+    "postedAt": "2026-05-15T05:06:00Z",
+    "merchant": "GameBox Plus",
+    "category": "subscriptions",
+    "amount": 21.99,
+    "direction": "debit",
+    "channel": "card",
+    "description": "Gaming service"
+  }
+]
