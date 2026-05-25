@@ -34,17 +34,23 @@ http://localhost:8080/dashboard/evaluator
 ```
 
 Use it to browse scenarios, switch profiles, inspect request-level outcomes, and review planner trace reasoning in a visual prototype surface.
-The page now provides a first-time evaluator “Start here” section, guided pack progression, and conservative interpretation callouts.
+The page now provides first-time “Start here” guidance plus walkthrough-mode progression, recommended next comparisons, profile recommendation callouts, compact analytics cards, and compressed planner explainability sections.
 
 Observe:
 - guided progression and profile-chooser recommendations (`default` then `adoption`/`realism`, `balanced` first)
+- walkthrough steps (`start`, `compare`, `profile`, `trace`) for intentional evaluator flow
+- recommended next comparison links for next scenario/profile moves
 - `diagnostics.degraded`
 - omitted/fallback/approximated task lists
 - budget-fit bars (planned work vs request budget, remaining headroom)
+- compact analytics snapshot cards (selected fit, adaptive-vs-naive work delta, degraded count)
 - decision trace reasons and `plannedExecutionLatency`
 - decision-path summary chips for quick path reading before table inspection
+- planner lanes grouped by importance (mandatory / important / optional)
+- signal-to-decision compressed mapping (`pressure` and `layer` counts)
+- trace compression section listing changed decisions before full table review
 - decision layer + fit/savings markers in reasons (`layer=...`, `fit=...`, `savings=...`)
-- profile comparison deltas vs balanced (`Δwork`, `Δexec`, `Δdegrade`) as directional evidence
+- profile comparison deltas vs balanced (`Δwork`, `Δexec`, `Δdegrade`) plus compact visual diff chips as directional evidence
 - `executionSummary` for a compact human-readable interpretation of the response
 
 If this path is not clear yet, stop here and review `docs/quickstart.md` before moving into harness output.
