@@ -7,7 +7,7 @@
 [![Status: Prototype](https://img.shields.io/badge/status-prototype-orange.svg)](#current-status)
 [![Version: 0.x](https://img.shields.io/badge/version-0.x-lightgrey.svg)](#current-status)
 
-BudgetFlow is a polished prototype for adaptive orchestration under latency budgets and runtime pressure. The reusable core is a Spring Boot-oriented framework for planning related work together, degrading it deliberately, and explaining the resulting response; the fintech application in this repository is the reference demo/evaluator that makes those behaviors concrete.
+BudgetFlow is a polished prototype for adaptive orchestration under latency budgets and runtime pressure. The reusable core is a Spring Boot-oriented framework for planning related work together, degrading it deliberately, and explaining the resulting response; the fintech application in this repository is the reference demo/evaluator that makes those behaviors concrete. A minimal `AgentWorkSpec` adapter now provides an agent-oriented vocabulary that compiles to the same core planning model.
 
 > **Prototype status:** polished and evaluator-ready for realistic Spring Boot demos; not production-hardened, benchmark-certified, or API-stable as a platform claim.
 
@@ -43,7 +43,7 @@ If you are exploring the repository for the first time, use this sequence:
 - **What is fintech-demo-specific:** `budgetflow-demo-fintech`, its dashboard domain model, datasets, evaluator UI, comparison harness, and scenario narratives.
 - **What problem the framework solves:** it helps services preserve the most valuable work when not everything can fit, instead of treating every downstream call as equally important until timeout.
 - **Why the evaluator exists:** it is the concrete reference workload used to inspect planner behavior, validate explainability, and share scenario evidence without claiming the fintech demo is the product.
-- **Future direction:** the same orchestration model can extend to multi-agent systems where agents, tools, and subtasks compete for latency and budget headroom; see [docs/agent-orchestration.md](docs/agent-orchestration.md).
+- **Future direction:** the same orchestration model can extend to multi-agent systems where agents, tools, and subtasks compete for latency and budget headroom. The new `AgentWorkSpec` is the first thin adapter toward that direction, without introducing a second orchestration engine; see [docs/agent-orchestration.md](docs/agent-orchestration.md).
 
 ## Quickstart first (5 minutes)
 
@@ -167,6 +167,7 @@ Use lower-level contracts when you need explicit framework/infrastructure contro
 
 - `AdaptiveExecutor`
 - `TaskSpec<T>`
+- `AgentWorkSpec<T>` (optional adapter from agent-oriented work descriptors to `TaskSpec`)
 - `RequestExecutionResult`
 
 Demo/comparison helpers (for example, the fintech benchmark harness and scenario packs) are sample tooling, not the preferred framework entry path.
@@ -249,6 +250,7 @@ The lower-level `TaskSpec<T>` / `RequestExecutionResult` model remains available
 - named planner policy profiles (`balanced`/`default`, `continuity`, `efficiency`) with deterministic semantics and balanced default behavior
 - Spring Boot planner profile selection via `budgetflow.planner.profile` (legacy alias: `budgetflow.planner.policy-profile`)
 - typed task result access via `TaskKey<T>` and `AdaptiveRequestResult`
+- optional `AgentWorkSpec<T>` adapter for agent/tool/subtask vocabulary while reusing existing planner/executor semantics
 - policy-driven execution mode selection
 - deterministic mandatory-first planning
 - per-task decision trace

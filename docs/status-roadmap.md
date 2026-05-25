@@ -69,7 +69,7 @@ This direction is intentionally documentation-first so future implementation PRs
 - document how existing planner/runtime abstractions map to agents, tools, and subtasks
 
 ### Phase 2: minimal agent abstraction layer
-- add a thin agent-work descriptor layer on top of the existing task model
+- add a thin agent-work descriptor layer on top of the existing task model (started with `AgentWorkSpec<T>`)
 - preserve current planner semantics and explainability instead of introducing a separate orchestration engine
 
 ### Phase 3: sample orchestrated agent workflow

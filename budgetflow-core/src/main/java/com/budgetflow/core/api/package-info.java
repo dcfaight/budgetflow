@@ -6,6 +6,7 @@
  *   <li>{@link com.budgetflow.core.api.TaskKey}</li>
  *   <li>{@link com.budgetflow.core.api.AdaptiveRequest}</li>
  *   <li>{@link com.budgetflow.core.api.AdaptiveRequestResult}</li>
+ *   <li>{@link com.budgetflow.core.api.AgentWorkSpec} (optional agent-oriented adapter)</li>
  * </ul>
  *
  * <p>Core foundational/advanced contracts:
