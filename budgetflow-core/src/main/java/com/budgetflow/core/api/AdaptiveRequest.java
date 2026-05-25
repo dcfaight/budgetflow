@@ -295,6 +295,18 @@ public final class AdaptiveRequest {
             return this;
         }
 
+        /**
+         * Adds a fully configured {@link AgentWorkSpec} by adapting it to
+         * the existing {@link TaskSpec}-based execution model.
+         *
+         * @throws IllegalArgumentException if the key's name does not match
+         *                                  the work spec's name
+         */
+        public <T> Builder agentWork(TaskKey<T> key, AgentWorkSpec<T> workSpec) {
+            Objects.requireNonNull(workSpec, "workSpec must not be null");
+            return task(key, workSpec.toTaskSpec());
+        }
+
         /** Builds the immutable {@link AdaptiveRequest}. */
         public AdaptiveRequest build() {
             if (specs.isEmpty()) {

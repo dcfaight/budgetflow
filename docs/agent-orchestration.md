@@ -66,11 +66,11 @@ The existing planner, request budget model, execution modes, diagnostics, and de
 The extension should add an agent-oriented layer above the current task model rather than replacing it.
 
 ### Add a minimal agent work descriptor layer
-A future phase could introduce a thin descriptor that maps agent work onto today's task concepts.
+The first minimal foothold now exists as `AgentWorkSpec<T>` in `budgetflow-core`: a thin descriptor that maps directly to `TaskSpec<T>` and reuses the existing planner/executor semantics.
 
 Possible extension points:
 
-- `AgentWorkSpec<T>` or equivalent wrapper around `TaskSpec<T>`
+- `AgentWorkSpec<T>` wrapper around `TaskSpec<T>` (initially implemented as a vocabulary adapter)
 - `AgentExecutionPath` metadata for primary/fallback/approximate options
 - `AgentRuntimeSignals` adapter that feeds model/tool/runtime pressure into the existing pressure abstraction
 - `AgentDecisionMetadata` for agent/tool-specific trace fields layered on top of the current decision trace

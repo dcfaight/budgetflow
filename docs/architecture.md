@@ -27,6 +27,7 @@ BudgetFlow then:
 ## Public API layering
 
 - **Preferred application-facing API:** `TaskKey<T>`, `AdaptiveRequest`, `AdaptiveRequestResult`
+- **Optional agent-oriented adapter:** `AgentWorkSpec<T>` (maps directly to `TaskSpec<T>`)
 - **Core foundational contracts:** `AdaptiveExecutor`, `TaskSpec<T>`, `RequestExecutionResult`, `TaskResult<T>`, `ExecutionBudget`
 - **Demo-only utilities:** dashboard comparison harness/scenarios/reporting under `com.budgetflow.demo.fintech.benchmark`
 
@@ -58,7 +59,7 @@ These pieces validate and explain the framework; they are not the framework boun
 The evaluator exists so a reviewer can inspect how the reusable orchestration model behaves under realistic pressure narratives without having to infer planner semantics from tests or source code alone. It is evidence and explanation tooling, not the product definition.
 
 ### Future direction
-The same framework concepts can extend to agent orchestration where the planned work items are agents, tools, and subtasks instead of dashboard calls. See [agent-orchestration.md](agent-orchestration.md) for the proposed extension architecture.
+The same framework concepts can extend to agent orchestration where the planned work items are agents, tools, and subtasks instead of dashboard calls. `AgentWorkSpec<T>` is the first minimal adapter in that direction and intentionally compiles to the existing `TaskSpec<T>` model. See [agent-orchestration.md](agent-orchestration.md) for the proposed extension architecture.
 
 ---
 
