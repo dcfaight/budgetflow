@@ -24,6 +24,16 @@ import java.util.regex.Pattern;
 public class DemoDatasetCatalog {
     private static final Pattern DATASET_PATTERN = Pattern.compile("[a-z0-9-]+(?:/[a-z0-9-]+)+");
     private static final String DEFAULT_DATASET = "seed/default";
+    private static final List<String> AVAILABLE_DATASET_IDS = List.of(
+        "seed/default",
+        "scenarios/stable-monthly-income",
+        "scenarios/irregular-gig-income",
+        "scenarios/high-subscription-load",
+        "scenarios/overspending-user",
+        "scenarios/low-cash-buffer",
+        "scenarios/many-small-card-transactions",
+        "scenarios/paycheck-to-paycheck-user"
+    );
 
     private final ResourceLoader resourceLoader;
     private final ObjectMapper objectMapper;
@@ -53,8 +63,21 @@ public class DemoDatasetCatalog {
         return selectedDatasetId;
     }
 
+    public List<String> availableDatasetIds() {
+        return AVAILABLE_DATASET_IDS;
+    }
+
     public Balance resolveBalance(String accountId) {
         DatasetPack datasetPack = loadDataset(selectedDatasetId);
+        return resolveBalance(datasetPack, accountId);
+    }
+
+    public Balance resolveBalance(String accountId, String datasetId) {
+        DatasetPack datasetPack = loadDataset(datasetId);
+        return resolveBalance(datasetPack, accountId);
+    }
+
+    private Balance resolveBalance(DatasetPack datasetPack, String accountId) {
         DemoAccount account = datasetPack.accountById().get(accountId);
         if (account != null) {
             return new Balance(account.accountId(), account.availableBalance());
@@ -64,6 +87,15 @@ public class DemoDatasetCatalog {
 
     public List<Transaction> resolveTransactions(String accountId) {
         DatasetPack datasetPack = loadDataset(selectedDatasetId);
+        return resolveTransactions(datasetPack, accountId);
+    }
+
+    public List<Transaction> resolveTransactions(String accountId, String datasetId) {
+        DatasetPack datasetPack = loadDataset(datasetId);
+        return resolveTransactions(datasetPack, accountId);
+    }
+
+    private List<Transaction> resolveTransactions(DatasetPack datasetPack, String accountId) {
         return datasetPack.transactionsByAccountId()
             .getOrDefault(accountId, List.of())
             .stream()
@@ -99,6 +131,8 @@ public class DemoDatasetCatalog {
                 "Seed / baseline demo dataset",
                 "Baseline fintech demo data used for default walkthroughs and smoke checks.",
                 "Expect stable evaluator behavior and deterministic sample responses.",
+                "Synthetic baseline consumer profiles with predictable balances and recurring spend.",
+                "Verify baseline budget fit, low degradation pressure, and stable planner decisions.",
                 "Representative synthetic baseline traffic.",
                 "All records are synthetic and sanitized. No production or personal data."
             );
@@ -212,6 +246,8 @@ public class DemoDatasetCatalog {
         String displayName,
         String intent,
         String expectedEvaluatorBehavior,
+        String customerProfileSummary,
+        String whatToLookFor,
         String realWorldPattern,
         String sanitizedNotice
     ) {

@@ -21,7 +21,7 @@ If you are exploring the repository for the first time, use this sequence:
 
 1. **Framework quickstart:** [docs/quickstart.md](docs/quickstart.md)
 2. **Guided local walkthrough:** `./gradlew :budgetflow-demo-fintech:runDashboardWalkthrough`
-3. **Visual evaluator dashboard:** run `./gradlew :budgetflow-demo-fintech:bootRun`, then open `http://localhost:8080/dashboard/evaluator` (includes multi-scenario storyline synthesis, walkthrough-mode narrative guidance, compact analytics/trend cards, and deeper planner signal/path/layer explainability cues)
+3. **Visual evaluator dashboard:** run `./gradlew :budgetflow-demo-fintech:bootRun`, then open `http://localhost:8080/dashboard/evaluator` (includes multi-scenario storyline synthesis, walkthrough-mode narrative guidance, compact analytics/trend cards, deeper planner signal/path/layer explainability cues, and scenario-lab dataset switching/compare controls)
 4. **Evaluation runbook:** [docs/evaluate.md](docs/evaluate.md)
 5. **Planner defaults vs customization:** [docs/planner-customization.md](docs/planner-customization.md)
 6. **Architecture + extension boundaries:** [docs/architecture.md](docs/architecture.md)

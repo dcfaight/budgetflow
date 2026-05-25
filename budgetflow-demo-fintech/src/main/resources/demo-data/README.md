@@ -73,6 +73,14 @@ export BUDGETFLOW_DEMO_DATASET=scenarios/overspending-user
 ./gradlew :budgetflow-demo-fintech:bootRun
 ```
 
+Evaluator UI runtime selector (no restart required):
+
+```text
+http://localhost:8080/dashboard/evaluator?dataset=scenarios/overspending-user
+```
+
+Use `compareDatasets=<dataset-a>,<dataset-b>` for quick side-by-side comparison in the scenario lab table.
+
 ## Extending with new scenarios
 
 1. Create `demo-data/scenarios/<new-scenario>/`.

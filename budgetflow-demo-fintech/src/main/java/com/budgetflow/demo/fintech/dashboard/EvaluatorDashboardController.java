@@ -16,9 +16,14 @@ import java.util.stream.Collectors;
 public class EvaluatorDashboardController {
     private static final List<String> SUPPORTED_PACKS = List.of("default", "extended", "realism", "policy", "adoption");
     private final EvaluatorDashboardService evaluatorDashboardService;
+    private final DemoDatasetCatalog demoDatasetCatalog;
 
-    public EvaluatorDashboardController(EvaluatorDashboardService evaluatorDashboardService) {
+    public EvaluatorDashboardController(
+        EvaluatorDashboardService evaluatorDashboardService,
+        DemoDatasetCatalog demoDatasetCatalog
+    ) {
         this.evaluatorDashboardService = evaluatorDashboardService;
+        this.demoDatasetCatalog = demoDatasetCatalog;
     }
 
     @GetMapping(value = "/dashboard/evaluator", produces = MediaType.TEXT_HTML_VALUE)
@@ -28,6 +33,8 @@ public class EvaluatorDashboardController {
         @RequestParam(name = "compareScenarios", required = false) String compareScenarios,
         @RequestParam(name = "profile", defaultValue = "balanced") String profileName,
         @RequestParam(name = "compareProfiles", defaultValue = "balanced,continuity,efficiency") String compareProfiles,
+        @RequestParam(name = "dataset", required = false) String datasetId,
+        @RequestParam(name = "compareDatasets", required = false) String compareDatasets,
         @RequestParam(name = "walkthroughStep", required = false) String walkthroughStep
     ) {
         String safePack = sanitizePack(packName);
@@ -36,12 +43,16 @@ public class EvaluatorDashboardController {
         String safeScenario = sanitizeScenarioName(scenarioName, resolvedPack);
         String safeCompareScenarios = sanitizeCompareScenarios(compareScenarios, resolvedPack, safeScenario);
         String safeCompareProfiles = sanitizeCompareProfiles(compareProfiles, safeProfile);
+        String safeDatasetId = sanitizeDatasetId(datasetId);
+        String safeCompareDatasets = sanitizeCompareDatasets(compareDatasets, safeDatasetId);
         return evaluatorDashboardService.render(
             safePack,
             safeScenario,
             safeCompareScenarios,
             safeProfile.configName(),
             safeCompareProfiles,
+            safeDatasetId,
+            safeCompareDatasets,
             walkthroughStep
         );
     }
@@ -105,6 +116,39 @@ public class EvaluatorDashboardController {
             .collect(Collectors.toList());
         if (sanitized.isEmpty() && selectedScenario != null && !selectedScenario.isBlank()) {
             return selectedScenario;
+        }
+        return String.join(",", sanitized);
+    }
+
+    private String sanitizeDatasetId(String datasetId) {
+        if (datasetId == null || datasetId.isBlank()) {
+            return demoDatasetCatalog.selectedDatasetId();
+        }
+        String normalized = datasetId.trim().toLowerCase();
+        if (demoDatasetCatalog.availableDatasetIds().contains(normalized)) {
+            return normalized;
+        }
+        return demoDatasetCatalog.selectedDatasetId();
+    }
+
+    private String sanitizeCompareDatasets(String compareDatasets, String selectedDatasetId) {
+        if (compareDatasets == null || compareDatasets.isBlank()) {
+            return selectedDatasetId;
+        }
+        List<String> supportedDatasetIds = demoDatasetCatalog.availableDatasetIds();
+        List<String> sanitized = Arrays.stream(compareDatasets.split(","))
+            .map(String::trim)
+            .map(String::toLowerCase)
+            .filter(value -> !value.isBlank())
+            .filter(supportedDatasetIds::contains)
+            .distinct()
+            .limit(2)
+            .collect(Collectors.toCollection(java.util.ArrayList::new));
+        if (!sanitized.contains(selectedDatasetId) && sanitized.size() < 2) {
+            sanitized.add(selectedDatasetId);
+        }
+        if (sanitized.isEmpty()) {
+            sanitized.add(selectedDatasetId);
         }
         return String.join(",", sanitized);
     }

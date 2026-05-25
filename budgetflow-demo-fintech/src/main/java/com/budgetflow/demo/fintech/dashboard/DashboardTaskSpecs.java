@@ -49,11 +49,28 @@ public final class DashboardTaskSpecs {
         OffersClient offersClient,
         InsightsClient insightsClient
     ) {
+        return forAccount(accountId, "", balanceClient, transactionClient, rewardsClient, offersClient, insightsClient);
+    }
+
+    public static AdaptiveRequest forAccount(
+        String accountId,
+        String datasetId,
+        BalanceClient balanceClient,
+        TransactionClient transactionClient,
+        RewardsClient rewardsClient,
+        OffersClient offersClient,
+        InsightsClient insightsClient
+    ) {
+        boolean useDatasetOverride = datasetId != null && !datasetId.isBlank();
         return AdaptiveRequest.builder()
             .mandatory(BALANCE_KEY, BALANCE_PRIMARY_LATENCY,
-                () -> balanceClient.getBalance(accountId))
+                () -> useDatasetOverride
+                    ? balanceClient.getBalance(accountId, datasetId)
+                    : balanceClient.getBalance(accountId))
             .mandatory(TRANSACTIONS_KEY, TRANSACTIONS_PRIMARY_LATENCY,
-                () -> transactionClient.getTransactions(accountId))
+                () -> useDatasetOverride
+                    ? transactionClient.getTransactions(accountId, datasetId)
+                    : transactionClient.getTransactions(accountId))
             .importantWithFallback(REWARDS_KEY, REWARDS_PRIMARY_LATENCY,
                 () -> rewardsClient.getRewards(accountId),
                 REWARDS_FALLBACK_LATENCY,

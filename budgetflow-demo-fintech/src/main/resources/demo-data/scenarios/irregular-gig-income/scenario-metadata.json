@@ -3,6 +3,8 @@
   "displayName": "Irregular gig income",
   "intent": "Capture uneven payout timing with bursts of credits and narrow cash cushions between payouts.",
   "expectedEvaluatorBehavior": "Evaluator should highlight variable income risk and sensitivity to timing gaps even with similar monthly totals.",
+  "customerProfileSummary": "Gig-income profile with uneven credits and tight mid-cycle liquidity.",
+  "whatToLookFor": "Rising cash pressure between payouts and higher sensitivity to debit spikes.",
   "realWorldPattern": "App-based gig payouts and ad-hoc freelance transfers.",
   "sanitizedNotice": "All entities, amounts, and identifiers are fabricated for non-production testing."
 }
