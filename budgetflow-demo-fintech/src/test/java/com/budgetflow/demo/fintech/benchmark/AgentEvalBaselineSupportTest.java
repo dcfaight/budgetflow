@@ -40,13 +40,13 @@ class AgentEvalBaselineSupportTest {
                         summary.scenario(),
                         summary.executionStrategy(),
                         summary.policyProfile(),
-                        4,
-                        List.of(DashboardTaskSpecs.INSIGHTS_TASK),
+                        3,
+                        List.of(DashboardTaskSpecs.BALANCE_TASK, DashboardTaskSpecs.INSIGHTS_TASK),
                         summary.fallbackTasks(),
                         summary.approximatedTasks(),
                         true,
                         summary.projectedWork().plusMillis(20),
-                        List.of("insights=omitted_for_delta_test")
+                        List.of("balance=omitted_for_delta_test")
                     )
                     : summary
                 )
@@ -62,11 +62,11 @@ class AgentEvalBaselineSupportTest {
 
             assertTrue(markdown.contains("# BudgetFlow evidence delta"));
             assertTrue(markdown.contains("agent_coordination_healthy"));
-            assertTrue(markdown.contains("expected → cautionary"));
+            assertTrue(markdown.contains("| budgetflow_adaptive | balanced |"));
             assertTrue(markdown.contains("regression"));
             assertTrue(json.contains("\"changedScenarioCount\""));
-            assertTrue(json.contains("\"currentAssessment\" : \"cautionary\"")
-                || json.contains("\"currentAssessment\":\"cautionary\""));
+            assertTrue(json.contains("\"kind\" : \"regression\"")
+                || json.contains("\"kind\":\"regression\""));
 
             Path outDir = Files.createTempDirectory("agent-eval-baseline-test");
             Path baselineDir = AgentEvalBaselineSupport.saveBaseline(
