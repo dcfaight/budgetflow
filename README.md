@@ -32,6 +32,9 @@ If you are exploring the repository for the first time, use this sequence:
 9. **Agent demo slice:** `./gradlew :budgetflow-demo-fintech:runAgentTurnDemo` — minimal proof that `AgentWorkSpec` fits the existing model (retrieve → verify → enrich → follow-up actions, healthy + constrained + pressure-spike scenarios)
 10. **Agent boundary-case scenarios:** `./gradlew :budgetflow-demo-fintech:runAgentCoordinationDemo` — coordination (plan → two parallel fetches → consolidate → polish), degraded-cascade, and balanced vs latency_first profile comparison
 11. **Reproducible agent evaluation report:** `./gradlew :budgetflow-demo-fintech:runAgentEvalReport` — generates stable `agent-eval-report.json` and `agent-eval-report.md` in `build/eval-reports/` with all four profiles in one command; save a baseline with `--save-baseline=<name>` and compare later with `--compare-to=<name>`
+12. **Adoption guide:** [docs/adoption-guide.md](docs/adoption-guide.md) — map real endpoint types to profiles, understand mandatory/important/optional partitioning, and use evaluation artifacts to support design decisions
+13. **Scenario catalog:** [docs/scenario-catalog.md](docs/scenario-catalog.md) — organized taxonomy of all scenarios by pack, endpoint intent, pressure mode, and degradation style
+14. **Baseline management:** [docs/baseline-management.md](docs/baseline-management.md) — when to save or refresh baselines, how to interpret delta severity, and how to handle expected vs suspicious drift
 
 ## Why this matters in the first minute
 
@@ -69,10 +72,33 @@ If you want the shortest guided local tour, run:
 ```
 
 If you are evaluating BudgetFlow for potential adoption, continue with:
-[docs/evaluate.md](docs/evaluate.md)
+[docs/evaluate.md](docs/evaluate.md) and [docs/adoption-guide.md](docs/adoption-guide.md).
 
 If you are evaluating planner variants or extension boundaries, continue with:
 [docs/planner-customization.md](docs/planner-customization.md)
+
+## CI / reviewer automation
+
+The `eval-report` GitHub Actions workflow (`.github/workflows/eval-report.yml`) runs
+`runAgentEvalReport` automatically on every push and pull request to `develop`.  It uploads
+`agent-eval-report.json` and `agent-eval-report.md` as a downloadable artifact named
+`agent-eval-report` and posts a compact evidence summary as a PR comment.
+
+For the local reviewer loop (baseline save + compare):
+
+```bash
+# Save a known-good baseline before starting a PR
+./gradlew :budgetflow-demo-fintech:runAgentEvalReport --args="--save-baseline=mainline"
+
+# On the feature branch, compare against that baseline
+./gradlew :budgetflow-demo-fintech:runAgentEvalReport --args="--compare-to=mainline"
+
+# Review the compact delta packet
+open budgetflow-demo-fintech/build/eval-reports/agent-eval-delta.md
+```
+
+See [docs/evaluate.md#reviewer-workflow-for-prs](docs/evaluate.md#reviewer-workflow-for-prs)
+and [docs/baseline-management.md](docs/baseline-management.md) for the full review workflow.
 
 ## Package consumption at a glance
 
