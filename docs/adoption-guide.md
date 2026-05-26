@@ -7,6 +7,7 @@ service or endpoint class.
 For framework quickstart see [quickstart.md](quickstart.md).
 For profile configuration see [planner-customization.md](planner-customization.md).
 For evaluation runbook see [evaluate.md](evaluate.md).
+For complete end-to-end playbooks, see [reference-journeys.md](reference-journeys.md).
 
 ---
 
@@ -40,47 +41,25 @@ Use this anti-shallow check before finalizing classifications:
 
 ---
 
-## 2) Reference integration blueprints (endpoint/service patterns)
+## 2) Choose a reference journey (recommended starting point)
 
-Use these as starting templates, then tune with your own SLOs and domain constraints.
+Use the canonical end-to-end playbooks in [reference-journeys.md](reference-journeys.md).
+They provide concise, checklist-driven flows from endpoint design through evaluation, review,
+and baseline refresh decisions.
 
-### Blueprint A — Customer-facing assistant endpoint
-
-| Aspect | Guidance |
-|-------|----------|
-| **Likely posture** | Moderate latency budget, user-visible quality pressure, continuity matters |
-| **Work partitioning** | Mandatory: response framing + safety checks; Important: conversation memory lookup with cached summary fallback; Optional: personalization and speculative tool enrichment |
-| **Profile choice** | Start `balanced`; move to `continuity` when context fidelity matters more than strict headroom; move to `efficiency` for tighter response-time targets |
-| **Good adaptive behavior** | Mandatory steps always execute; memory lookup degrades to cached summary before omission; optional enrichments drop first under stress |
-| **Evaluation evidence** | `adoption` pack for realistic storyline, `policy` pack for `balanced` vs `continuity`; inspect scorecards, omitted/fallback lists, and decision-trace reasons (`layer=...`, `fit=...`, `savings=...`) |
-
-### Blueprint B — Real-time API path
-
-| Aspect | Guidance |
-|-------|----------|
-| **Likely posture** | Tight latency budget, high request rate, headroom preservation dominates |
-| **Work partitioning** | Mandatory: response-critical decision/data; Important: only if fallback is very cheap and deterministic; Optional: all non-critical enrichment |
-| **Profile choice** | Start `latency_first`; consider `efficiency` only when cheap optional fallback paths should still be explored |
-| **Good adaptive behavior** | Mandatory path remains stable; optional work is proactively omitted under stress; no surprise mandatory degradation |
-| **Evaluation evidence** | `agent` pack with `--policies=balanced,latency_first`; confirm headroom improvement and profile-intent-consistent optional omission |
-
-### Blueprint C — Background enrichment workflow
-
-| Aspect | Guidance |
-|-------|----------|
-| **Likely posture** | Asynchronous/batch flow, queue pressure sensitivity, partial enrichment still valuable |
-| **Work partitioning** | Mandatory: entity identity and commit-safe output; Important: primary enrichment with cached/reduced fallback; Optional: secondary annotations or speculative signals |
-| **Profile choice** | Start `continuity`; switch to `efficiency` when queue drain speed/throughput is prioritized over enrichment coverage |
-| **Good adaptive behavior** | Workflow keeps producing valid partial enrichment under pressure; fallback usage increases before omission spikes |
-| **Evaluation evidence** | `realism` pack for pressure variety plus `policy` pack (`continuity` vs `efficiency`); inspect degraded-state rates, fallback alignment, and hotspot severity in delta reports |
+| Endpoint/service intent | Journey |
+|---|---|
+| Customer-facing assistant with quality + continuity goals | Journey A — Customer-facing assistant |
+| Real-time API where headroom is the top priority | Journey B — Real-time API path |
+| Background enrichment where partial outputs still matter | Journey C — Background enrichment workflow |
 
 ---
 
-## 3) Compact walkthrough (blueprint → partitioning → profile → evidence)
+## 3) Compact walkthrough (journey → partitioning → profile → evidence)
 
 Use this lightweight flow for a new endpoint:
 
-1. Pick the closest blueprint above (for example, real-time API path).
+1. Pick the closest reference journey (for example, real-time API path).
 2. Partition each planned task with the rubric in section 1.
 3. Choose a starting profile by endpoint intent (`latency_first` for strict headroom, `balanced` otherwise).
 4. Run:
@@ -91,6 +70,7 @@ Use this lightweight flow for a new endpoint:
    - degraded behavior matches chosen profile intent
    - no unexplained `regression-risk` / `cautionary` hotspots in relevant scenarios
 6. Record endpoint intent + expected profile behavior in PR notes so reviewers can evaluate deltas against intent.
+7. Use the journey's review checklist to focus reviewer packet inspection.
 
 ---
 
@@ -117,38 +97,6 @@ BudgetFlow adoption is strongest when execution behavior is directly inspectable
 3. Inspect scorecards + decision traces before merging.
 4. Attach reviewer packet (`agent-eval-delta.md`) for behavior-changing PRs.
 5. Refresh baseline only after accepted intentional changes (see [baseline-management.md](baseline-management.md)).
-
----
-
-## 5) Additional endpoint patterns
-
-### Continuity-sensitive workflow
-
-**Characteristics:** multi-step/stateful execution where missing upstream results degrades downstream value.
-
-**Recommended starting profile:** `continuity`
-
-**Design guidance:**
-- Use `importantWithFallback(...)` for upstream dependencies consumed by later steps.
-- Promote to `MANDATORY` when downstream logic would be incorrect without the result.
-- Avoid labeling state-carrying dependencies as `OPTIONAL`.
-
-**Evaluation pack to use:** `adoption` and `agent` (especially coordination and degraded-cascade scenarios).
-
----
-
-### Budget-sensitive high-frequency endpoint
-
-**Characteristics:** very tight budgets at high frequency; realistic latency hints are critical.
-
-**Recommended starting profile:** `latency_first` (or `efficiency` when cheap fallbacks should still be attempted).
-
-**Design guidance:**
-- Supply `fallbackLatencyHint` / `approximateLatencyHint` for all degradable work.
-- Keep mandatory latency estimates realistic.
-- Prefer `optionalWithFallbackAndApproximate(...)` where fast degraded paths exist.
-
-**Evaluation pack to use:** `extended` + `agent`.
 
 ---
 

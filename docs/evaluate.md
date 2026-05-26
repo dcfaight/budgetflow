@@ -210,6 +210,17 @@ to `develop` and uploads the artifacts.  For the full baseline maintenance workf
 For a navigable map of all scenarios (grouped by endpoint intent, pressure mode, and degradation style),
 see [scenario-catalog.md](scenario-catalog.md).
 
+### Journey-linked reviewer focus (faster evidence triage)
+
+When a PR states endpoint intent, use the matching checklist in
+[reference-journeys.md](reference-journeys.md) to reduce review noise:
+
+- **Customer-facing assistant:** prioritize mixed-constraint scenarios and confirm fallback-before-omission continuity behavior.
+- **Real-time API path:** expect intentional optional omission under `latency_first`; investigate balanced-profile drift first.
+- **Background enrichment workflow:** confirm valid partial-output behavior and fallback growth before omission spikes.
+
+For all three, keep the same packet order: `agent-eval-delta.md` (`Top changes` → `Hotspots`) first, then `agent-eval-report.md` only where deeper scenario context is needed.
+
 ### Interpreting delta severity responsibly
 
 - **Increased omission/degradation is concerning** when it appears in `balanced`, causes new degraded states, or downgrades scorecard assessment (`expected/acceptable` → `cautionary/mismatched`).
