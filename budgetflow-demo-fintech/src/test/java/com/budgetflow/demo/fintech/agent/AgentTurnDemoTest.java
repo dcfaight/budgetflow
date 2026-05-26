@@ -2,6 +2,7 @@ package com.budgetflow.demo.fintech.agent;
 
 import com.budgetflow.core.api.AdaptiveRequestResult;
 import com.budgetflow.core.classification.ExecutionMode;
+import com.budgetflow.core.classification.Importance;
 import com.budgetflow.core.metadata.RequestExecutionDiagnosticsFormatter;
 import com.budgetflow.core.policy.DecisionTraceEntry;
 import com.budgetflow.core.policy.FixedPressureProvider;
@@ -11,7 +12,6 @@ import java.time.Duration;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class AgentTurnDemoTest {
@@ -21,14 +21,16 @@ class AgentTurnDemoTest {
         AdaptiveRequestResult result = AgentTurnDemo.runScenario(
             Duration.ofMillis(300), FixedPressureProvider.zero());
 
-        assertFalse(result.diagnostics().degraded(), "healthy scenario should not be degraded");
+        assertTrue(result.diagnostics().degraded(), "healthy scenario should include optional-path adaptation");
         assertTrue(result.diagnostics().omittedTaskNames().isEmpty(), "no steps should be omitted");
         assertTrue(result.diagnostics().fallbackTaskNames().isEmpty(), "no steps should use fallback");
+        assertTrue(result.diagnostics().approximatedTaskNames().contains("draft-follow-up-actions"),
+            "healthy scenario should still choose the lightweight optional follow-up path");
 
         List<DecisionTraceEntry> trace = result.decisionTrace();
-        assertEquals(3, trace.size(), "all 3 agent steps should appear in trace");
-        assertTrue(trace.stream().allMatch(e -> e.selectedExecutionMode() == ExecutionMode.EXECUTE),
-            "all steps should execute normally under healthy conditions");
+        assertEquals(4, trace.size(), "all 4 agent steps should appear in trace");
+        assertEquals(1, trace.stream().filter(e -> e.selectedExecutionMode() == ExecutionMode.EXECUTE_APPROXIMATE).count(),
+            "healthy scenario should include one approximated optional step");
     }
 
     @Test
@@ -39,6 +41,7 @@ class AgentTurnDemoTest {
         assertTrue(result.get(AgentTurnDemo.RETRIEVE_CONTEXT_KEY).isPresent());
         assertTrue(result.get(AgentTurnDemo.VERIFY_SOURCES_KEY).isPresent());
         assertTrue(result.get(AgentTurnDemo.ENRICH_WITH_EXAMPLES_KEY).isPresent());
+        assertTrue(result.get(AgentTurnDemo.DRAFT_FOLLOW_UP_ACTIONS_KEY).isPresent());
     }
 
     @Test
@@ -51,6 +54,8 @@ class AgentTurnDemoTest {
             "enrich-with-examples should be omitted when budget is tight");
         assertTrue(result.diagnostics().fallbackTaskNames().contains("verify-sources"),
             "verify-sources should fall back to cheaper heuristic path when budget is tight");
+        assertTrue(result.diagnostics().omittedTaskNames().contains("draft-follow-up-actions"),
+            "draft-follow-up-actions should be omitted when budget is very tight");
     }
 
     @Test
@@ -65,6 +70,19 @@ class AgentTurnDemoTest {
 
         assertEquals(ExecutionMode.EXECUTE, retrieveEntry.selectedExecutionMode(),
             "mandatory retrieve-context must always execute normally");
+    }
+
+    @Test
+    void pressureSpikeScenarioDegradesOptionalWork() {
+        AdaptiveRequestResult result = AgentTurnDemo.runScenario(
+            Duration.ofMillis(220), FixedPressureProvider.maximum());
+
+        List<DecisionTraceEntry> optionalEntries = result.decisionTrace().stream()
+            .filter(entry -> entry.taskImportance() == Importance.OPTIONAL)
+            .toList();
+        assertEquals(2, optionalEntries.size(), "agent turn should include two optional steps");
+        assertTrue(optionalEntries.stream().anyMatch(entry -> entry.selectedExecutionMode() != ExecutionMode.EXECUTE),
+            "at least one optional step should be downgraded or omitted under high pressure");
     }
 
     @Test
@@ -94,7 +112,7 @@ class AgentTurnDemoTest {
         Duration totalPlanned = healthy.decisionTrace().stream()
             .map(DecisionTraceEntry::plannedExecutionLatency)
             .reduce(Duration.ZERO, Duration::plus);
-        assertEquals(Duration.ofMillis(125), totalPlanned,
-            "total planned latency should equal sum of primary latencies (50+30+45)");
+        assertEquals(Duration.ofMillis(135), totalPlanned,
+            "total planned latency should include approximate follow-up path (50+30+45+10)");
     }
 }

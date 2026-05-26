@@ -318,7 +318,8 @@ public class EvaluatorDashboardService {
             return new ScenarioExecution(
                 diagnostics,
                 result.decisionTrace(),
-                RequestExecutionDiagnosticsFormatter.formatSummary(diagnostics, result.decisionTrace())
+                RequestExecutionDiagnosticsFormatter.formatSummary(diagnostics, result.decisionTrace()),
+                RequestExecutionDiagnosticsFormatter.formatAgentSteps(diagnostics, result.decisionTrace())
             );
         } finally {
             BudgetContextHolder.clear();
@@ -883,6 +884,12 @@ public class EvaluatorDashboardService {
             .append("<div class='mode-matrix'>")
             .append(signalToModeMatrix(execution.decisionTrace()))
             .append("</div>");
+
+        html.append("<h2>Agent-step view (compact explainability)</h2>")
+            .append("<p class='muted'>Same decision trace, rendered in an agent-step format to make step-level degrade/omit choices easier to scan.</p>")
+            .append("<div class='trace-summary'><pre style='margin:0;white-space:pre-wrap;'>")
+            .append(escape(execution.agentStepSummary()))
+            .append("</pre></div>");
 
         html.append("<h2>Planner lanes by importance</h2>")
             .append("<div class='row'>")
@@ -1805,7 +1812,8 @@ public class EvaluatorDashboardService {
     private record ScenarioExecution(
         RequestExecutionDiagnostics diagnostics,
         List<DecisionTraceEntry> decisionTrace,
-        String executionSummary
+        String executionSummary,
+        String agentStepSummary
     ) {
     }
 

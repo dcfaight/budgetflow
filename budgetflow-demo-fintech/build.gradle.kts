@@ -27,7 +27,7 @@ tasks.register<JavaExec>("runDashboardWalkthrough") {
 
 tasks.register<JavaExec>("runAgentTurnDemo") {
     group = "application"
-    description = "Runs the minimal AgentWorkSpec demo: one agent turn under healthy and constrained budget scenarios."
+    description = "Runs the minimal AgentWorkSpec demo: one agent turn under healthy, constrained-budget, and pressure-spike scenarios."
     classpath = sourceSets["main"].runtimeClasspath
     mainClass.set("com.budgetflow.demo.fintech.agent.AgentTurnDemo")
 }

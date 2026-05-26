@@ -22,14 +22,20 @@ import java.time.Duration;
  *   <li>{@code retrieve-context} — mandatory; must complete before the agent can answer</li>
  *   <li>{@code verify-sources} — important; improves reliability, degrades to a heuristic check</li>
  *   <li>{@code enrich-with-examples} — optional; adds supporting examples, can be omitted</li>
+ *   <li>{@code draft-follow-up-actions} — optional; adds proactive actions, can degrade to a
+ *       lightweight summary</li>
  * </ol>
  *
- * <p>Running under two scenarios demonstrates how the existing adaptive orchestration model
- * plans agent-style work items under latency budget pressure — without any new planning engine:
+ * <p>Running under three scenarios demonstrates how the existing adaptive orchestration model
+ * plans agent-style work items under latency budget and runtime pressure — without any new
+ * planning engine:
  * <ul>
- *   <li><b>Healthy</b> (300ms budget): all steps execute normally.</li>
+ *   <li><b>Healthy</b> (300ms budget): mandatory/important work executes and optional follow-up
+ *       work chooses its cheaper approximate path.</li>
  *   <li><b>Constrained</b> (70ms budget): verify-sources falls back to the cheaper heuristic
- *       path, and enrich-with-examples is omitted when the remaining budget cannot fit it.</li>
+ *       path, and both optional steps are omitted.</li>
+ *   <li><b>Pressure spike</b> (220ms budget, high system pressure): optional steps are downgraded
+ *       or skipped despite available budget headroom.</li>
  * </ul>
  *
  * <p>This is demo code, not a general-purpose agent framework. It exists to prove that
@@ -43,6 +49,7 @@ public final class AgentTurnDemo {
     static final TaskKey<String> RETRIEVE_CONTEXT_KEY    = TaskKey.of("retrieve-context");
     static final TaskKey<String> VERIFY_SOURCES_KEY      = TaskKey.of("verify-sources");
     static final TaskKey<String> ENRICH_WITH_EXAMPLES_KEY = TaskKey.of("enrich-with-examples");
+    static final TaskKey<String> DRAFT_FOLLOW_UP_ACTIONS_KEY = TaskKey.of("draft-follow-up-actions");
 
     private AgentTurnDemo() {
     }
@@ -70,10 +77,18 @@ public final class AgentTurnDemo {
             ENRICH_WITH_EXAMPLES_KEY, Duration.ofMillis(45),
             () -> "[enrich] 2 supporting examples added");
 
+        AgentWorkSpec<String> draftFollowUp = AgentWorkSpec.optional(
+            DRAFT_FOLLOW_UP_ACTIONS_KEY, Duration.ofMillis(35),
+            () -> "[follow-up] Drafted 3 follow-up actions")
+            .withApproximate(
+                () -> "[follow-up-lite] Drafted 1 high-priority follow-up action",
+                Duration.ofMillis(10));
+
         return AdaptiveRequest.builder()
             .agentWork(RETRIEVE_CONTEXT_KEY, retrieve)
             .agentWork(VERIFY_SOURCES_KEY, verify)
             .agentWork(ENRICH_WITH_EXAMPLES_KEY, enrich)
+            .agentWork(DRAFT_FOLLOW_UP_ACTIONS_KEY, draftFollowUp)
             .build();
     }
 
@@ -103,6 +118,7 @@ public final class AgentTurnDemo {
         System.out.println("=============================================================");
         System.out.println("Steps: retrieve-context (mandatory) → verify-sources (important, fallback available)");
         System.out.println("                                     → enrich-with-examples (optional)");
+        System.out.println("                                     → draft-follow-up-actions (optional, approximate available)");
         System.out.println();
 
         AdaptiveRequestResult healthy = runScenario(Duration.ofMillis(300), FixedPressureProvider.zero());
@@ -118,7 +134,14 @@ public final class AgentTurnDemo {
             constrained.diagnostics(), constrained.decisionTrace()));
 
         System.out.println();
-        System.out.println("The planner used the same execution model for both scenarios.");
+
+        AdaptiveRequestResult pressureSpike = runScenario(Duration.ofMillis(220), FixedPressureProvider.maximum());
+        System.out.println("Scenario: pressure_spike (220ms budget, high system pressure)");
+        System.out.println(RequestExecutionDiagnosticsFormatter.formatAgentSteps(
+            pressureSpike.diagnostics(), pressureSpike.decisionTrace()));
+
+        System.out.println();
+        System.out.println("The planner used the same execution model for all scenarios.");
         System.out.println("AgentWorkSpec compiled down to TaskSpec with no second planning engine.");
     }
 }

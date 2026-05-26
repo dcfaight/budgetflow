@@ -28,7 +28,7 @@ If you are exploring the repository for the first time, use this sequence:
 5. **Planner defaults vs customization:** [docs/planner-customization.md](docs/planner-customization.md)
 6. **Architecture + extension boundaries:** [docs/architecture.md](docs/architecture.md)
 7. **Agent orchestration direction:** [docs/agent-orchestration.md](docs/agent-orchestration.md)
-8. **Agent demo slice:** `./gradlew :budgetflow-demo-fintech:runAgentTurnDemo` — minimal proof that `AgentWorkSpec` fits the existing model (retrieve → verify → enrich, two budget scenarios)
+8. **Agent demo slice:** `./gradlew :budgetflow-demo-fintech:runAgentTurnDemo` — minimal proof that `AgentWorkSpec` fits the existing model (retrieve → verify → enrich → follow-up actions, healthy + constrained + pressure-spike scenarios)
 
 ## Why this matters in the first minute
 
@@ -44,7 +44,7 @@ If you are exploring the repository for the first time, use this sequence:
 - **What is fintech-demo-specific:** `budgetflow-demo-fintech`, its dashboard domain model, datasets, evaluator UI, comparison harness, and scenario narratives.
 - **What problem the framework solves:** it helps services preserve the most valuable work when not everything can fit, instead of treating every downstream call as equally important until timeout.
 - **Why the evaluator exists:** it is the concrete reference workload used to inspect planner behavior, validate explainability, and share scenario evidence without claiming the fintech demo is the product.
-- **Future direction:** the same orchestration model can extend to multi-agent systems where agents, tools, and subtasks compete for latency and budget headroom. `AgentWorkSpec` is a thin vocabulary adapter toward that direction — it compiles directly to `TaskSpec` and uses the same planner with no second orchestration engine. A minimal agent turn demo (`runAgentTurnDemo`) shows a retrieve → verify → enrich flow adapting under budget pressure. See [docs/agent-orchestration.md](docs/agent-orchestration.md).
+- **Future direction:** the same orchestration model can extend to multi-agent systems where agents, tools, and subtasks compete for latency and budget headroom. `AgentWorkSpec` is a thin vocabulary adapter toward that direction — it compiles directly to `TaskSpec` and uses the same planner with no second orchestration engine. A minimal agent turn demo (`runAgentTurnDemo`) shows retrieve → verify → enrich → follow-up work adapting under budget and pressure constraints. See [docs/agent-orchestration.md](docs/agent-orchestration.md).
 
 ## Quickstart first (5 minutes)
 
@@ -264,7 +264,7 @@ The lower-level `TaskSpec<T>` / `RequestExecutionResult` model remains available
 ### Fintech demo and evaluator capabilities
 
 - fintech dashboard demo application
-- lightweight evaluator dashboard UI for scenario/profile/trace exploration (`/dashboard/evaluator`), including multi-scenario storyline synthesis, walkthrough-mode storytelling guidance, compact comparison analytics, and grouped planner/signal explainability cues (budget fit, degradation states, profile deltas, lane grouping, signal-to-mode, branch-path deltas)
+- lightweight evaluator dashboard UI for scenario/profile/trace exploration (`/dashboard/evaluator`), including multi-scenario storyline synthesis, walkthrough-mode storytelling guidance, compact comparison analytics, grouped planner/signal explainability cues (budget fit, degradation states, profile deltas, lane grouping, signal-to-mode, branch-path deltas), and an agent-step formatted trace view for quick step-level degrade/omit interpretation
 - naive-vs-adaptive comparison harness with scenario packs, grouped reporting, and optional JSON output
 
 The fintech demo is the current reference workload for the framework. It exists to make adaptive-orchestration behavior reviewable, not to narrow BudgetFlow's identity to fintech-only usage.

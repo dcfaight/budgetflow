@@ -38,6 +38,7 @@ class EvaluatorDashboardIntegrationTest {
             .andExpect(content().string(containsString("Decision and branch path view")))
             .andExpect(content().string(containsString("Planner lanes by importance")))
             .andExpect(content().string(containsString("Signal-to-mode summary (explicit)")))
+            .andExpect(content().string(containsString("Agent-step view (compact explainability)")))
             .andExpect(content().string(containsString("Planner trace / explanation")))
             .andExpect(content().string(containsString("Execution summary:")))
             .andExpect(content().string(containsString("Prototype reminder")));
