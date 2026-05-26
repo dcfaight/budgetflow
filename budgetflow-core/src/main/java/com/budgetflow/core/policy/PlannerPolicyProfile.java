@@ -21,6 +21,12 @@ public enum PlannerPolicyProfile {
         "Efficiency",
         "Favors earlier optional omission to preserve latency headroom under stress.",
         List.of()
+    ),
+    LATENCY_FIRST(
+        "latency_first",
+        "Latency-first",
+        "Aggressively omits optional work at a low latency-ratio threshold to maximise remaining budget headroom. Best for real-time or high-frequency agent turns.",
+        List.of("latency", "fast")
     );
 
     private final String configName;

@@ -16,13 +16,13 @@
       "name": "budgetflow.planner.profile",
       "type": "java.lang.String",
       "defaultValue": "balanced",
-      "description": "Planner profile name (recommended property). Accepts balanced/default, continuity, or efficiency."
+      "description": "Planner profile name (recommended property). Accepts balanced/default, continuity, efficiency, or latency_first/latency/fast."
     },
     {
       "name": "budgetflow.planner.policy-profile",
       "type": "java.lang.String",
       "defaultValue": "balanced",
-      "description": "Legacy planner profile property. Accepts balanced/default, continuity, or efficiency."
+      "description": "Legacy planner profile property. Accepts balanced/default, continuity, efficiency, or latency_first/latency/fast."
     },
     {
       "name": "budgetflow.runtime-signals.enabled",

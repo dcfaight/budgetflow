@@ -13,6 +13,7 @@ public final class PlannerPolicyProfiles {
             case BALANCED -> new DefaultOptionalTaskModeSelector();
             case CONTINUITY -> new ContinuityOptionalTaskModeSelector();
             case EFFICIENCY -> new EfficiencyOptionalTaskModeSelector();
+            case LATENCY_FIRST -> new LatencyFirstOptionalTaskModeSelector();
         };
     }
 

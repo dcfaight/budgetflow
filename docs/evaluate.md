@@ -76,6 +76,17 @@ If you want a minimal non-UI proof point for agent-style work, run:
 
 This demo shows one agent turn with mandatory/important/optional steps across healthy, constrained-budget, and pressure-spike scenarios.
 
+For boundary-case scenarios (multi-step coordination, degraded-cascade, and profile comparison), run:
+
+```bash
+./gradlew :budgetflow-demo-fintech:runAgentCoordinationDemo
+```
+
+This demo covers:
+- **Coordination**: a plan step fans out to two parallel sub-agent fetches with cached fallbacks, then consolidates and polishes the result.
+- **Degraded-cascade**: the same work items under severe joint budget + pressure, causing all important steps to fall back simultaneously.
+- **Profile comparison**: the same healthy coordination turn under `balanced` vs `latency_first` to show how profile choice affects optional work.
+
 If this path is not clear yet, stop here and review `docs/quickstart.md` before moving into harness output.
 
 ## 2) Run scenario comparison packs
@@ -85,6 +96,7 @@ If this path is not clear yet, stop here and review `docs/quickstart.md` before 
 ./gradlew :budgetflow-demo-fintech:runDashboardComparison --args="--pack=adoption"
 ./gradlew :budgetflow-demo-fintech:runDashboardComparison --args="--pack=realism --json"
 ./gradlew :budgetflow-demo-fintech:runDashboardComparison --args="--pack=policy --policies=balanced,continuity,efficiency"
+./gradlew :budgetflow-demo-fintech:runDashboardComparison --args="--pack=agent --policies=balanced,latency_first"
 ```
 
 Observe per scenario:
@@ -101,6 +113,7 @@ Suggested progression:
 - `adoption` next for a compact, realistic storyline (control -> commuter mixed spike -> dominant DB bottleneck)
 - `realism` next for broader scenario evidence, including the clean budget-only path-aware case
 - `policy` when you need to choose a planner profile deliberately
+- `agent` for agent-step coordination and degraded-cascade boundary cases; pair with `--policies=balanced,latency_first`
 - dashboard UI query params mirror this flow (`pack`, `scenario`, `profile`, `compareProfiles`) for quick visual exploration
 
 ## 3) Interpret profile behavior conservatively
@@ -108,6 +121,7 @@ Suggested progression:
 - `balanced`: start here for most evaluations.
 - `continuity`: favors fallback to preserve response continuity when possible.
 - `efficiency`: favors cheaper paths/earlier omission to preserve latency headroom.
+- `latency_first`: omits optional work at a lower threshold than `efficiency`; does not explore degraded paths for optional steps. Use for real-time agent turns or when remaining budget headroom is the highest priority.
 
 Choose profile by endpoint goals, not single-scenario wins.
 

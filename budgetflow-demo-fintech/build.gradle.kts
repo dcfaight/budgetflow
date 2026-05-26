@@ -31,3 +31,10 @@ tasks.register<JavaExec>("runAgentTurnDemo") {
     classpath = sourceSets["main"].runtimeClasspath
     mainClass.set("com.budgetflow.demo.fintech.agent.AgentTurnDemo")
 }
+
+tasks.register<JavaExec>("runAgentCoordinationDemo") {
+    group = "application"
+    description = "Runs boundary-case agent orchestration scenarios: multi-step coordination, degraded-cascade, and balanced vs latency_first profile comparison."
+    classpath = sourceSets["main"].runtimeClasspath
+    mainClass.set("com.budgetflow.demo.fintech.agent.AgentCoordinationDemo")
+}

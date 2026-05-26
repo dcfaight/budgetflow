@@ -13,7 +13,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class PlannerPolicyProfilesTest {
     @Test
     void profileNamesAreStableAndSupported() {
-        assertEquals(List.of("balanced", "continuity", "efficiency"), PlannerPolicyProfiles.supportedProfileNames());
+        assertEquals(List.of("balanced", "continuity", "efficiency", "latency_first"), PlannerPolicyProfiles.supportedProfileNames());
     }
 
     @Test
@@ -26,6 +26,7 @@ class PlannerPolicyProfilesTest {
         assertTrue(exception.getMessage().contains("default"));
         assertTrue(exception.getMessage().contains("continuity"));
         assertTrue(exception.getMessage().contains("efficiency"));
+        assertTrue(exception.getMessage().contains("latency_first"));
     }
 
     @Test
