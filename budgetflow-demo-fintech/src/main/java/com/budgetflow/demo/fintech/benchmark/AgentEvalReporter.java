@@ -47,7 +47,8 @@ public final class AgentEvalReporter {
     }
 
     public static void main(String[] args) {
-        Path outDir = resolveOutDir(args);
+        ReporterOptions options = ReporterOptions.parse(args);
+        Path outDir = options.outDir();
         DashboardScenarioPack pack = PressureScenarios.agentPack();
 
         try (DashboardComparisonHarness harness = new DashboardComparisonHarness()) {
@@ -55,31 +56,60 @@ public final class AgentEvalReporter {
 
             Path jsonPath = outDir.resolve("agent-eval-report.json");
             Path mdPath = outDir.resolve("agent-eval-report.md");
+            AgentEvalBaselineSupport.Snapshot snapshot = AgentEvalBaselineSupport.snapshot(pack, summaries);
+            String reportJson = DashboardBenchmarkFormatter.formatJson(pack, summaries);
+            String reportMarkdown = DashboardBenchmarkFormatter.formatMarkdown(pack, summaries);
 
-            writeArtifact(jsonPath, DashboardBenchmarkFormatter.formatJson(pack, summaries));
-            writeArtifact(mdPath, DashboardBenchmarkFormatter.formatMarkdown(pack, summaries));
+            writeArtifact(jsonPath, reportJson);
+            writeArtifact(mdPath, reportMarkdown);
+
+            Path baselineDir = null;
+            if (options.saveBaselineName() != null) {
+                baselineDir = AgentEvalBaselineSupport.saveBaseline(
+                    outDir,
+                    options.saveBaselineName(),
+                    reportJson,
+                    reportMarkdown,
+                    snapshot
+                );
+            }
+
+            Path deltaJsonPath = null;
+            Path deltaMdPath = null;
+            if (options.compareTo() != null) {
+                Path baselineSnapshotPath = AgentEvalBaselineSupport.resolveSnapshotPath(outDir, options.compareTo());
+                AgentEvalBaselineSupport.Snapshot baselineSnapshot =
+                    AgentEvalBaselineSupport.readSnapshot(baselineSnapshotPath);
+                AgentEvalBaselineSupport.Comparison comparison =
+                    AgentEvalBaselineSupport.compare(options.compareTo(), baselineSnapshot, snapshot);
+                deltaJsonPath = outDir.resolve(AgentEvalBaselineSupport.DELTA_JSON_FILE_NAME);
+                deltaMdPath = outDir.resolve(AgentEvalBaselineSupport.DELTA_MD_FILE_NAME);
+                writeArtifact(deltaJsonPath, AgentEvalBaselineSupport.formatDeltaJson(comparison));
+                writeArtifact(deltaMdPath, AgentEvalBaselineSupport.formatDeltaMarkdown(comparison));
+            }
 
             System.out.println("Agent evaluation pack complete.");
             System.out.println("  Pack    : " + pack.name() + " — " + pack.description());
             System.out.println("  Profiles: balanced, continuity, efficiency, latency_first");
             System.out.println("  JSON    : " + jsonPath.toAbsolutePath());
             System.out.println("  Markdown: " + mdPath.toAbsolutePath());
+            if (baselineDir != null) {
+                System.out.println("  Baseline: " + baselineDir.toAbsolutePath());
+            }
+            if (deltaJsonPath != null && deltaMdPath != null) {
+                System.out.println("  Delta   : " + deltaJsonPath.toAbsolutePath());
+                System.out.println("  Review  : " + deltaMdPath.toAbsolutePath());
+            }
             System.out.println();
             System.out.println("Diff across runs: git diff build/eval-reports/agent-eval-report.{json,md}");
+            if (options.compareTo() != null) {
+                System.out.println("Compare baseline: open " + deltaMdPath.toAbsolutePath());
+            }
+            if (options.saveBaselineName() != null) {
+                System.out.println("Saved baseline : " + baselineDir.toAbsolutePath());
+            }
             System.out.println("Review packet  : open " + mdPath.toAbsolutePath());
         }
-    }
-
-    private static Path resolveOutDir(String[] args) {
-        for (String arg : args) {
-            if (arg.startsWith("--out=")) {
-                String raw = arg.substring("--out=".length());
-                if (!raw.isBlank()) {
-                    return Path.of(raw);
-                }
-            }
-        }
-        return Path.of(DEFAULT_OUT_DIR);
     }
 
     private static void writeArtifact(Path path, String content) {
@@ -91,6 +121,37 @@ public final class AgentEvalReporter {
             Files.writeString(path, content);
         } catch (IOException ioException) {
             throw new IllegalStateException("Failed to write artifact: " + path, ioException);
+        }
+    }
+
+    private record ReporterOptions(
+        Path outDir,
+        String saveBaselineName,
+        String compareTo
+    ) {
+        private static ReporterOptions parse(String[] args) {
+            Path outDir = Path.of(DEFAULT_OUT_DIR);
+            String saveBaselineName = null;
+            String compareTo = null;
+            for (String arg : args) {
+                if (arg.startsWith("--out=")) {
+                    String raw = arg.substring("--out=".length());
+                    if (!raw.isBlank()) {
+                        outDir = Path.of(raw);
+                    }
+                    continue;
+                }
+                if (arg.startsWith("--save-baseline=")) {
+                    String raw = arg.substring("--save-baseline=".length()).trim();
+                    saveBaselineName = raw.isBlank() ? null : raw;
+                    continue;
+                }
+                if (arg.startsWith("--compare-to=")) {
+                    String raw = arg.substring("--compare-to=".length()).trim();
+                    compareTo = raw.isBlank() ? null : raw;
+                }
+            }
+            return new ReporterOptions(outDir, saveBaselineName, compareTo);
         }
     }
 }

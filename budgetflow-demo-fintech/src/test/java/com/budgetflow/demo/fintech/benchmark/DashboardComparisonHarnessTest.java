@@ -79,6 +79,7 @@ class DashboardComparisonHarnessTest {
         assertTrue(output.contains("Interpretation: Interpret differences conservatively: this demonstrates policy reaction shape, not production throughput ceilings."));
         assertTrue(output.contains("Pattern: Traffic surge plus dependency stress during peak payment windows."));
         assertTrue(output.contains("Observe: Look for important-task fallback and optional-task approximation/omission with clear trace reasons."));
+        assertTrue(output.contains("Taxonomy: endpoint=dashboard_endpoint | pressure_mode=mixed_constraint"));
         assertTrue(output.contains("Strategy | Policy | Executed | Degraded | Work | Omitted | Fallback | Approx | Assessment | Why"));
         assertTrue(output.contains("budgetflow_adaptive | balanced | 4 | true | 430ms/123ms | insights | rewards | offers |"));
         assertTrue(output.contains("Scorecards:"));
@@ -182,6 +183,8 @@ class DashboardComparisonHarnessTest {
             assertTrue(json.contains("\"interpretationGuidance\":"));
             assertTrue(json.contains("\"realWorldPattern\":"));
             assertTrue(json.contains("\"whatToObserve\":"));
+            assertTrue(json.contains("\"taxonomy\":{"));
+            assertTrue(json.contains("\"endpointIntent\":\"dashboard_endpoint\""));
         }
     }
 
@@ -248,6 +251,7 @@ class DashboardComparisonHarnessTest {
             );
 
             assertTrue(markdown.contains("# BudgetFlow comparison evidence"));
+            assertTrue(markdown.contains("- Taxonomy: endpoint=agent_coordination"));
             assertTrue(markdown.contains("| Strategy | Policy | Mandatory preserved | Optional aligned | Fallback aligned | Intent matched | Assessment |"));
             assertTrue(markdown.contains("Scorecard summary:"));
         }
@@ -284,6 +288,8 @@ class DashboardComparisonHarnessTest {
         assertTrue(output.contains("./gradlew :budgetflow-demo-fintech:runDashboardComparison --args=\"--pack=adoption\""));
         assertTrue(output.contains("./gradlew :budgetflow-demo-fintech:runDashboardComparison --args=\"--pack=policy --policies=balanced,continuity,efficiency\""));
         assertTrue(output.contains("/tmp/budgetflow-realism.json"));
+        assertTrue(output.contains("./gradlew :budgetflow-demo-fintech:runAgentEvalReport --args=\"--save-baseline=mainline\""));
+        assertTrue(output.contains("./gradlew :budgetflow-demo-fintech:runAgentEvalReport --args=\"--compare-to=mainline\""));
         assertTrue(output.contains("docs/planner-customization.md"));
         assertTrue(output.contains("not a production-ready platform"));
     }

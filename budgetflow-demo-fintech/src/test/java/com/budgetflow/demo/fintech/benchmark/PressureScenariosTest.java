@@ -83,6 +83,9 @@ class PressureScenariosTest {
         );
         assertEquals(Duration.ofMillis(650), scenario.requestBudget());
         assertEquals(PressureScenarios.LOW_PRESSURE, scenario.pressureSnapshot());
+        assertEquals("dashboard_endpoint", scenario.taxonomy().endpointIntent());
+        assertEquals("control", scenario.taxonomy().pressureMode());
+        assertEquals("baseline_convergence", scenario.taxonomy().degradationStyle());
     }
 
     @Test
@@ -254,6 +257,9 @@ class PressureScenariosTest {
         assertEquals("low_pressure", scenario.pressureProfile());
         assertEquals(Duration.ofMillis(300), scenario.requestBudget());
         assertEquals(PressureScenarios.LOW_PRESSURE, scenario.pressureSnapshot());
+        assertEquals("agent_coordination", scenario.taxonomy().endpointIntent());
+        assertEquals("plan_fanout_consolidate", scenario.taxonomy().coordinationPattern());
+        assertEquals("control", scenario.taxonomy().scenarioType());
     }
 
     @Test
@@ -266,6 +272,9 @@ class PressureScenariosTest {
         assertEquals("elevated_pressure", scenario.pressureProfile());
         assertEquals(Duration.ofMillis(70), scenario.requestBudget());
         assertEquals(PressureScenarios.ELEVATED_PRESSURE, scenario.pressureSnapshot());
+        assertEquals("boundary_joint_stress", scenario.taxonomy().pressureMode());
+        assertEquals("cascade_boundary", scenario.taxonomy().degradationStyle());
+        assertEquals("boundary_case", scenario.taxonomy().scenarioType());
     }
 
     @Test
