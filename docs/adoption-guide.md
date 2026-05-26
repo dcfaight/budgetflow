@@ -10,128 +10,145 @@ For evaluation runbook see [evaluate.md](evaluate.md).
 
 ---
 
-## The core decision: what work is mandatory, important, or optional?
+## 1) Work partitioning first: mandatory, important, optional
 
-Before choosing a profile, partition the work your endpoint does:
+Before choosing a profile, partition endpoint work by **user-visible value**, **continuity needs**,
+**safety/correctness**, and **latency sensitivity**.
 
 | Tier | Meaning | If omitted |
 |------|---------|------------|
-| **Mandatory** | The response is meaningless without this | Return an error or empty response — do not send a degraded answer |
-| **Important** | The response is significantly less useful without this, but a fallback/cached version still has value | Use a fallback path (cached, cheaper, reduced-fidelity) before omitting |
-| **Optional** | The response is still useful without this; it enriches or personalizes the core answer | Approximate or omit under pressure; the core answer stands |
+| **Mandatory** | The response is incorrect or unsafe without this work | Fail the request/work item rather than returning a misleading result |
+| **Important** | The response is still useful with a degraded substitute | Prefer fallback/approximate path before omission |
+| **Optional** | Enrichment/polish that can be lost without breaking the core response | Approximate or omit under stress |
 
-**Key design question:** "If this task is skipped, does the user/caller still get a useful response?"
+### Practical classification rubric
 
-- If no → `MANDATORY`
-- If yes with a cached/cheaper substitute → `IMPORTANT` with fallback
-- If yes with no substitute needed → `OPTIONAL`
+For each task, answer these checks in order:
 
----
+1. **Safety/correctness gate:** does omission create wrong, unsafe, or policy-violating output?
+   - Yes → `MANDATORY`
+2. **Continuity gate:** can downstream logic continue usefully with a cheaper substitute?
+   - Yes, with substitute → `IMPORTANT` + fallback path
+3. **User-value gate:** does omission remove enhancement only (not core utility)?
+   - Yes → `OPTIONAL`
 
-## Endpoint-type mapping
+Use this anti-shallow check before finalizing classifications:
 
-### Customer-facing assistant
-
-**Characteristics:** conversational or session-bound, user-visible, moderate latency tolerance,
-optional context (user history, personalization) is valuable but not blocking.
-
-**Recommended starting profile:** `balanced`
-
-**When to move to a different profile:**
-- Move to `continuity` if preserving optional context (previous conversation state, personalization
-  signals) matters more than strict budget headroom.
-- Move to `efficiency` if the assistant is embedded in a latency-sensitive path and optional
-  enrichment is secondary to consistent response time.
-
-**Partition guidance:**
-- Mandatory: core answer generation, session context that would make the reply incoherent without it
-- Important (with fallback): recent history retrieval (fall back to cached session summary)
-- Optional: personalization signals, speculative tool calls, format polish
-
-**Evaluation pack to use:** `adoption` for a realistic storyline, then `policy` to compare
-`balanced` vs `continuity` if continuity matters for your use case.
+- If a task is marked `MANDATORY`, document what becomes incorrect without it.
+- If a task is marked `IMPORTANT`, define a concrete fallback output and latency hint.
+- If a task is marked `OPTIONAL`, describe expected degraded UX when omitted.
 
 ---
 
-### Real-time request path
+## 2) Reference integration blueprints (endpoint/service patterns)
 
-**Characteristics:** tight latency SLA, high-frequency, budget headroom is the primary goal,
-optional enrichment is a luxury that must not block the mandatory response.
+Use these as starting templates, then tune with your own SLOs and domain constraints.
 
-**Recommended starting profile:** `latency_first`
+### Blueprint A — Customer-facing assistant endpoint
 
-**When to consider `efficiency` instead:**
-- `latency_first` never explores degraded paths for optional work (proactive omission).
-- `efficiency` omits optional work earlier than `balanced` but still explores fallback paths.
-- Use `efficiency` if your optional work has a fast fallback that is cheap enough to not threaten headroom.
+| Aspect | Guidance |
+|-------|----------|
+| **Likely posture** | Moderate latency budget, user-visible quality pressure, continuity matters |
+| **Work partitioning** | Mandatory: response framing + safety checks; Important: conversation memory lookup with cached summary fallback; Optional: personalization and speculative tool enrichment |
+| **Profile choice** | Start `balanced`; move to `continuity` when context fidelity matters more than strict headroom; move to `efficiency` for tighter response-time targets |
+| **Good adaptive behavior** | Mandatory steps always execute; memory lookup degrades to cached summary before omission; optional enrichments drop first under stress |
+| **Evaluation evidence** | `adoption` pack for realistic storyline, `policy` pack for `balanced` vs `continuity`; inspect scorecards, omitted/fallback lists, and decision-trace reasons (`layer=...`, `fit=...`, `savings=...`) |
 
-**Partition guidance:**
-- Mandatory: the core data or decision that the caller requires in every case
-- Important (with fallback): secondary enrichment that has a cheap cached path (≤10–15 ms)
-- Optional: all remaining enrichment; assume it will be omitted under load
+### Blueprint B — Real-time API path
 
-**Evaluation pack to use:** `agent` with `--policies=balanced,latency_first` to see headroom
-differences side by side.
+| Aspect | Guidance |
+|-------|----------|
+| **Likely posture** | Tight latency budget, high request rate, headroom preservation dominates |
+| **Work partitioning** | Mandatory: response-critical decision/data; Important: only if fallback is very cheap and deterministic; Optional: all non-critical enrichment |
+| **Profile choice** | Start `latency_first`; consider `efficiency` only when cheap optional fallback paths should still be explored |
+| **Good adaptive behavior** | Mandatory path remains stable; optional work is proactively omitted under stress; no surprise mandatory degradation |
+| **Evaluation evidence** | `agent` pack with `--policies=balanced,latency_first`; confirm headroom improvement and profile-intent-consistent optional omission |
+
+### Blueprint C — Background enrichment workflow
+
+| Aspect | Guidance |
+|-------|----------|
+| **Likely posture** | Asynchronous/batch flow, queue pressure sensitivity, partial enrichment still valuable |
+| **Work partitioning** | Mandatory: entity identity and commit-safe output; Important: primary enrichment with cached/reduced fallback; Optional: secondary annotations or speculative signals |
+| **Profile choice** | Start `continuity`; switch to `efficiency` when queue drain speed/throughput is prioritized over enrichment coverage |
+| **Good adaptive behavior** | Workflow keeps producing valid partial enrichment under pressure; fallback usage increases before omission spikes |
+| **Evaluation evidence** | `realism` pack for pressure variety plus `policy` pack (`continuity` vs `efficiency`); inspect degraded-state rates, fallback alignment, and hotspot severity in delta reports |
+
+---
+
+## 3) Compact walkthrough (blueprint → partitioning → profile → evidence)
+
+Use this lightweight flow for a new endpoint:
+
+1. Pick the closest blueprint above (for example, real-time API path).
+2. Partition each planned task with the rubric in section 1.
+3. Choose a starting profile by endpoint intent (`latency_first` for strict headroom, `balanced` otherwise).
+4. Run:
+   - `./gradlew :budgetflow-demo-fintech:runDashboardComparison --args="--pack=adoption"`
+   - `./gradlew :budgetflow-demo-fintech:runAgentEvalReport --args="--compare-to=mainline"` (if baseline exists)
+5. Confirm acceptance signals:
+   - mandatory tasks never omitted
+   - degraded behavior matches chosen profile intent
+   - no unexplained `regression-risk` / `cautionary` hotspots in relevant scenarios
+6. Record endpoint intent + expected profile behavior in PR notes so reviewers can evaluate deltas against intent.
 
 ---
 
-### Background enrichment
+## 4) Observability and evaluation wiring in real services
 
-**Characteristics:** asynchronous or batch, latency tolerance is higher, partial enrichment
-often still has value, queue pressure is more likely to be the binding constraint than wall-clock latency.
+BudgetFlow adoption is strongest when execution behavior is directly inspectable.
 
-**Recommended starting profile:** `continuity`
+### What to surface in traces/diagnostics
 
-**When to consider `efficiency` instead:**
-- `continuity` maximizes fallback/approximate usage to preserve partial enrichment.
-- If batch throughput or queue drain speed is the primary concern over enrichment fidelity, prefer `efficiency`.
+- Request-level: budget, remaining budget, degraded flag, profile, pressure summary
+- Task-level: execution mode (primary/fallback/approximate/omitted), selected-path latency, decision reason
+- Outcome-level: omitted/fallback/approximated task lists and endpoint response impact
 
-**Partition guidance:**
-- Mandatory: the identifier or record that must be enriched (no value emitting an empty enrichment)
-- Important (with fallback): primary enrichment signals (fall back to cached or reduced-fidelity version)
-- Optional: secondary signals, speculative annotations
+### What evidence artifacts to keep
 
-**Evaluation pack to use:** `realism` for broad pressure variety, `policy` for `continuity` vs `efficiency` comparison.
+- Scenario comparison outputs (`--json`/`--markdown` with `--out=...`) for reproducible review evidence
+- `agent-eval-report.md` / `agent-eval-report.json` for periodic endpoint-behavior snapshots
+- `agent-eval-delta.md` when behavior changes are introduced and reviewed
+
+### Service-evolution loop
+
+1. Modify endpoint partitioning/profile behavior.
+2. Run relevant scenario packs (`adoption`, `policy`, `agent`, `realism`).
+3. Inspect scorecards + decision traces before merging.
+4. Attach reviewer packet (`agent-eval-delta.md`) for behavior-changing PRs.
+5. Refresh baseline only after accepted intentional changes (see [baseline-management.md](baseline-management.md)).
 
 ---
+
+## 5) Additional endpoint patterns
 
 ### Continuity-sensitive workflow
 
-**Characteristics:** multi-step or stateful, partial results from earlier steps feed later steps,
-losing continuity mid-workflow is worse than degrading to a slower path.
+**Characteristics:** multi-step/stateful execution where missing upstream results degrades downstream value.
 
 **Recommended starting profile:** `continuity`
 
 **Design guidance:**
-- Use `importantWithFallback(...)` for steps that feed downstream steps — a cached result is
-  significantly better than no result when subsequent steps depend on it.
-- Be explicit about what "no result" means for downstream steps: if a downstream step cannot
-  run without an upstream result, the upstream step should be `MANDATORY` or `IMPORTANT`, not `OPTIONAL`.
-- Avoid `OPTIONAL` for steps whose absence silently corrupts downstream state.
+- Use `importantWithFallback(...)` for upstream dependencies consumed by later steps.
+- Promote to `MANDATORY` when downstream logic would be incorrect without the result.
+- Avoid labeling state-carrying dependencies as `OPTIONAL`.
 
-**Evaluation pack to use:** `adoption` for the basic storyline, then `agent` for coordination-style
-multi-step boundary cases (`agent_coordination_healthy` and `agent_coordination_degraded_cascade`).
+**Evaluation pack to use:** `adoption` and `agent` (especially coordination and degraded-cascade scenarios).
 
 ---
 
 ### Budget-sensitive high-frequency endpoint
 
-**Characteristics:** many short requests per second, per-request budget is very tight,
-any optional work must have explicit fallback/approximate paths with cheap latency hints,
-global pressure is likely to be the dominant signal.
+**Characteristics:** very tight budgets at high frequency; realistic latency hints are critical.
 
-**Recommended starting profile:** `latency_first` (or `efficiency` if optional fallbacks are cheap enough)
+**Recommended starting profile:** `latency_first` (or `efficiency` when cheap fallbacks should still be attempted).
 
 **Design guidance:**
-- Provide `fallbackLatencyHint` and `approximateLatencyHint` for all important and optional tasks.
-  Without these hints the planner can only use primary-path costs, which means it may omit work
-  that a cheaper path could fit.
-- Keep mandatory task latency estimates tight and realistic.  Over-estimating mandatory work
-  leaves no room for important fallbacks even when time is available.
-- Use `optionalWithFallbackAndApproximate(...)` wherever a fast approximate path exists.
+- Supply `fallbackLatencyHint` / `approximateLatencyHint` for all degradable work.
+- Keep mandatory latency estimates realistic.
+- Prefer `optionalWithFallbackAndApproximate(...)` where fast degraded paths exist.
 
-**Evaluation pack to use:** `extended` (especially `tight_budget_low_pressure` for path-aware planning)
-and `agent` for profile headroom comparison.
+**Evaluation pack to use:** `extended` + `agent`.
 
 ---
 
@@ -193,6 +210,16 @@ intent of `latency_first`.  If your evaluation shows more omissions under `laten
 **Comparing profiles by task-execution count.** A profile that executes fewer tasks is not worse
 by default.  `latency_first` sacrifices optional coverage to protect headroom; that is its goal.
 Compare profiles by how well they match your endpoint's priority (coverage vs headroom vs balance).
+
+**Treating every omitted optional task as failure.** Optional omissions are often the intended
+protective behavior under stress. Review omission trends against endpoint intent and selected profile
+before classifying as regression.
+
+**Refreshing baselines too quickly.** If you refresh after every delta without intent review, you can
+mask real regressions. Keep the baseline stable until the change is reviewed and explicitly accepted.
+
+**Ignoring reviewer severity in context.** `expected` profile-intent deltas and `regression-risk`
+deltas should not be treated the same. Prioritize investigation by severity and by endpoint goal.
 
 ---
 

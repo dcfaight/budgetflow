@@ -281,6 +281,22 @@ If none of the built-in profiles fit your endpoint class well, review `docs/plan
 - Profile comparison summaries that show `whyDiffersFromBalanced` aligned with each profile's stated intent.
 - Scorecard assessments that align with scenario intent (`expected`, `acceptable`, `cautionary`, `mismatched`) and are explainable from trace + diagnostics evidence.
 
+## 4b) Practical observability wiring checklist
+
+When integrating BudgetFlow into a real service, wire evaluation and observability together:
+
+1. **Emit request-level diagnostics** with endpoint name, profile, budget, remaining budget, degraded flag, and pressure summary.
+2. **Emit task-level trace details** (selected mode, planned path latency, reason text with `layer=...`, `fit=...`, `savings=...`) to logs/traces for degraded requests.
+3. **Persist compact evidence artifacts** (`agent-eval-report.*`, `agent-eval-delta.*`, or scenario `--out` exports) for PR and release review.
+4. **Use scenario packs as change contracts**:
+   - `adoption` for realistic endpoint baseline behavior
+   - `policy`/`agent` for profile-intent tradeoff checks
+   - `realism` for pressure narrative coverage
+5. **Attach reviewer packet evidence** (`agent-eval-delta.md`) when endpoint behavior, task partitioning, or profile defaults change.
+6. **Refresh baseline only for accepted intentional behavior changes**; otherwise hold baseline stable and investigate drift.
+
+This keeps endpoint evolution explainable: runtime traces explain what happened, and evaluator artifacts explain whether it matches intended endpoint behavior.
+
 ## 5) What this guide does not claim
 
 - Production hardening or SLO readiness.

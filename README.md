@@ -32,9 +32,9 @@ If you are exploring the repository for the first time, use this sequence:
 9. **Agent demo slice:** `./gradlew :budgetflow-demo-fintech:runAgentTurnDemo` — minimal proof that `AgentWorkSpec` fits the existing model (retrieve → verify → enrich → follow-up actions, healthy + constrained + pressure-spike scenarios)
 10. **Agent boundary-case scenarios:** `./gradlew :budgetflow-demo-fintech:runAgentCoordinationDemo` — coordination (plan → two parallel fetches → consolidate → polish), degraded-cascade, and balanced vs latency_first profile comparison
 11. **Reproducible agent evaluation report:** `./gradlew :budgetflow-demo-fintech:runAgentEvalReport` — generates stable `agent-eval-report.json` and `agent-eval-report.md` in `build/eval-reports/` with all four profiles in one command; save a baseline with `--save-baseline=<name>` and compare later with `--compare-to=<name>`
-12. **Adoption guide:** [docs/adoption-guide.md](docs/adoption-guide.md) — map real endpoint types to profiles, understand mandatory/important/optional partitioning, and use evaluation artifacts to support design decisions
+12. **Adoption guide:** [docs/adoption-guide.md](docs/adoption-guide.md) — includes reference endpoint blueprints (assistant, real-time API, background enrichment), work-partitioning rubric, observability/evaluation wiring, compact walkthrough, and anti-patterns
 13. **Scenario catalog:** [docs/scenario-catalog.md](docs/scenario-catalog.md) — organized taxonomy of all scenarios by pack, endpoint intent, pressure mode, and degradation style
-14. **Baseline management:** [docs/baseline-management.md](docs/baseline-management.md) — when to save or refresh baselines, how to interpret delta severity, and how to handle expected vs suspicious drift
+14. **Baseline management:** [docs/baseline-management.md](docs/baseline-management.md) — when to save/refresh baselines, how reviewer severity and endpoint intent should govern refresh decisions, and how to handle expected vs suspicious drift
 
 ## Why this matters in the first minute
 
