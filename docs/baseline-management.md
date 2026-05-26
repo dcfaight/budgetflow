@@ -114,6 +114,25 @@ Only refresh `mainline` after a change has been reviewed, accepted, and merged i
 
 ---
 
+## Baseline refresh decision matrix (change governance)
+
+Use this quick matrix when deciding whether to refresh `mainline` after a PR:
+
+| Observed change in delta | Endpoint intent alignment | Severity pattern | Baseline action |
+|--------------------------|---------------------------|------------------|-----------------|
+| Optional omission increases only in `latency_first`/`efficiency`, with improved headroom | Matches stated endpoint goal (strict latency/headroom) | Mostly `expected` / `informative` | Refresh after merge and record rationale in PR |
+| Fallback usage increases in `continuity`, mandatory behavior stable | Matches continuity/coverage goal | Mostly `expected` / `informative` | Refresh after merge with note: intentional continuity tradeoff |
+| `balanced` gains new omissions/degradation without intended policy change | Misaligned or unclear | `cautionary` / `regression-risk` | Keep baseline stable; investigate before merge |
+| Mandatory task appears omitted in any profile/scenario | Never acceptable | `regression-risk` | Do not refresh; treat as blocker/regression |
+| Scenario-specific drift with mixed signals and unclear intent | Unclear | Mixed severities | Keep baseline stable until reviewer intent is explicit |
+
+When refreshing intentionally, include in PR notes:
+- endpoint/service intent that justified the behavior change
+- affected profile(s) and scenario classes
+- why the resulting delta is considered acceptable
+
+---
+
 ## Expected vs unexpected profile-intent changes
 
 Some delta entries are normal and expected.  Do not over-react to them:
