@@ -241,10 +241,12 @@ public final class DashboardBenchmarkFormatter {
         builder.append("- Best for: ").append(pack.bestFor()).append(System.lineSeparator());
         builder.append("- Suggested run: `").append(pack.suggestedCommand()).append("`").append(System.lineSeparator());
         builder.append("- Prototype output only; not benchmark certification.").append(System.lineSeparator()).append(System.lineSeparator());
+        List<ScenarioAssessmentScorer.ScenarioScorecard> allScorecards = new java.util.ArrayList<>();
         for (Map.Entry<String, List<DashboardBenchmarkSummary>> entry : summariesByScenario(summaries).entrySet()) {
             List<DashboardBenchmarkSummary> scenarioSummaries = entry.getValue();
             DashboardBenchmarkScenario scenario = scenarioSummaries.get(0).scenario();
             List<ScenarioAssessmentScorer.ScenarioScorecard> scorecards = ScenarioAssessmentScorer.scorecards(scenarioSummaries);
+            allScorecards.addAll(scorecards);
             builder.append("## ").append(scenario.displayName()).append(" (`").append(scenario.name()).append("`)")
                 .append(System.lineSeparator()).append(System.lineSeparator());
             builder.append("- Focus: ").append(scenario.evaluationFocus()).append(System.lineSeparator());
@@ -285,7 +287,77 @@ public final class DashboardBenchmarkFormatter {
         }
         builder.append("## Confidence summary").append(System.lineSeparator()).append(System.lineSeparator())
             .append("- ").append(confidenceSummaryText(summaries)).append(System.lineSeparator());
+        builder.append(interpretationSection(summaries, allScorecards));
         return builder.toString();
+    }
+
+    private static String interpretationSection(
+        List<DashboardBenchmarkSummary> summaries,
+        List<ScenarioAssessmentScorer.ScenarioScorecard> allScorecards
+    ) {
+        StringBuilder sb = new StringBuilder();
+        sb.append(System.lineSeparator())
+            .append("## Review interpretation")
+            .append(System.lineSeparator())
+            .append(System.lineSeparator());
+
+        long totalAdaptive = allScorecards.stream()
+            .filter(sc -> "budgetflow_adaptive".equals(sc.executionStrategy()))
+            .count();
+        long mandatoryPreserved = allScorecards.stream()
+            .filter(sc -> "budgetflow_adaptive".equals(sc.executionStrategy()))
+            .filter(ScenarioAssessmentScorer.ScenarioScorecard::mandatoryWorkPreserved)
+            .count();
+        sb.append("- **Mandatory preservation:** ")
+            .append(mandatoryPreserved).append("/").append(totalAdaptive)
+            .append(" adaptive runs preserved mandatory work (balance, transactions).")
+            .append(System.lineSeparator());
+
+        Map<String, Long> dispositionCounts = allScorecards.stream()
+            .collect(Collectors.groupingBy(
+                sc -> sc.disposition().label(),
+                LinkedHashMap::new,
+                Collectors.counting()
+            ));
+        String dispositionText = dispositionCounts.entrySet().stream()
+            .map(e -> e.getKey() + "=" + e.getValue())
+            .collect(Collectors.joining(", "));
+        sb.append("- **Scorecard dispositions:** ").append(dispositionText).append(".")
+            .append(System.lineSeparator());
+
+        boolean multipleProfiles = summaries.stream()
+            .filter(s -> "budgetflow_adaptive".equals(s.executionStrategy()))
+            .map(DashboardBenchmarkSummary::policyProfile)
+            .distinct()
+            .count() > 1;
+        if (multipleProfiles) {
+            sb.append("- **Profile differentiation:** multiple planner profiles were compared;")
+                .append(" see per-scenario profile comparison tables for tradeoff details.")
+                .append(System.lineSeparator());
+        }
+
+        long mismatchedCount = dispositionCounts.getOrDefault("mismatched", 0L);
+        long expectedCount = dispositionCounts.getOrDefault("expected", 0L);
+        if (mismatchedCount == 0 && expectedCount > 0) {
+            sb.append("- **Expected-vs-observed:** all scenarios with a defined intent check scored `expected` or `acceptable`.")
+                .append(" No mismatched outcomes detected.")
+                .append(System.lineSeparator());
+        } else if (mismatchedCount > 0) {
+            sb.append("- **Expected-vs-observed:** ").append(mismatchedCount)
+                .append(" scenario(s) scored `mismatched` — mandatory work may not have been preserved.")
+                .append(" Inspect trace reasons for each mismatched entry.")
+                .append(System.lineSeparator());
+        }
+
+        boolean hasLatencyFirst = allScorecards.stream()
+            .anyMatch(sc -> "latency_first".equals(sc.policyProfile()));
+        if (hasLatencyFirst) {
+            sb.append("- **Reviewer note:** lower optional coverage in `latency_first` is the intended tradeoff, not a failure.")
+                .append(" Compare profiles by endpoint-goal alignment, not by task execution counts.")
+                .append(System.lineSeparator());
+        }
+
+        return sb.toString();
     }
 
     private static Map<String, List<DashboardBenchmarkSummary>> summariesByScenario(List<DashboardBenchmarkSummary> summaries) {
