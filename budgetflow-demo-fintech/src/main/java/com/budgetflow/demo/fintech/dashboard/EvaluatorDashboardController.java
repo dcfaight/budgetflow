@@ -1,9 +1,14 @@
 package com.budgetflow.demo.fintech.dashboard;
 
 import com.budgetflow.core.policy.PlannerPolicyProfile;
+import com.budgetflow.demo.fintech.benchmark.DashboardBenchmarkFormatter;
+import com.budgetflow.demo.fintech.benchmark.DashboardBenchmarkSummary;
+import com.budgetflow.demo.fintech.benchmark.DashboardComparisonHarness;
 import com.budgetflow.demo.fintech.benchmark.DashboardScenarioPack;
 import com.budgetflow.demo.fintech.benchmark.PressureScenarios;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -55,6 +60,56 @@ public class EvaluatorDashboardController {
             safeCompareDatasets,
             walkthroughStep
         );
+    }
+
+    @GetMapping(value = "/dashboard/evaluator/evidence")
+    public ResponseEntity<String> evaluatorEvidence(
+        @RequestParam(name = "pack", defaultValue = "default") String packName,
+        @RequestParam(name = "scenario", required = false) String scenarioName,
+        @RequestParam(name = "compareProfiles", defaultValue = "balanced,continuity,efficiency,latency_first")
+        String compareProfiles,
+        @RequestParam(name = "format", defaultValue = "json") String format
+    ) {
+        String safePack = sanitizePack(packName);
+        DashboardScenarioPack resolvedPack = PressureScenarios.packNamed(safePack);
+        String safeScenario = sanitizeScenarioName(scenarioName, resolvedPack);
+        String selectedScenario = safeScenario == null ? resolvedPack.scenarios().get(0).name() : safeScenario;
+        PlannerPolicyProfile selectedProfile = PlannerPolicyProfile.BALANCED;
+        String safeCompareProfiles = sanitizeCompareProfiles(compareProfiles, selectedProfile);
+        List<PlannerPolicyProfile> profiles = Arrays.stream(safeCompareProfiles.split(","))
+            .map(PlannerPolicyProfile::fromConfigName)
+            .toList();
+
+        String safeFormat = format == null ? "json" : format.trim().toLowerCase();
+        String body;
+        String contentType;
+        String fileExtension;
+        try (DashboardComparisonHarness harness = new DashboardComparisonHarness()) {
+            List<DashboardBenchmarkSummary> summaries = harness.run(
+                resolvedPack.scenarios().stream()
+                    .filter(scenario -> scenario.name().equals(selectedScenario))
+                    .toList(),
+                profiles
+            );
+            if ("markdown".equals(safeFormat) || "md".equals(safeFormat)) {
+                body = DashboardBenchmarkFormatter.formatMarkdown(resolvedPack, summaries);
+                contentType = "text/markdown";
+                fileExtension = "md";
+            } else {
+                body = DashboardBenchmarkFormatter.formatJson(resolvedPack, summaries);
+                contentType = MediaType.APPLICATION_JSON_VALUE;
+                fileExtension = "json";
+            }
+        }
+
+        return ResponseEntity.ok()
+            .header(
+                HttpHeaders.CONTENT_DISPOSITION,
+                "attachment; filename=\"budgetflow-evidence-%s-%s.%s\""
+                    .formatted(safePack, selectedScenario, fileExtension)
+            )
+            .contentType(MediaType.parseMediaType(contentType))
+            .body(body);
     }
 
     private String sanitizePack(String packName) {

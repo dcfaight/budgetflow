@@ -106,6 +106,7 @@ Observe per scenario:
 - `Comparison takeaway`
 - adaptive vs naive projected work delta
 - profile deltas vs balanced
+- lightweight scenario scorecards (`mandatory`, `optional alignment`, `fallback alignment`, `intent matched`, `assessment`)
 - `confidenceSummary` as a pack-level orientation aid
 
 Suggested progression:
@@ -116,6 +117,23 @@ Suggested progression:
 - `agent` for agent-step coordination, degraded-cascade boundary cases, and four-way profile comparison; pair with `--policies=balanced,continuity,efficiency,latency_first`
 - dashboard UI query params mirror this flow (`pack`, `scenario`, `profile`, `compareProfiles`) for quick visual exploration
 
+### Shareable evidence exports
+
+Use CLI output export when you need artifacts outside the evaluator UI:
+
+```bash
+./gradlew :budgetflow-demo-fintech:runDashboardComparison --args="--pack=agent --policies=balanced,continuity,efficiency,latency_first --json --out=/tmp/budgetflow-agent-evidence.json"
+./gradlew :budgetflow-demo-fintech:runDashboardComparison --args="--pack=agent --policies=balanced,continuity,efficiency,latency_first --markdown --out=/tmp/budgetflow-agent-evidence.md"
+```
+
+The JSON export now includes per-result `scorecards` and rationale fields so reviewers can inspect assessment evidence without opening the dashboard UI.
+The Markdown export is intentionally compact for review threads, design notes, and architecture discussions.
+
+From the evaluator UI, use **Evidence export** links in the profile-comparison section for scenario-scoped downloads:
+
+- `/dashboard/evaluator/evidence?...&format=json`
+- `/dashboard/evaluator/evidence?...&format=markdown`
+
 ## 3) Interpret profile behavior conservatively
 
 - `balanced`: start here for most evaluations.
@@ -124,6 +142,14 @@ Suggested progression:
 - `latency_first`: omits optional work at a lower threshold than `efficiency`; does not explore degraded paths for optional steps. Use for real-time agent turns or when remaining budget headroom is the highest priority.
 
 Choose profile by endpoint goals, not single-scenario wins.
+
+### Endpoint-intent mapping (quick guide)
+
+- **Customer-facing assistant:** start with `balanced`; move to `continuity` when preserving optional context/fidelity is more important than strict headroom.
+- **Real-time endpoint:** prefer `latency_first` (or `efficiency`) when predictable headroom and fast response are the primary goals, and optional omissions are acceptable.
+- **Background enrichment:** `continuity` is useful when partial enrichment still provides value; `efficiency` is useful when batch latency or queue pressure dominates.
+
+There is no universal profile winner. A “better” outcome is one that matches endpoint intent and expected tradeoffs for that endpoint class.
 
 **Common interpretation pitfalls to avoid:**
 
@@ -146,6 +172,7 @@ If none of the built-in profiles fit your endpoint class well, review `docs/plan
 - Sample-app and harness observations that tell the same story instead of diverging.
 - Tight-budget/path-aware scenarios that show degraded-path latency hints matter even when runtime pressure is calm.
 - Profile comparison summaries that show `whyDiffersFromBalanced` aligned with each profile's stated intent.
+- Scorecard assessments that align with scenario intent (`expected`, `acceptable`, `cautionary`, `mismatched`) and are explainable from trace + diagnostics evidence.
 
 ## 5) What this guide does not claim
 

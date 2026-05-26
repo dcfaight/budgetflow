@@ -23,7 +23,7 @@ If you are exploring the repository for the first time, use this sequence:
 
 1. **Framework quickstart:** [docs/quickstart.md](docs/quickstart.md)
 2. **Guided local walkthrough:** `./gradlew :budgetflow-demo-fintech:runDashboardWalkthrough`
-3. **Visual evaluator dashboard:** run `./gradlew :budgetflow-demo-fintech:bootRun`, then open `http://localhost:8080/dashboard/evaluator` (includes multi-scenario storyline synthesis, walkthrough-mode narrative guidance, compact analytics/trend cards, deeper planner signal/path/layer explainability cues, and scenario-lab dataset switching/compare controls)
+3. **Visual evaluator dashboard:** run `./gradlew :budgetflow-demo-fintech:bootRun`, then open `http://localhost:8080/dashboard/evaluator` (includes multi-scenario storyline synthesis, walkthrough-mode narrative guidance, compact analytics/trend cards, scenario scorecards, endpoint-intent hints, export links, deeper planner signal/path/layer explainability cues, and scenario-lab dataset switching/compare controls)
 4. **Evaluation runbook:** [docs/evaluate.md](docs/evaluate.md)
 5. **Planner defaults vs customization:** [docs/planner-customization.md](docs/planner-customization.md)
 6. **Interpreting profile differences:** [docs/interpreting-profiles.md](docs/interpreting-profiles.md) — how to read profile comparison output without drawing misleading conclusions
@@ -327,7 +327,7 @@ Example (trimmed):
 | **Approximated** | Tasks that returned a lower-fidelity result (e.g., cached or estimated) |
 | **Work** | Request latency budget vs projected work under the chosen execution modes |
 
-The latest formatter now also groups output by scenario, adds a narrative line, emits compact comparison deltas, includes a `comparisonTakeaway`, and finishes with a richer `confidenceSummary` so profile and scenario tradeoffs are easier to interpret quickly.
+The latest formatter now also groups output by scenario, adds a narrative line, emits compact comparison deltas, includes `scorecards` (intent-alignment assessments), includes a `comparisonTakeaway`, and finishes with a richer `confidenceSummary` so profile and scenario tradeoffs are easier to interpret quickly.
 Degradation reasons are also compacted with pressure/layer/fit/savings markers so the planner decision path is easier to scan quickly.
 
 The constrained-budget scenarios are the clearest before/after showcase:
@@ -473,6 +473,7 @@ Optional harness arguments keep the tool lightweight while making demo output ea
 ./gradlew :budgetflow-demo-fintech:runDashboardComparison --args="--pack=realism --json"
 ./gradlew :budgetflow-demo-fintech:runDashboardComparison --args="--pack=policy --policies=balanced,continuity,efficiency"
 ./gradlew :budgetflow-demo-fintech:runDashboardComparison --args="--pack=default --json --out=/tmp/budgetflow-report.json"
+./gradlew :budgetflow-demo-fintech:runDashboardComparison --args="--pack=agent --policies=balanced,continuity,efficiency,latency_first --markdown --out=/tmp/budgetflow-agent-evidence.md"
 ```
 
 `--policies=` also accepts `default` as an alias for `balanced`.
@@ -503,7 +504,7 @@ Available adaptive policy profiles:
 | `moderate_budget_elevated_pressure` | policy | Policy-profile comparison focus: same pressure + budget setup used to contrast balanced, continuity, and efficiency behavior. |
 | `commuter_spike_mixed_pressure` | adoption | Recognizable multi-signal traffic burst: validates deterministic mixed-constraint behavior where degraded paths should be preferred before omission when they still fit budget. |
 
-The optional JSON mode is intentionally simple and stable enough for demo automation or snapshot-style tests; it is not intended as a full benchmarking/reporting platform.
+The optional JSON and Markdown evidence exports are intentionally lightweight and stable enough for demo automation, review threads, and snapshot-style tests; they are not intended as a full benchmarking/reporting platform.
 
 Recent formatter output also includes a small confidence summary at the end of text output (and as `confidenceSummary` in JSON) so readers can quickly see how often adaptive planning reduced projected work in the selected scenario pack.
 

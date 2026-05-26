@@ -79,8 +79,9 @@ class DashboardComparisonHarnessTest {
         assertTrue(output.contains("Interpretation: Interpret differences conservatively: this demonstrates policy reaction shape, not production throughput ceilings."));
         assertTrue(output.contains("Pattern: Traffic surge plus dependency stress during peak payment windows."));
         assertTrue(output.contains("Observe: Look for important-task fallback and optional-task approximation/omission with clear trace reasons."));
-        assertTrue(output.contains("Strategy | Policy | Executed | Degraded | Work | Omitted | Fallback | Approx | Why"));
-        assertTrue(output.contains("budgetflow_adaptive | balanced | 4 | true | 430ms/123ms | insights | rewards | offers | offers=approximate_selected_by_policy["));
+        assertTrue(output.contains("Strategy | Policy | Executed | Degraded | Work | Omitted | Fallback | Approx | Assessment | Why"));
+        assertTrue(output.contains("budgetflow_adaptive | balanced | 4 | true | 430ms/123ms | insights | rewards | offers |"));
+        assertTrue(output.contains("Scorecards:"));
     }
 
     @Test
@@ -174,6 +175,7 @@ class DashboardComparisonHarnessTest {
             assertTrue(json.contains("\"comparisonTakeaway\":"));
             assertTrue(json.contains("\"adaptiveChanges\":"));
             assertTrue(json.contains("\"profileSummary\":"));
+            assertTrue(json.contains("\"scorecards\":"));
             assertTrue(json.contains("\"profileGuidance\":"));
             assertTrue(json.contains("\"evaluatorNextStep\":"));
             assertTrue(json.contains("\"evaluationFocus\":"));
@@ -229,6 +231,39 @@ class DashboardComparisonHarnessTest {
         String exported = Files.readString(outputPath);
         assertTrue(exported.contains("\"tool\":\"budgetflow_dashboard_comparison\""));
         assertTrue(exported.contains("\"scenarioPack\":{\"name\":\"default\""));
+    }
+
+    @Test
+    void formatterCanEmitMarkdownEvidenceWithScorecards() {
+        try (DashboardComparisonHarness harness = new DashboardComparisonHarness(new NoDelaySimulationSupport())) {
+            DashboardScenarioPack pack = PressureScenarios.agentPack();
+            String markdown = DashboardBenchmarkFormatter.formatMarkdown(
+                pack,
+                harness.run(pack.scenarios(), List.of(
+                    PlannerPolicyProfile.BALANCED,
+                    PlannerPolicyProfile.CONTINUITY,
+                    PlannerPolicyProfile.EFFICIENCY,
+                    PlannerPolicyProfile.LATENCY_FIRST
+                ))
+            );
+
+            assertTrue(markdown.contains("# BudgetFlow comparison evidence"));
+            assertTrue(markdown.contains("| Strategy | Policy | Mandatory preserved | Optional aligned | Fallback aligned | Intent matched | Assessment |"));
+            assertTrue(markdown.contains("Scorecard summary:"));
+        }
+    }
+
+    @Test
+    void harnessMainCanExportMarkdownReportToFile() throws IOException {
+        Path outputPath = Path.of("/tmp/budgetflow-harness-export.md");
+        Files.deleteIfExists(outputPath);
+
+        DashboardComparisonHarness.main(new String[] {"--pack=agent", "--markdown", "--out=" + outputPath});
+
+        assertTrue(Files.exists(outputPath));
+        String exported = Files.readString(outputPath);
+        assertTrue(exported.contains("# BudgetFlow comparison evidence"));
+        assertTrue(exported.contains("Scorecard summary:"));
     }
 
     @Test

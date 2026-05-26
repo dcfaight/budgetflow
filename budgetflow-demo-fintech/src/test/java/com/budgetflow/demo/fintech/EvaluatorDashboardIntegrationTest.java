@@ -40,6 +40,9 @@ class EvaluatorDashboardIntegrationTest {
             .andExpect(content().string(containsString("Signal-to-mode summary (explicit)")))
             .andExpect(content().string(containsString("Agent-step view (compact explainability)")))
             .andExpect(content().string(containsString("Planner trace / explanation")))
+            .andExpect(content().string(containsString("Scenario scorecards (intent alignment)")))
+            .andExpect(content().string(containsString("Endpoint intent guidance:")))
+            .andExpect(content().string(containsString("Evidence export:")))
             .andExpect(content().string(containsString("Execution summary:")))
             .andExpect(content().string(containsString("Prototype reminder")));
     }
@@ -72,5 +75,28 @@ class EvaluatorDashboardIntegrationTest {
             .andExpect(content().string(containsString("budgetflow_adaptive")))
             .andExpect(content().string(containsString("continuity")))
             .andExpect(content().string(containsString("efficiency")));
+    }
+
+    @Test
+    void evaluatorEvidenceEndpointCanReturnJsonAndMarkdown() throws Exception {
+        mockMvc.perform(get("/dashboard/evaluator/evidence")
+                .param("pack", "agent")
+                .param("scenario", "agent_profile_comparison")
+                .param("compareProfiles", "balanced,continuity,efficiency,latency_first")
+                .param("format", "json"))
+            .andExpect(status().isOk())
+            .andExpect(content().contentTypeCompatibleWith("application/json"))
+            .andExpect(content().string(containsString("\"scorecards\":")))
+            .andExpect(content().string(containsString("\"assessment\":")));
+
+        mockMvc.perform(get("/dashboard/evaluator/evidence")
+                .param("pack", "agent")
+                .param("scenario", "agent_profile_comparison")
+                .param("compareProfiles", "balanced,continuity,efficiency,latency_first")
+                .param("format", "markdown"))
+            .andExpect(status().isOk())
+            .andExpect(content().contentTypeCompatibleWith("text/markdown"))
+            .andExpect(content().string(containsString("# BudgetFlow comparison evidence")))
+            .andExpect(content().string(containsString("Scorecard summary:")));
     }
 }
