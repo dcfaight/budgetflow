@@ -17,25 +17,42 @@ BudgetFlow is a polished prototype for adaptive orchestration under latency budg
 >
 > **Future direction:** see [docs/agent-orchestration.md](docs/agent-orchestration.md) for the proposed path from today's request-scoped orchestration model toward adaptive orchestration for agent systems.
 
-## Start here in order
+## Start here by goal
 
-If you are exploring the repository for the first time, use this sequence:
+Use one path first, then go deeper only where needed.
 
-1. **Framework quickstart:** [docs/quickstart.md](docs/quickstart.md)
-2. **Guided local walkthrough:** `./gradlew :budgetflow-demo-fintech:runDashboardWalkthrough`
-3. **Visual evaluator dashboard:** run `./gradlew :budgetflow-demo-fintech:bootRun`, then open `http://localhost:8080/dashboard/evaluator` (includes multi-scenario storyline synthesis, walkthrough-mode narrative guidance, compact analytics/trend cards, scenario scorecards, endpoint-intent hints, export links, deeper planner signal/path/layer explainability cues, and scenario-lab dataset switching/compare controls)
-4. **Evaluation runbook:** [docs/evaluate.md](docs/evaluate.md)
-5. **Planner defaults vs customization:** [docs/planner-customization.md](docs/planner-customization.md)
-6. **Interpreting profile differences:** [docs/interpreting-profiles.md](docs/interpreting-profiles.md) — how to read profile comparison output without drawing misleading conclusions
-7. **Architecture + extension boundaries:** [docs/architecture.md](docs/architecture.md)
-8. **Agent orchestration direction:** [docs/agent-orchestration.md](docs/agent-orchestration.md)
-9. **Agent demo slice:** `./gradlew :budgetflow-demo-fintech:runAgentTurnDemo` — minimal proof that `AgentWorkSpec` fits the existing model (retrieve → verify → enrich → follow-up actions, healthy + constrained + pressure-spike scenarios)
-10. **Agent boundary-case scenarios:** `./gradlew :budgetflow-demo-fintech:runAgentCoordinationDemo` — coordination (plan → two parallel fetches → consolidate → polish), degraded-cascade, and balanced vs latency_first profile comparison
-11. **Reproducible agent evaluation report:** `./gradlew :budgetflow-demo-fintech:runAgentEvalReport` — generates stable `agent-eval-report.json` and `agent-eval-report.md` in `build/eval-reports/` with all four profiles in one command; save a baseline with `--save-baseline=<name>` and compare later with `--compare-to=<name>`
-12. **Adoption guide:** [docs/adoption-guide.md](docs/adoption-guide.md) — classification rubric, profile tradeoff summary, observability wiring, and adoption pitfalls
-13. **Reference journeys (design → evaluation → review):** [docs/reference-journeys.md](docs/reference-journeys.md) — opinionated end-to-end playbooks for assistant, real-time API, and background enrichment paths
-14. **Scenario catalog:** [docs/scenario-catalog.md](docs/scenario-catalog.md) — organized taxonomy of all scenarios by pack, endpoint intent, pressure mode, and degradation style
-15. **Baseline management:** [docs/baseline-management.md](docs/baseline-management.md) — when to save/refresh baselines, how reviewer severity and endpoint intent should govern refresh decisions, and how to handle expected vs suspicious drift
+| If you are... | Start here |
+|---|---|
+| **Evaluator** (need one runnable proof + evidence) | [docs/showcase-reference-path.md](docs/showcase-reference-path.md) |
+| **Adopter** (mapping a real endpoint) | [docs/adoption-guide.md](docs/adoption-guide.md) + [docs/reference-journeys.md](docs/reference-journeys.md) |
+| **Reviewer** (triaging behavior change risk) | [docs/evaluate.md#reviewer-workflow-for-prs](docs/evaluate.md#reviewer-workflow-for-prs) + [docs/baseline-management.md](docs/baseline-management.md) |
+| **Curious reader** (framework/API first) | [docs/quickstart.md](docs/quickstart.md) + [docs/architecture.md](docs/architecture.md) |
+
+### Fastest convincing runnable path
+
+```bash
+./gradlew :budgetflow-demo-fintech:runDashboardWalkthrough
+./gradlew :budgetflow-demo-fintech:runDashboardComparison --args="--pack=adoption"
+./gradlew :budgetflow-demo-fintech:runAgentEvalReport
+```
+
+Then open:
+
+- `budgetflow-demo-fintech/build/eval-reports/agent-eval-report.md`
+- `budgetflow-demo-fintech/build/eval-reports/agent-eval-report.json`
+
+For the full "intent → partitioning → profile → expected behavior → evidence/review" flow, use [docs/showcase-reference-path.md](docs/showcase-reference-path.md).
+
+### Canonical guide map
+
+- **Runnable showcase path:** [docs/showcase-reference-path.md](docs/showcase-reference-path.md)
+- **End-to-end endpoint playbooks:** [docs/reference-journeys.md](docs/reference-journeys.md)
+- **Evaluator mechanics + reviewer loop:** [docs/evaluate.md](docs/evaluate.md)
+- **Adoption rubric and wiring:** [docs/adoption-guide.md](docs/adoption-guide.md)
+- **Scenario taxonomy:** [docs/scenario-catalog.md](docs/scenario-catalog.md)
+- **Baseline governance:** [docs/baseline-management.md](docs/baseline-management.md)
+- **Framework API usage:** [docs/quickstart.md](docs/quickstart.md), [docs/usage.md](docs/usage.md)
+- **Planner defaults/customization boundaries:** [docs/planner-customization.md](docs/planner-customization.md)
 
 ## Why this matters in the first minute
 

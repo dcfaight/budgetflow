@@ -37,6 +37,26 @@ jobs:
           retention-days: 30
           if-no-files-found: error
 
+      - name: Write workflow evidence summary
+        run: |
+          {
+            echo "## Agent evaluation evidence"
+            echo ""
+            echo "- Generated with \`./gradlew :budgetflow-demo-fintech:runAgentEvalReport --args=\"--out=build/eval-reports\"\`"
+            echo "- Artifact: \`agent-eval-report\`"
+            echo "- Files:"
+            echo "  - \`budgetflow-demo-fintech/build/eval-reports/agent-eval-report.md\`"
+            echo "  - \`budgetflow-demo-fintech/build/eval-reports/agent-eval-report.json\`"
+            echo ""
+            echo "Local reviewer baseline compare:"
+            echo ""
+            echo "\`\`\`bash"
+            echo "./gradlew :budgetflow-demo-fintech:runAgentEvalReport --args=\"--compare-to=mainline\""
+            echo "\`\`\`"
+            echo ""
+            echo "Guides: [showcase reference path](docs/showcase-reference-path.md), [review workflow](docs/evaluate.md#reviewer-workflow-for-prs)"
+          } >> "$GITHUB_STEP_SUMMARY"
+
       - name: Post evidence summary to PR
         if: github.event_name == 'pull_request'
         uses: actions/github-script@v7
