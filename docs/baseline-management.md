@@ -6,6 +6,7 @@ is a diff-and-review aid, not a strict gate.
 
 For evaluation setup see [evaluate.md](evaluate.md).
 For profile interpretation see [interpreting-profiles.md](interpreting-profiles.md).
+For endpoint-intent-specific review checklists, see [reference-journeys.md](reference-journeys.md).
 
 ---
 

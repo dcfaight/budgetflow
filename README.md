@@ -32,9 +32,10 @@ If you are exploring the repository for the first time, use this sequence:
 9. **Agent demo slice:** `./gradlew :budgetflow-demo-fintech:runAgentTurnDemo` — minimal proof that `AgentWorkSpec` fits the existing model (retrieve → verify → enrich → follow-up actions, healthy + constrained + pressure-spike scenarios)
 10. **Agent boundary-case scenarios:** `./gradlew :budgetflow-demo-fintech:runAgentCoordinationDemo` — coordination (plan → two parallel fetches → consolidate → polish), degraded-cascade, and balanced vs latency_first profile comparison
 11. **Reproducible agent evaluation report:** `./gradlew :budgetflow-demo-fintech:runAgentEvalReport` — generates stable `agent-eval-report.json` and `agent-eval-report.md` in `build/eval-reports/` with all four profiles in one command; save a baseline with `--save-baseline=<name>` and compare later with `--compare-to=<name>`
-12. **Adoption guide:** [docs/adoption-guide.md](docs/adoption-guide.md) — includes reference endpoint blueprints (assistant, real-time API, background enrichment), work-partitioning rubric, observability/evaluation wiring, compact walkthrough, and anti-patterns
-13. **Scenario catalog:** [docs/scenario-catalog.md](docs/scenario-catalog.md) — organized taxonomy of all scenarios by pack, endpoint intent, pressure mode, and degradation style
-14. **Baseline management:** [docs/baseline-management.md](docs/baseline-management.md) — when to save/refresh baselines, how reviewer severity and endpoint intent should govern refresh decisions, and how to handle expected vs suspicious drift
+12. **Adoption guide:** [docs/adoption-guide.md](docs/adoption-guide.md) — classification rubric, profile tradeoff summary, observability wiring, and adoption pitfalls
+13. **Reference journeys (design → evaluation → review):** [docs/reference-journeys.md](docs/reference-journeys.md) — opinionated end-to-end playbooks for assistant, real-time API, and background enrichment paths
+14. **Scenario catalog:** [docs/scenario-catalog.md](docs/scenario-catalog.md) — organized taxonomy of all scenarios by pack, endpoint intent, pressure mode, and degradation style
+15. **Baseline management:** [docs/baseline-management.md](docs/baseline-management.md) — when to save/refresh baselines, how reviewer severity and endpoint intent should govern refresh decisions, and how to handle expected vs suspicious drift
 
 ## Why this matters in the first minute
 
@@ -72,7 +73,7 @@ If you want the shortest guided local tour, run:
 ```
 
 If you are evaluating BudgetFlow for potential adoption, continue with:
-[docs/evaluate.md](docs/evaluate.md) and [docs/adoption-guide.md](docs/adoption-guide.md).
+[docs/evaluate.md](docs/evaluate.md), [docs/adoption-guide.md](docs/adoption-guide.md), and [docs/reference-journeys.md](docs/reference-journeys.md).
 
 If you are evaluating planner variants or extension boundaries, continue with:
 [docs/planner-customization.md](docs/planner-customization.md)
@@ -97,7 +98,8 @@ For the local reviewer loop (baseline save + compare):
 open budgetflow-demo-fintech/build/eval-reports/agent-eval-delta.md
 ```
 
-See [docs/evaluate.md#reviewer-workflow-for-prs](docs/evaluate.md#reviewer-workflow-for-prs)
+See [docs/evaluate.md#reviewer-workflow-for-prs](docs/evaluate.md#reviewer-workflow-for-prs),
+[docs/reference-journeys.md#reviewer-packet-shortcut-all-journeys](docs/reference-journeys.md#reviewer-packet-shortcut-all-journeys),
 and [docs/baseline-management.md](docs/baseline-management.md) for the full review workflow.
 
 ## Package consumption at a glance
