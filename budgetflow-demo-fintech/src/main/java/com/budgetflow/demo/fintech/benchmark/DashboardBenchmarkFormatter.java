@@ -109,6 +109,12 @@ public final class DashboardBenchmarkFormatter {
                         .append(System.lineSeparator());
                 }
             }
+            if (adaptiveVariants.size() > 1) {
+                builder.append("Profile comparison summary:")
+                    .append(System.lineSeparator())
+                    .append(profileComparisonSummary(adaptiveVariants, scenario.requestBudget().toMillis()))
+                    .append(System.lineSeparator());
+            }
             builder.append("Scenario summary: ")
                 .append(scenarioSummary(naive, balanced))
                 .append(System.lineSeparator());
@@ -182,6 +188,9 @@ public final class DashboardBenchmarkFormatter {
                 .append("\",")
                 .append("\"profileSummary\":")
                 .append(profileSummaryJson(scenarioSummaries))
+                .append(",")
+                .append("\"profileComparisonSummary\":")
+                .append(profileComparisonSummaryJson(scenarioSummaries, scenario.requestBudget().toMillis()))
                 .append(",")
                 .append("\"profileGuidance\":\"")
                 .append(escape(profileGuidance(scenarioSummaries.stream()
@@ -335,6 +344,10 @@ public final class DashboardBenchmarkFormatter {
             .filter(summary -> summary.policyProfile().equals("efficiency"))
             .findFirst()
             .orElse(null);
+        DashboardBenchmarkSummary latencyFirst = adaptiveVariants.stream()
+            .filter(summary -> summary.policyProfile().equals("latency_first"))
+            .findFirst()
+            .orElse(null);
 
         StringBuilder guidance = new StringBuilder(
             "Default to balanced for most traffic; it keeps behavior conservative and explainable."
@@ -354,7 +367,112 @@ public final class DashboardBenchmarkFormatter {
                 .append(efficiencyWorkDelta)
                 .append("ms).");
         }
+        if (latencyFirst != null) {
+            int latencyOmitDelta = latencyFirst.omittedTasks().size() - balanced.omittedTasks().size();
+            long latencyHeadroom = latencyFirst.requestBudget().toMillis() - latencyFirst.projectedWork().toMillis();
+            guidance.append(" Use latency_first for real-time or high-frequency agent turns where remaining budget headroom is the priority")
+                .append("; omits optional work proactively (omit_delta_vs_balanced=")
+                .append(latencyOmitDelta >= 0 ? "+" : "")
+                .append(latencyOmitDelta)
+                .append(", remaining_headroom=")
+                .append(latencyHeadroom)
+                .append("ms).")
+                .append(" Note: lower optional coverage is not a failure here — it is the intended tradeoff.");
+        }
         return guidance.toString();
+    }
+
+    /**
+     * Compact cross-profile comparison block: one row per adaptive profile showing executed/fallback/approx/omitted
+     * counts, degraded yes/no, remaining budget headroom, and a short explanation of why the profile differs from balanced.
+     */
+    static String profileComparisonSummary(List<DashboardBenchmarkSummary> adaptiveVariants, long requestBudgetMs) {
+        DashboardBenchmarkSummary balanced = adaptiveVariants.stream()
+            .filter(s -> s.policyProfile().equals("balanced"))
+            .findFirst()
+            .orElse(null);
+        StringBuilder sb = new StringBuilder();
+        sb.append("  Profile          exec  fb    approx  omit  degraded  headroom  vs-balanced")
+            .append(System.lineSeparator());
+        sb.append("  ---------------  ----  ----  ------  ----  --------  --------  -----------")
+            .append(System.lineSeparator());
+        for (DashboardBenchmarkSummary s : adaptiveVariants) {
+            long headroomMs = requestBudgetMs - s.projectedWork().toMillis();
+            String why = profileDiffExplanation(s, balanced);
+            sb.append("  ")
+                .append(padRight(s.policyProfile(), 15)).append("  ")
+                .append(padLeft(String.valueOf(s.totalTasksExecuted()), 4)).append("  ")
+                .append(padLeft(String.valueOf(s.fallbackTasks().size()), 4)).append("  ")
+                .append(padLeft(String.valueOf(s.approximatedTasks().size()), 6)).append("  ")
+                .append(padLeft(String.valueOf(s.omittedTasks().size()), 4)).append("  ")
+                .append(padLeft(s.degraded() ? "yes" : "no", 8)).append("  ")
+                .append(padLeft(headroomMs + "ms", 8)).append("  ")
+                .append(why)
+                .append(System.lineSeparator());
+        }
+        return sb.toString();
+    }
+
+    private static String profileDiffExplanation(DashboardBenchmarkSummary variant, DashboardBenchmarkSummary balanced) {
+        if (balanced == null || variant.policyProfile().equals("balanced")) {
+            return "baseline";
+        }
+        long workDelta = variant.projectedWork().toMillis() - balanced.projectedWork().toMillis();
+        int omitDelta = variant.omittedTasks().size() - balanced.omittedTasks().size();
+        int fbDelta = variant.fallbackTasks().size() - balanced.fallbackTasks().size();
+        int approxDelta = variant.approximatedTasks().size() - balanced.approximatedTasks().size();
+        String profile = variant.policyProfile();
+        if ("latency_first".equals(profile)) {
+            if (omitDelta > 0) {
+                return "omits optional work proactively to protect headroom (+" + omitDelta + " omit vs balanced)";
+            }
+            return "omits optional work at low ratio threshold; headroom preserved for mandatory steps";
+        }
+        if ("continuity".equals(profile)) {
+            if (fbDelta > 0 || approxDelta > 0) {
+                return "prefers degraded path over omission (+" + (fbDelta + approxDelta) + " fb/approx vs balanced)";
+            }
+            if (omitDelta < 0) {
+                return "fewer omissions than balanced; fallback paths taken where balanced omits";
+            }
+            return "similar coverage to balanced; continuity preference active but not triggered here";
+        }
+        if ("efficiency".equals(profile)) {
+            if (omitDelta > 0) {
+                return "omits earlier to protect headroom (+" + omitDelta + " omit vs balanced)";
+            }
+            if (workDelta < 0) {
+                return "leaner projected work (" + workDelta + "ms vs balanced) via earlier omission";
+            }
+            return "similar plan to balanced; efficiency threshold not reached in this scenario";
+        }
+        if (workDelta > 0) {
+            return "more work than balanced (+" + workDelta + "ms); inspect trace for cause";
+        }
+        if (workDelta < 0) {
+            return "less projected work (" + workDelta + "ms vs balanced); likely earlier omission";
+        }
+        return "equivalent plan to balanced in this scenario";
+    }
+
+    private static String padRight(String value, int width) {
+        if (value == null) {
+            value = "";
+        }
+        if (value.length() >= width) {
+            return value;
+        }
+        return value + " ".repeat(width - value.length());
+    }
+
+    private static String padLeft(String value, int width) {
+        if (value == null) {
+            value = "";
+        }
+        if (value.length() >= width) {
+            return value;
+        }
+        return " ".repeat(width - value.length()) + value;
     }
 
     private static String profileSummaryJson(List<DashboardBenchmarkSummary> scenarioSummaries) {
@@ -371,6 +489,35 @@ public final class DashboardBenchmarkFormatter {
                 + "\"fallbackTasks\":" + jsonArray(summary.fallbackTasks()) + ","
                 + "\"approximatedTasks\":" + jsonArray(summary.approximatedTasks()) + ","
                 + "\"degraded\":" + summary.degraded()
+                + "}")
+            .collect(Collectors.joining(",", "[", "]"));
+    }
+
+    private static String profileComparisonSummaryJson(
+        List<DashboardBenchmarkSummary> scenarioSummaries,
+        long requestBudgetMs
+    ) {
+        List<DashboardBenchmarkSummary> adaptiveVariants = scenarioSummaries.stream()
+            .filter(summary -> summary.executionStrategy().equals("budgetflow_adaptive"))
+            .sorted(Comparator.comparing(DashboardBenchmarkSummary::policyProfile))
+            .toList();
+        if (adaptiveVariants.isEmpty()) {
+            return "[]";
+        }
+        DashboardBenchmarkSummary balanced = adaptiveVariants.stream()
+            .filter(s -> s.policyProfile().equals("balanced"))
+            .findFirst()
+            .orElse(null);
+        return adaptiveVariants.stream()
+            .map(s -> "{"
+                + "\"policyProfile\":\"" + escape(s.policyProfile()) + "\","
+                + "\"executedTasks\":" + s.totalTasksExecuted() + ","
+                + "\"fallbackCount\":" + s.fallbackTasks().size() + ","
+                + "\"approximatedCount\":" + s.approximatedTasks().size() + ","
+                + "\"omittedCount\":" + s.omittedTasks().size() + ","
+                + "\"degraded\":" + s.degraded() + ","
+                + "\"headroomMs\":" + (requestBudgetMs - s.projectedWork().toMillis()) + ","
+                + "\"whyDiffersFromBalanced\":\"" + escape(profileDiffExplanation(s, balanced)) + "\""
                 + "}")
             .collect(Collectors.joining(",", "[", "]"));
     }

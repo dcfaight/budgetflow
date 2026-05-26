@@ -113,7 +113,7 @@ Suggested progression:
 - `adoption` next for a compact, realistic storyline (control -> commuter mixed spike -> dominant DB bottleneck)
 - `realism` next for broader scenario evidence, including the clean budget-only path-aware case
 - `policy` when you need to choose a planner profile deliberately
-- `agent` for agent-step coordination and degraded-cascade boundary cases; pair with `--policies=balanced,latency_first`
+- `agent` for agent-step coordination, degraded-cascade boundary cases, and four-way profile comparison; pair with `--policies=balanced,continuity,efficiency,latency_first`
 - dashboard UI query params mirror this flow (`pack`, `scenario`, `profile`, `compareProfiles`) for quick visual exploration
 
 ## 3) Interpret profile behavior conservatively
@@ -124,6 +124,15 @@ Suggested progression:
 - `latency_first`: omits optional work at a lower threshold than `efficiency`; does not explore degraded paths for optional steps. Use for real-time agent turns or when remaining budget headroom is the highest priority.
 
 Choose profile by endpoint goals, not single-scenario wins.
+
+**Common interpretation pitfalls to avoid:**
+
+- Do not treat `latency_first` omissions as failures. Proactive optional omission is the design intent — it protects budget headroom for mandatory/important steps.
+- Do not rank profiles by how many tasks they execute. `continuity` may execute more fallback tasks than `balanced`, which is correct behavior for preserving coverage — not evidence that `balanced` is inadequate.
+- Do not compare `agent_coordination_degraded_cascade` results to production expectations. That scenario is a boundary case designed to verify deterministic cascade behavior under severe conditions.
+- Do not conclude from one scenario that one profile is globally superior. Use the `policy` and `agent` packs to see where profiles meaningfully diverge and why.
+
+For a full interpretation guide, see [docs/interpreting-profiles.md](interpreting-profiles.md).
 
 If none of the built-in profiles fit your endpoint class well, review `docs/planner-customization.md` before introducing a custom selector.
 
@@ -136,6 +145,7 @@ If none of the built-in profiles fit your endpoint class well, review `docs/plan
 - Profile deltas that match intended tradeoffs for your workload.
 - Sample-app and harness observations that tell the same story instead of diverging.
 - Tight-budget/path-aware scenarios that show degraded-path latency hints matter even when runtime pressure is calm.
+- Profile comparison summaries that show `whyDiffersFromBalanced` aligned with each profile's stated intent.
 
 ## 5) What this guide does not claim
 

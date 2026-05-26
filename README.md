@@ -26,10 +26,11 @@ If you are exploring the repository for the first time, use this sequence:
 3. **Visual evaluator dashboard:** run `./gradlew :budgetflow-demo-fintech:bootRun`, then open `http://localhost:8080/dashboard/evaluator` (includes multi-scenario storyline synthesis, walkthrough-mode narrative guidance, compact analytics/trend cards, deeper planner signal/path/layer explainability cues, and scenario-lab dataset switching/compare controls)
 4. **Evaluation runbook:** [docs/evaluate.md](docs/evaluate.md)
 5. **Planner defaults vs customization:** [docs/planner-customization.md](docs/planner-customization.md)
-6. **Architecture + extension boundaries:** [docs/architecture.md](docs/architecture.md)
-7. **Agent orchestration direction:** [docs/agent-orchestration.md](docs/agent-orchestration.md)
-8. **Agent demo slice:** `./gradlew :budgetflow-demo-fintech:runAgentTurnDemo` — minimal proof that `AgentWorkSpec` fits the existing model (retrieve → verify → enrich → follow-up actions, healthy + constrained + pressure-spike scenarios)
-9. **Agent boundary-case scenarios:** `./gradlew :budgetflow-demo-fintech:runAgentCoordinationDemo` — coordination (plan → two parallel fetches → consolidate → polish), degraded-cascade, and balanced vs latency_first profile comparison
+6. **Interpreting profile differences:** [docs/interpreting-profiles.md](docs/interpreting-profiles.md) — how to read profile comparison output without drawing misleading conclusions
+7. **Architecture + extension boundaries:** [docs/architecture.md](docs/architecture.md)
+8. **Agent orchestration direction:** [docs/agent-orchestration.md](docs/agent-orchestration.md)
+9. **Agent demo slice:** `./gradlew :budgetflow-demo-fintech:runAgentTurnDemo` — minimal proof that `AgentWorkSpec` fits the existing model (retrieve → verify → enrich → follow-up actions, healthy + constrained + pressure-spike scenarios)
+10. **Agent boundary-case scenarios:** `./gradlew :budgetflow-demo-fintech:runAgentCoordinationDemo` — coordination (plan → two parallel fetches → consolidate → polish), degraded-cascade, and balanced vs latency_first profile comparison
 
 ## Why this matters in the first minute
 
