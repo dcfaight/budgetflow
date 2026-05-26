@@ -183,6 +183,40 @@ public final class PressureScenarios {
         );
     }
 
+    public static DashboardBenchmarkScenario agentCoordinationHealthy() {
+        return scenario(
+            "agent",
+            "agent_coordination_healthy",
+            "Agent coordination / healthy",
+            "A coordination-style agent turn (plan → two parallel fetches → consolidate → polish) under a generous budget with no system pressure.",
+            "Agent-coordination baseline: verifies all coordination steps execute normally under comfortable conditions.",
+            "Use as a control case for coordination semantics. If important steps degrade here, revisit latency hints.",
+            "Agent assistant turn with parallel sub-agent fetches under normal operating conditions.",
+            "All important coordination steps should execute at primary path; optional polish may adapt gracefully.",
+            "generous_budget",
+            "low_pressure",
+            Duration.ofMillis(300),
+            LOW_PRESSURE
+        );
+    }
+
+    public static DashboardBenchmarkScenario agentCoordinationDegradedCascade() {
+        return scenario(
+            "agent",
+            "agent_coordination_degraded_cascade",
+            "Agent coordination / degraded-cascade",
+            "Severe joint budget + pressure constraint causes all important coordination steps to fall back simultaneously, demonstrating a full degradation cascade.",
+            "Cascade-failure boundary case: validates that joint stress drives deterministic, traceable cascade degradation across multiple important steps.",
+            "This is a boundary case, not a typical production condition. Inspect trace reasons to verify the cascade is deliberate and explainable, not accidental.",
+            "Agent assistant turn under a traffic spike with degraded sub-agent infrastructure.",
+            "All important fetch and consolidate steps should fall back to degraded paths; optional step omitted; mandatory plan step still executes.",
+            "constrained_budget",
+            "elevated_pressure",
+            Duration.ofMillis(70),
+            ELEVATED_PRESSURE
+        );
+    }
+
     public static DashboardScenarioPack defaultPack() {
         return new DashboardScenarioPack(
             "default",
@@ -260,6 +294,20 @@ public final class PressureScenarios {
         );
     }
 
+    public static DashboardScenarioPack agentPack() {
+        return new DashboardScenarioPack(
+            "agent",
+            "Agent-oriented boundary cases: coordination, degraded-cascade, and profile comparison under joint stress.",
+            "evaluating agent-step orchestration semantics, coordination fallback behavior, and latency_first vs balanced profile deltas",
+            "./gradlew :budgetflow-demo-fintech:runDashboardComparison --args=\"--pack=agent --policies=balanced,latency_first\"",
+            List.of(
+                agentCoordinationHealthy(),
+                agentCoordinationDegradedCascade(),
+                moderateBudgetElevatedPressure()
+            )
+        );
+    }
+
     public static DashboardScenarioPack packNamed(String packName) {
         return switch (packName) {
             case "default" -> defaultPack();
@@ -267,6 +315,7 @@ public final class PressureScenarios {
             case "realism" -> realismPack();
             case "policy" -> policyPack();
             case "adoption" -> adoptionPack();
+            case "agent" -> agentPack();
             default -> throw new IllegalArgumentException("Unknown dashboard scenario pack: " + packName);
         };
     }

@@ -309,6 +309,16 @@ flowchart LR
 
 **Minimal start done:** `AgentTurnDemo` (in `budgetflow-demo-fintech`) implements a retrieve-context → verify-sources → enrich-with-examples → draft-follow-up-actions flow using `AgentWorkSpec`. It runs under healthy, constrained-budget, and pressure-spike scenarios to show adaptive planning, fallback/approximate degradation, and omission for agent-style work items with no changes to the core planning engine. `RequestExecutionDiagnosticsFormatter.formatAgentSteps()` surfaces the trace in agent-step format, and the evaluator dashboard now includes an agent-step compact explainability panel for the same trace shape. Run with `./gradlew :budgetflow-demo-fintech:runAgentTurnDemo`.
 
+**Boundary-case extension done (this milestone):** `AgentCoordinationDemo` adds two boundary-case scenarios built on top of the same planning model:
+
+1. **Multi-step coordination**: a plan-coordination (mandatory) → fetch-source-a (important, cached fallback) → fetch-source-b (important, cached fallback) → consolidate-results (important, partial approximate) → format-polished-response (optional, minimal approximate) turn. Three sub-scenarios show the healthy baseline, sub-agent fallback under tight budget, and mixed-pressure cascade.
+
+2. **Degraded-cascade**: the same coordination work items under a severe joint budget + maximum pressure constraint, causing all important steps to fall back or approximate simultaneously. This boundary case verifies that cascaded degradation is deterministic and traceable.
+
+Run with `./gradlew :budgetflow-demo-fintech:runAgentCoordinationDemo`.
+
+**Policy profile extension done (this milestone):** A `latency_first` planner profile (`PlannerPolicyProfile.LATENCY_FIRST`) is now available alongside `balanced`, `continuity`, and `efficiency`. It omits optional work at a lower latency-ratio threshold and does not explore degraded paths for optional steps, making it a natural fit for real-time or high-frequency agent turns where remaining budget headroom is the highest priority. The coordination demo includes a balanced vs latency_first profile comparison. See [docs/planner-customization.md](planner-customization.md) for usage guidance.
+
 ### Phase 4: evaluation/demo support for agent scenarios
 - add scenario packs or evaluator views that compare preferred vs degraded execution for the reference agent workflow
 - surface why steps were downgraded, approximated, or omitted

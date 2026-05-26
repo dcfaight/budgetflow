@@ -29,6 +29,7 @@ If you are exploring the repository for the first time, use this sequence:
 6. **Architecture + extension boundaries:** [docs/architecture.md](docs/architecture.md)
 7. **Agent orchestration direction:** [docs/agent-orchestration.md](docs/agent-orchestration.md)
 8. **Agent demo slice:** `./gradlew :budgetflow-demo-fintech:runAgentTurnDemo` — minimal proof that `AgentWorkSpec` fits the existing model (retrieve → verify → enrich → follow-up actions, healthy + constrained + pressure-spike scenarios)
+9. **Agent boundary-case scenarios:** `./gradlew :budgetflow-demo-fintech:runAgentCoordinationDemo` — coordination (plan → two parallel fetches → consolidate → polish), degraded-cascade, and balanced vs latency_first profile comparison
 
 ## Why this matters in the first minute
 
@@ -44,7 +45,7 @@ If you are exploring the repository for the first time, use this sequence:
 - **What is fintech-demo-specific:** `budgetflow-demo-fintech`, its dashboard domain model, datasets, evaluator UI, comparison harness, and scenario narratives.
 - **What problem the framework solves:** it helps services preserve the most valuable work when not everything can fit, instead of treating every downstream call as equally important until timeout.
 - **Why the evaluator exists:** it is the concrete reference workload used to inspect planner behavior, validate explainability, and share scenario evidence without claiming the fintech demo is the product.
-- **Future direction:** the same orchestration model can extend to multi-agent systems where agents, tools, and subtasks compete for latency and budget headroom. `AgentWorkSpec` is a thin vocabulary adapter toward that direction — it compiles directly to `TaskSpec` and uses the same planner with no second orchestration engine. A minimal agent turn demo (`runAgentTurnDemo`) shows retrieve → verify → enrich → follow-up work adapting under budget and pressure constraints. See [docs/agent-orchestration.md](docs/agent-orchestration.md).
+- **Future direction:** the same orchestration model can extend to multi-agent systems where agents, tools, and subtasks compete for latency and budget headroom. `AgentWorkSpec` is a thin vocabulary adapter toward that direction — it compiles directly to `TaskSpec` and uses the same planner with no second orchestration engine. A minimal agent turn demo (`runAgentTurnDemo`) shows retrieve → verify → enrich → follow-up work adapting under budget and pressure constraints. `AgentCoordinationDemo` (`runAgentCoordinationDemo`) adds boundary cases: multi-step coordination with parallel sub-agent steps, a degraded-cascade failure path, and a balanced vs latency_first profile comparison. The `latency_first` planner profile is now available for endpoints where protecting budget headroom for mandatory work is the priority. See [docs/agent-orchestration.md](docs/agent-orchestration.md) and [docs/planner-customization.md](docs/planner-customization.md).
 
 ## Quickstart first (5 minutes)
 

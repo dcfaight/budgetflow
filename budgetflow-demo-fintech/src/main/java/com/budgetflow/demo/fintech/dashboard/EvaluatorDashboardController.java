@@ -14,7 +14,7 @@ import java.util.stream.Collectors;
 
 @RestController
 public class EvaluatorDashboardController {
-    private static final List<String> SUPPORTED_PACKS = List.of("default", "extended", "realism", "policy", "adoption");
+    private static final List<String> SUPPORTED_PACKS = List.of("default", "extended", "realism", "policy", "adoption", "agent");
     private final EvaluatorDashboardService evaluatorDashboardService;
     private final DemoDatasetCatalog demoDatasetCatalog;
 
@@ -32,7 +32,7 @@ public class EvaluatorDashboardController {
         @RequestParam(name = "scenario", required = false) String scenarioName,
         @RequestParam(name = "compareScenarios", required = false) String compareScenarios,
         @RequestParam(name = "profile", defaultValue = "balanced") String profileName,
-        @RequestParam(name = "compareProfiles", defaultValue = "balanced,continuity,efficiency") String compareProfiles,
+        @RequestParam(name = "compareProfiles", defaultValue = "balanced,continuity,efficiency,latency_first") String compareProfiles,
         @RequestParam(name = "dataset", required = false) String datasetId,
         @RequestParam(name = "compareDatasets", required = false) String compareDatasets,
         @RequestParam(name = "walkthroughStep", required = false) String walkthroughStep

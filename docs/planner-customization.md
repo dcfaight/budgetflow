@@ -15,6 +15,7 @@ This is a prototype framework, so the goal is explainable customization, not a h
 | First-time adoption or unclear tradeoffs | `balanced` |
 | Preserve more optional response coverage | `continuity` |
 | Protect stricter latency headroom | `efficiency` |
+| Real-time or high-frequency agent turns; maximise remaining budget headroom | `latency_first` |
 | Endpoint-specific optional-task policy not covered by the built-ins | custom `OptionalTaskModeSelector` |
 
 Recommended Spring Boot property:
@@ -29,6 +30,16 @@ Supported built-in values:
 - `balanced` / `default`
 - `continuity`
 - `efficiency`
+- `latency_first` / `latency` / `fast`
+
+### Profile summary
+
+| Profile | Optional behavior | Degraded-path usage | Best for |
+|---|---|---|---|
+| `balanced` | Degrade then omit under stress | Full degraded-path exploration | General-purpose default |
+| `continuity` | Strongly prefers degraded paths before omission | Maximises degraded path use | Preserving response coverage |
+| `efficiency` | Omit earlier, minimal degraded-path use | Lean degraded-path use | Protecting latency headroom |
+| `latency_first` | Omit at a low ratio threshold; never use degraded paths for optional work | None for optional steps | Real-time agent turns; strict latency budgets |
 
 ## 2) Understand what is customizable
 
@@ -76,7 +87,8 @@ When comparing a custom selector to the built-in profiles:
 1. run the sample endpoint flow first
 2. run `--pack=default`
 3. run `--pack=policy --policies=balanced,continuity,efficiency`
-4. only then compare your custom selector against the same scenarios
+4. run `--pack=agent --policies=balanced,latency_first` to see coordination and degraded-cascade boundary cases
+5. only then compare your custom selector against the same scenarios
 
 Inspect:
 - `diagnostics.degraded`

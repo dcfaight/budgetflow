@@ -41,7 +41,7 @@ public class EvaluatorDashboardService {
     private static final String ACCOUNT_ID = "acc-123";
     private static final String STRATEGY_ADAPTIVE = "budgetflow_adaptive";
     private static final String STRATEGY_NAIVE = "naive_parallel";
-    private static final List<String> PACK_NAMES = List.of("default", "extended", "realism", "policy", "adoption");
+    private static final List<String> PACK_NAMES = List.of("default", "extended", "realism", "policy", "adoption", "agent");
     private static final List<PlannerPolicyProfile> DEFAULT_COMPARE_PROFILES = List.of(
         PlannerPolicyProfile.BALANCED,
         PlannerPolicyProfile.CONTINUITY,
@@ -603,14 +603,16 @@ public class EvaluatorDashboardService {
             .append("<div class='card card-tip'><strong>2) Run one profile first</strong><ul>")
             .append("<li>Start with <code>balanced</code> unless you already know continuity/headroom priorities.</li>")
             .append("<li>Then compare <code>continuity</code> and <code>efficiency</code> for directional deltas.</li>")
+            .append("<li>Use <code>latency_first</code> for agent turns where preserving budget headroom is the priority over optional coverage.</li>")
             .append("</ul></div>")
             .append("<div class='card card-tip'><strong>3) Interpret conservatively</strong><ul>")
             .append("<li>Read budget-fit and degradation cues before drawing conclusions.</li>")
             .append("<li>Treat profile and strategy deltas as scenario evidence, not benchmark certification.</li>")
             .append("</ul></div>")
             .append("</div>")
-            .append("<div class='tip'><strong>Guided progression:</strong> default → adoption → realism → policy. ")
-            .append("Use <code>extended</code> when you need broader pressure variety in one pass.</div>");
+            .append("<div class='tip'><strong>Guided progression:</strong> default → adoption → realism → policy → agent. ")
+            .append("Use <code>extended</code> when you need broader pressure variety in one pass. ")
+            .append("Use <code>agent</code> for agent-step coordination and degraded-cascade boundary cases.</div>");
 
         html.append("<h2>Scenario packs</h2><div>");
         for (String packName : PACK_NAMES) {
