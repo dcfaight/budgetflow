@@ -45,6 +45,7 @@ Dataset-pack structure and schema notes are documented in
 
 Use it to browse scenarios, switch profiles, inspect request-level outcomes, and review planner trace reasoning in a visual prototype surface.
 The page now provides first-time “Start here” guidance plus walkthrough-mode progression, narrative phase panels, recommended next comparisons, profile recommendation callouts, compact analytics cards, multi-scenario storyline synthesis, and deeper planner explainability sections.
+It also includes an **Agent-step view (compact explainability)** panel that renders the same decision trace in an agent-style step format for quick degrade/omit scanning.
 
 Observe:
 - guided progression and profile-chooser recommendations (`default` then `adoption`/`realism`, `balanced` first)
@@ -60,11 +61,20 @@ Observe:
 - decision-path summary chips for quick path reading before table inspection
 - planner lanes grouped by importance (mandatory / important / optional)
 - explicit signal-to-mode summaries (`pressure`/`layer` plus selected-mode counts)
+- agent-step formatted trace summary (compact explainability view)
 - baseline-vs-selected branch/path summaries for changed decisions
 - trace compression section listing changed decisions before full table review
 - decision layer + fit/savings markers in reasons (`layer=...`, `fit=...`, `savings=...`)
 - profile comparison deltas vs balanced (`Δwork`, `Δexec`, `Δdegrade`) plus compact visual diff chips as directional evidence
 - `executionSummary` for a compact human-readable interpretation of the response
+
+If you want a minimal non-UI proof point for agent-style work, run:
+
+```bash
+./gradlew :budgetflow-demo-fintech:runAgentTurnDemo
+```
+
+This demo shows one agent turn with mandatory/important/optional steps across healthy, constrained-budget, and pressure-spike scenarios.
 
 If this path is not clear yet, stop here and review `docs/quickstart.md` before moving into harness output.
 
