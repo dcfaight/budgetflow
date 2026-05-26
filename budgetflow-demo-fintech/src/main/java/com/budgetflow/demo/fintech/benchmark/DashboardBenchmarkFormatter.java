@@ -353,42 +353,42 @@ public final class DashboardBenchmarkFormatter {
         if (naive == null || adaptive == null) {
             return "null";
         }
-
-        private static String scorecardsJson(List<ScenarioAssessmentScorer.ScenarioScorecard> scorecards) {
-            return scorecards.stream()
-                .map(scorecard -> "{"
-                    + "\"executionStrategy\":\"" + escape(scorecard.executionStrategy()) + "\","
-                    + "\"policyProfile\":\"" + escape(scorecard.policyProfile()) + "\","
-                    + "\"mandatoryWorkPreserved\":" + scorecard.mandatoryWorkPreserved() + ","
-                    + "\"optionalAlignment\":" + scorecard.optionalAlignment() + ","
-                    + "\"fallbackAlignment\":" + scorecard.fallbackAlignment() + ","
-                    + "\"intentMatched\":" + scorecard.intentMatched() + ","
-                    + "\"assessment\":\"" + escape(scorecard.disposition().label()) + "\","
-                    + "\"rationale\":\"" + escape(scorecard.rationale()) + "\""
-                    + "}")
-                .collect(Collectors.joining(",", "[", "]"));
-        }
-
-        private static String scorecardDispositionSummary(List<ScenarioAssessmentScorer.ScenarioScorecard> scorecards) {
-            Map<String, Long> counts = scorecards.stream()
-                .collect(Collectors.groupingBy(
-                    scorecard -> scorecard.disposition().label(),
-                    LinkedHashMap::new,
-                    Collectors.counting()
-                ));
-            return counts.entrySet().stream()
-                .map(entry -> entry.getKey() + "=" + entry.getValue())
-                .collect(Collectors.joining(", "));
-        }
-
-        private static String scorecardKey(String executionStrategy, String policyProfile) {
-            return executionStrategy + "|" + policyProfile;
-        }
         return "{"
             + "\"projectedWorkSavingsMs\":" + naive.projectedWork().minus(adaptive.projectedWork()).toMillis() + ","
             + "\"executedTaskDelta\":" + (adaptive.totalTasksExecuted() - naive.totalTasksExecuted()) + ","
             + "\"adaptiveChanges\":\"" + escape(compactAdaptiveChanges(adaptive)) + "\""
             + "}";
+    }
+
+    private static String scorecardsJson(List<ScenarioAssessmentScorer.ScenarioScorecard> scorecards) {
+        return scorecards.stream()
+            .map(scorecard -> "{"
+                + "\"executionStrategy\":\"" + escape(scorecard.executionStrategy()) + "\","
+                + "\"policyProfile\":\"" + escape(scorecard.policyProfile()) + "\","
+                + "\"mandatoryWorkPreserved\":" + scorecard.mandatoryWorkPreserved() + ","
+                + "\"optionalAlignment\":" + scorecard.optionalAlignment() + ","
+                + "\"fallbackAlignment\":" + scorecard.fallbackAlignment() + ","
+                + "\"intentMatched\":" + scorecard.intentMatched() + ","
+                + "\"assessment\":\"" + escape(scorecard.disposition().label()) + "\","
+                + "\"rationale\":\"" + escape(scorecard.rationale()) + "\""
+                + "}")
+            .collect(Collectors.joining(",", "[", "]"));
+    }
+
+    private static String scorecardDispositionSummary(List<ScenarioAssessmentScorer.ScenarioScorecard> scorecards) {
+        Map<String, Long> counts = scorecards.stream()
+            .collect(Collectors.groupingBy(
+                scorecard -> scorecard.disposition().label(),
+                LinkedHashMap::new,
+                Collectors.counting()
+            ));
+        return counts.entrySet().stream()
+            .map(entry -> entry.getKey() + "=" + entry.getValue())
+            .collect(Collectors.joining(", "));
+    }
+
+    private static String scorecardKey(String executionStrategy, String policyProfile) {
+        return executionStrategy + "|" + policyProfile;
     }
 
     private static String comparisonTakeaway(DashboardBenchmarkSummary naive, DashboardBenchmarkSummary adaptive) {
