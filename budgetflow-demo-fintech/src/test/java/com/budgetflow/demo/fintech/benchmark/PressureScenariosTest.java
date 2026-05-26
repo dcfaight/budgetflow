@@ -243,4 +243,64 @@ class PressureScenariosTest {
         assertEquals(policy, policyFromLookup);
         assertEquals(adoption, adoptionFromLookup);
     }
+
+    @Test
+    void agentCoordinationHealthyScenarioIsConsistent() {
+        DashboardBenchmarkScenario scenario = PressureScenarios.agentCoordinationHealthy();
+        assertEquals("agent", scenario.packName());
+        assertEquals("agent_coordination_healthy", scenario.name());
+        assertEquals("Agent coordination / healthy", scenario.displayName());
+        assertEquals("generous_budget", scenario.budgetProfile());
+        assertEquals("low_pressure", scenario.pressureProfile());
+        assertEquals(Duration.ofMillis(300), scenario.requestBudget());
+        assertEquals(PressureScenarios.LOW_PRESSURE, scenario.pressureSnapshot());
+    }
+
+    @Test
+    void agentCoordinationDegradedCascadeScenarioIsConsistent() {
+        DashboardBenchmarkScenario scenario = PressureScenarios.agentCoordinationDegradedCascade();
+        assertEquals("agent", scenario.packName());
+        assertEquals("agent_coordination_degraded_cascade", scenario.name());
+        assertEquals("Agent coordination / degraded-cascade", scenario.displayName());
+        assertEquals("constrained_budget", scenario.budgetProfile());
+        assertEquals("elevated_pressure", scenario.pressureProfile());
+        assertEquals(Duration.ofMillis(70), scenario.requestBudget());
+        assertEquals(PressureScenarios.ELEVATED_PRESSURE, scenario.pressureSnapshot());
+    }
+
+    @Test
+    void agentProfileComparisonScenarioIsConsistent() {
+        DashboardBenchmarkScenario scenario = PressureScenarios.agentProfileComparison();
+        assertEquals("agent", scenario.packName());
+        assertEquals("agent_profile_comparison", scenario.name());
+        assertEquals("moderate_budget", scenario.budgetProfile());
+        assertEquals("moderate_pressure", scenario.pressureProfile());
+        assertEquals(Duration.ofMillis(180), scenario.requestBudget());
+        assertEquals(PressureScenarios.MODERATE_PRESSURE, scenario.pressureSnapshot());
+    }
+
+    @Test
+    void agentPackExposesExpectedScenariosAndMetadata() {
+        DashboardScenarioPack pack = PressureScenarios.agentPack();
+        assertEquals("agent", pack.name());
+        assertEquals(4, pack.scenarios().size());
+        assertEquals(PressureScenarios.agentCoordinationHealthy(), pack.scenarios().get(0));
+        assertEquals(PressureScenarios.agentCoordinationDegradedCascade(), pack.scenarios().get(1));
+        assertEquals(PressureScenarios.moderateBudgetElevatedPressure(), pack.scenarios().get(2));
+        assertEquals(PressureScenarios.agentProfileComparison(), pack.scenarios().get(3));
+    }
+
+    @Test
+    void agentPackIsReachableByName() {
+        DashboardScenarioPack pack = PressureScenarios.packNamed("agent");
+        assertEquals(PressureScenarios.agentPack(), pack);
+    }
+
+    @Test
+    void agentScenarioFactoriesAreDeterministic() {
+        assertEquals(PressureScenarios.agentCoordinationHealthy(), PressureScenarios.agentCoordinationHealthy());
+        assertEquals(PressureScenarios.agentCoordinationDegradedCascade(), PressureScenarios.agentCoordinationDegradedCascade());
+        assertEquals(PressureScenarios.agentProfileComparison(), PressureScenarios.agentProfileComparison());
+        assertEquals(PressureScenarios.agentPack(), PressureScenarios.agentPack());
+    }
 }

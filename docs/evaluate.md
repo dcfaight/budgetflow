@@ -117,6 +117,43 @@ Suggested progression:
 - `agent` for agent-step coordination, degraded-cascade boundary cases, and four-way profile comparison; pair with `--policies=balanced,continuity,efficiency,latency_first`
 - dashboard UI query params mirror this flow (`pack`, `scenario`, `profile`, `compareProfiles`) for quick visual exploration
 
+### Reproducible agent evaluation pack (one-command report)
+
+Run all four agent profiles in one command and produce stable, reviewable artifacts:
+
+```bash
+./gradlew :budgetflow-demo-fintech:runAgentEvalReport
+```
+
+This generates two files with stable names to `budgetflow-demo-fintech/build/eval-reports/`:
+
+| File | Contents |
+|------|----------|
+| `agent-eval-report.json` | Structured evidence: scorecards, profile comparisons, confidence summary |
+| `agent-eval-report.md` | Compact review packet: scenario narratives, scorecard tables, interpretation section |
+
+Override the output directory:
+
+```bash
+./gradlew :budgetflow-demo-fintech:runAgentEvalReport --args="--out=/tmp/my-eval"
+```
+
+**Comparing across runs or PRs:** because file names are stable (no timestamp), you can diff them directly:
+
+```bash
+git diff build/eval-reports/agent-eval-report.md
+git diff build/eval-reports/agent-eval-report.json
+```
+
+**Artifact layout:** the Markdown report includes a `## Review interpretation` section at the end that summarizes:
+- Mandatory preservation count across all adaptive runs
+- Scorecard disposition breakdown (`expected`, `acceptable`, `cautionary`, `mismatched`)
+- Whether profile differentiation was observed
+- A reviewer note about `latency_first` optional-coverage intent
+
+The JSON report includes `scorecards`, `profileComparisonSummary`, and `confidenceSummary` fields.
+Both formats are intentionally compact — readable in a review thread or design document.
+
 ### Shareable evidence exports
 
 Use CLI output export when you need artifacts outside the evaluator UI:
@@ -126,7 +163,7 @@ Use CLI output export when you need artifacts outside the evaluator UI:
 ./gradlew :budgetflow-demo-fintech:runDashboardComparison --args="--pack=agent --policies=balanced,continuity,efficiency,latency_first --markdown --out=/tmp/budgetflow-agent-evidence.md"
 ```
 
-The JSON export now includes per-result `scorecards` and rationale fields so reviewers can inspect assessment evidence without opening the dashboard UI.
+The JSON export includes per-result `scorecards` and rationale fields so reviewers can inspect assessment evidence without opening the dashboard UI.
 The Markdown export is intentionally compact for review threads, design notes, and architecture discussions.
 
 From the evaluator UI, use **Evidence export** links in the profile-comparison section for scenario-scoped downloads:
@@ -179,3 +216,19 @@ If none of the built-in profiles fit your endpoint class well, review `docs/plan
 - Production hardening or SLO readiness.
 - Full observability integration maturity.
 - Cross-environment performance guarantees.
+
+## 6) Lightweight regression protections
+
+The agent evaluation pack includes lightweight test assertions that protect the current evaluation story from drift.
+These live in `AgentEvalPackRegressionTest` and cover:
+
+| Protection | What it asserts |
+|------------|-----------------|
+| Mandatory preservation | `balance` and `transactions` are never omitted across all agent scenarios and all four profiles |
+| Healthy vs cascade distinction | The healthy coordination scenario's degraded plan still fits within budget; the cascade scenario's mandatory work alone exceeds the deliberately-small budget (boundary case) |
+| Cascade determinism | `agent_coordination_degraded_cascade` with balanced always produces: `degraded=true`, `insights` omitted, `rewards` fallen back |
+| Profile differentiation | `latency_first` omits at least as many optional tasks as `balanced` in the profile comparison scenario |
+| No mismatched dispositions | No scorecard across any agent scenario and profile reaches `MISMATCHED` disposition |
+
+These assertions are intentionally lightweight. They protect semantics, not performance numbers.
+If a future change causes any of these to fail, inspect the planner trace and scorecard rationale before changing the assertions.

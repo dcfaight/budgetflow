@@ -38,3 +38,10 @@ tasks.register<JavaExec>("runAgentCoordinationDemo") {
     classpath = sourceSets["main"].runtimeClasspath
     mainClass.set("com.budgetflow.demo.fintech.agent.AgentCoordinationDemo")
 }
+
+tasks.register<JavaExec>("runAgentEvalReport") {
+    group = "application"
+    description = "Generates stable agent evaluation pack artifacts (JSON + Markdown) to build/eval-reports/. Runs all four profiles in one command."
+    classpath = sourceSets["main"].runtimeClasspath
+    mainClass.set("com.budgetflow.demo.fintech.benchmark.AgentEvalReporter")
+}
