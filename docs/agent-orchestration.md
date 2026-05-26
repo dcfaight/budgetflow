@@ -307,6 +307,8 @@ flowchart LR
 - include mandatory, important, and optional agent work with at least one degraded path per discretionary class
 - demonstrate latency- and pressure-aware planning in a way that remains easy to inspect
 
+**Minimal start done:** `AgentTurnDemo` (in `budgetflow-demo-fintech`) implements a retrieve-context → verify-sources → enrich-with-examples flow using `AgentWorkSpec`. It runs under two budget scenarios (healthy and constrained) to show that adaptive planning, fallback degradation, and omission work for agent-style work items with no changes to the core planning engine. `RequestExecutionDiagnosticsFormatter.formatAgentSteps()` surfaces the trace in agent-step format. Run with `./gradlew :budgetflow-demo-fintech:runAgentTurnDemo`.
+
 ### Phase 4: evaluation/demo support for agent scenarios
 - add scenario packs or evaluator views that compare preferred vs degraded execution for the reference agent workflow
 - surface why steps were downgraded, approximated, or omitted
