@@ -38,8 +38,9 @@ public final class DashboardWalkthrough {
 
             5) Export a shareable JSON report
                ./gradlew :budgetflow-demo-fintech:runDashboardComparison --args="--pack=realism --json --out=/tmp/budgetflow-realism.json"
+               ./gradlew :budgetflow-demo-fintech:runDashboardComparison --args="--pack=agent --policies=balanced,continuity,efficiency,latency_first --markdown --out=/tmp/budgetflow-agent-evidence.md"
                Why: %s.
-               Observe: scenario narratives, real-world pattern mapping, comparisonTakeaway, and confidenceSummary before drawing conclusions.
+               Observe: scenario narratives, scorecards, comparisonTakeaway, endpoint-intent tradeoff signals, and confidenceSummary before drawing conclusions.
 
             6) If you want to customize planner behavior, stay incremental
                - Start with budgetflow.planner.profile=balanced|continuity|efficiency

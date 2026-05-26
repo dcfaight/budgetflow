@@ -65,9 +65,14 @@ public final class DashboardComparisonHarness implements AutoCloseable {
         try (DashboardComparisonHarness harness = new DashboardComparisonHarness()) {
             DashboardScenarioPack pack = PressureScenarios.packNamed(options.packName());
             List<DashboardBenchmarkSummary> summaries = harness.run(pack.scenarios(), options.policyProfiles());
-            String output = options.json()
-                ? DashboardBenchmarkFormatter.formatJson(pack, summaries)
-                : DashboardBenchmarkFormatter.format(pack, summaries);
+            String output;
+            if (options.json()) {
+                output = DashboardBenchmarkFormatter.formatJson(pack, summaries);
+            } else if (options.markdown()) {
+                output = DashboardBenchmarkFormatter.formatMarkdown(pack, summaries);
+            } else {
+                output = DashboardBenchmarkFormatter.format(pack, summaries);
+            }
             System.out.println(output);
             options.outputPathOptional().ifPresent(path -> writeOutput(path, output));
         }
@@ -249,7 +254,13 @@ public final class DashboardComparisonHarness implements AutoCloseable {
         }
     }
 
-    private record HarnessOptions(String packName, boolean json, List<PlannerPolicyProfile> policyProfiles, Path outputPath) {
+    private record HarnessOptions(
+        String packName,
+        boolean json,
+        boolean markdown,
+        List<PlannerPolicyProfile> policyProfiles,
+        Path outputPath
+    ) {
         private java.util.Optional<Path> outputPathOptional() {
             return java.util.Optional.ofNullable(outputPath);
         }
@@ -257,11 +268,16 @@ public final class DashboardComparisonHarness implements AutoCloseable {
         private static HarnessOptions parse(String[] args) {
             String packName = "default";
             boolean json = false;
+            boolean markdown = false;
             List<PlannerPolicyProfile> policyProfiles = List.of(PlannerPolicyProfile.BALANCED);
             Path outputPath = null;
             for (String arg : args) {
                 if ("--json".equals(arg)) {
                     json = true;
+                    continue;
+                }
+                if ("--markdown".equals(arg) || "--md".equals(arg)) {
+                    markdown = true;
                     continue;
                 }
                 if (arg.startsWith("--pack=")) {
@@ -280,7 +296,7 @@ public final class DashboardComparisonHarness implements AutoCloseable {
                     }
                 }
             }
-            return new HarnessOptions(packName, json, policyProfiles, outputPath);
+            return new HarnessOptions(packName, json, markdown, policyProfiles, outputPath);
         }
 
         private static List<PlannerPolicyProfile> parseProfiles(String rawValue) {

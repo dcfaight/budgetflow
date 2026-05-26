@@ -38,6 +38,14 @@ public final class DashboardBenchmarkFormatter {
         for (Map.Entry<String, List<DashboardBenchmarkSummary>> entry : summariesByScenario(summaries).entrySet()) {
             List<DashboardBenchmarkSummary> scenarioSummaries = entry.getValue();
             DashboardBenchmarkScenario scenario = scenarioSummaries.get(0).scenario();
+            List<ScenarioAssessmentScorer.ScenarioScorecard> scorecards = ScenarioAssessmentScorer.scorecards(scenarioSummaries);
+            Map<String, ScenarioAssessmentScorer.ScenarioScorecard> scorecardsBySummary = scorecards.stream()
+                .collect(Collectors.toMap(
+                    scorecard -> scorecardKey(scorecard.executionStrategy(), scorecard.policyProfile()),
+                    scorecard -> scorecard,
+                    (first, second) -> first,
+                    LinkedHashMap::new
+                ));
             builder.append("Scenario: ").append(scenario.name())
                 .append(" — ").append(scenario.displayName()).append(System.lineSeparator());
             builder.append("Narrative: ").append(scenario.narrative()).append(System.lineSeparator());
@@ -49,12 +57,16 @@ public final class DashboardBenchmarkFormatter {
                 .append(" | Pressure profile: ").append(scenario.pressureProfile()).append(System.lineSeparator());
             builder.append("Request budget: ").append(scenario.requestBudget().toMillis()).append("ms")
                 .append(" | Pressure: ").append(scenario.pressureSummary()).append(System.lineSeparator());
-            builder.append("Strategy | Policy | Executed | Degraded | Work | Omitted | Fallback | Approx | Why")
+            builder.append("Strategy | Policy | Executed | Degraded | Work | Omitted | Fallback | Approx | Assessment | Why")
                 .append(System.lineSeparator());
-            builder.append("-------- | ------ | -------- | -------- | ---- | ------- | -------- | ------ | ---")
+            builder.append("-------- | ------ | -------- | -------- | ---- | ------- | -------- | ------ | ---------- | ---")
                 .append(System.lineSeparator());
 
             for (DashboardBenchmarkSummary summary : orderedStrategies(scenarioSummaries)) {
+                ScenarioAssessmentScorer.ScenarioScorecard scorecard = scorecardsBySummary.get(
+                    scorecardKey(summary.executionStrategy(), summary.policyProfile())
+                );
+                String assessment = scorecard == null ? "-" : scorecard.disposition().label();
                 builder.append(summary.executionStrategy()).append(" | ")
                     .append(summary.policyProfile()).append(" | ")
                     .append(summary.totalTasksExecuted()).append(" | ")
@@ -64,9 +76,13 @@ public final class DashboardBenchmarkFormatter {
                     .append(formatList(summary.omittedTasks())).append(" | ")
                     .append(formatList(summary.fallbackTasks())).append(" | ")
                     .append(formatList(summary.approximatedTasks())).append(" | ")
+                    .append(assessment).append(" | ")
                     .append(formatReasons(summary.degradationReasons()))
                     .append(System.lineSeparator());
             }
+            builder.append("Scorecards: ")
+                .append(scorecardDispositionSummary(scorecards))
+                .append(System.lineSeparator());
 
             DashboardBenchmarkSummary naive = summaryForStrategy(scenarioSummaries, "naive_parallel", "-");
             DashboardBenchmarkSummary adaptive = summaryForStrategy(scenarioSummaries, "budgetflow_adaptive", "balanced");
@@ -156,6 +172,7 @@ public final class DashboardBenchmarkFormatter {
         for (int index = 0; index < grouped.size(); index++) {
             List<DashboardBenchmarkSummary> scenarioSummaries = grouped.get(index);
             DashboardBenchmarkScenario scenario = scenarioSummaries.get(0).scenario();
+            List<ScenarioAssessmentScorer.ScenarioScorecard> scorecards = ScenarioAssessmentScorer.scorecards(scenarioSummaries);
             DashboardBenchmarkSummary naive = summaryForStrategy(scenarioSummaries, "naive_parallel", "-");
             DashboardBenchmarkSummary adaptive = summaryForStrategy(scenarioSummaries, "budgetflow_adaptive", "balanced");
             if (index > 0) {
@@ -179,6 +196,9 @@ public final class DashboardBenchmarkFormatter {
                 .append("},")
                 .append("\"strategies\":")
                 .append(jsonStrategies(scenarioSummaries))
+                .append(",")
+                .append("\"scorecards\":")
+                .append(scorecardsJson(scorecards))
                 .append(",")
                 .append("\"comparison\":")
                 .append(comparisonJson(naive, adaptive))
@@ -211,6 +231,60 @@ public final class DashboardBenchmarkFormatter {
         }
 
         builder.append("]}");
+        return builder.toString();
+    }
+
+    public static String formatMarkdown(DashboardScenarioPack pack, List<DashboardBenchmarkSummary> summaries) {
+        StringBuilder builder = new StringBuilder();
+        builder.append("# BudgetFlow comparison evidence").append(System.lineSeparator()).append(System.lineSeparator());
+        builder.append("- Pack: `").append(pack.name()).append("` — ").append(pack.description()).append(System.lineSeparator());
+        builder.append("- Best for: ").append(pack.bestFor()).append(System.lineSeparator());
+        builder.append("- Suggested run: `").append(pack.suggestedCommand()).append("`").append(System.lineSeparator());
+        builder.append("- Prototype output only; not benchmark certification.").append(System.lineSeparator()).append(System.lineSeparator());
+        for (Map.Entry<String, List<DashboardBenchmarkSummary>> entry : summariesByScenario(summaries).entrySet()) {
+            List<DashboardBenchmarkSummary> scenarioSummaries = entry.getValue();
+            DashboardBenchmarkScenario scenario = scenarioSummaries.get(0).scenario();
+            List<ScenarioAssessmentScorer.ScenarioScorecard> scorecards = ScenarioAssessmentScorer.scorecards(scenarioSummaries);
+            builder.append("## ").append(scenario.displayName()).append(" (`").append(scenario.name()).append("`)")
+                .append(System.lineSeparator()).append(System.lineSeparator());
+            builder.append("- Focus: ").append(scenario.evaluationFocus()).append(System.lineSeparator());
+            builder.append("- Observe: ").append(scenario.whatToObserve()).append(System.lineSeparator());
+            builder.append("- Interpretation: ").append(scenario.interpretationGuidance()).append(System.lineSeparator());
+            builder.append("- Budget: ").append(scenario.requestBudget().toMillis()).append("ms")
+                .append(" | Pressure: ").append(scenario.pressureSummary()).append(System.lineSeparator()).append(System.lineSeparator());
+            builder.append("| Strategy | Policy | Executed | Degraded | Work | Omitted | Fallback | Approx |\n");
+            builder.append("|---|---|---:|---|---|---|---|---|\n");
+            for (DashboardBenchmarkSummary summary : orderedStrategies(scenarioSummaries)) {
+                builder.append("| ").append(summary.executionStrategy())
+                    .append(" | ").append(summary.policyProfile())
+                    .append(" | ").append(summary.totalTasksExecuted())
+                    .append(" | ").append(summary.degraded())
+                    .append(" | ").append(summary.requestBudget().toMillis()).append("ms/")
+                    .append(summary.projectedWork().toMillis()).append("ms")
+                    .append(" | ").append(formatList(summary.omittedTasks()))
+                    .append(" | ").append(formatList(summary.fallbackTasks()))
+                    .append(" | ").append(formatList(summary.approximatedTasks()))
+                    .append(" |").append(System.lineSeparator());
+            }
+            builder.append(System.lineSeparator())
+                .append("| Strategy | Policy | Mandatory preserved | Optional aligned | Fallback aligned | Intent matched | Assessment |\n")
+                .append("|---|---|---|---|---|---|---|\n");
+            for (ScenarioAssessmentScorer.ScenarioScorecard scorecard : scorecards) {
+                builder.append("| ").append(scorecard.executionStrategy())
+                    .append(" | ").append(scorecard.policyProfile())
+                    .append(" | ").append(scorecard.mandatoryWorkPreserved())
+                    .append(" | ").append(scorecard.optionalAlignment())
+                    .append(" | ").append(scorecard.fallbackAlignment())
+                    .append(" | ").append(scorecard.intentMatched())
+                    .append(" | ").append(scorecard.disposition().label())
+                    .append(" |").append(System.lineSeparator());
+            }
+            builder.append(System.lineSeparator())
+                .append("> Scorecard summary: ").append(scorecardDispositionSummary(scorecards))
+                .append(System.lineSeparator()).append(System.lineSeparator());
+        }
+        builder.append("## Confidence summary").append(System.lineSeparator()).append(System.lineSeparator())
+            .append("- ").append(confidenceSummaryText(summaries)).append(System.lineSeparator());
         return builder.toString();
     }
 
@@ -284,6 +358,37 @@ public final class DashboardBenchmarkFormatter {
             + "\"executedTaskDelta\":" + (adaptive.totalTasksExecuted() - naive.totalTasksExecuted()) + ","
             + "\"adaptiveChanges\":\"" + escape(compactAdaptiveChanges(adaptive)) + "\""
             + "}";
+    }
+
+    private static String scorecardsJson(List<ScenarioAssessmentScorer.ScenarioScorecard> scorecards) {
+        return scorecards.stream()
+            .map(scorecard -> "{"
+                + "\"executionStrategy\":\"" + escape(scorecard.executionStrategy()) + "\","
+                + "\"policyProfile\":\"" + escape(scorecard.policyProfile()) + "\","
+                + "\"mandatoryWorkPreserved\":" + scorecard.mandatoryWorkPreserved() + ","
+                + "\"optionalAlignment\":" + scorecard.optionalAlignment() + ","
+                + "\"fallbackAlignment\":" + scorecard.fallbackAlignment() + ","
+                + "\"intentMatched\":" + scorecard.intentMatched() + ","
+                + "\"assessment\":\"" + escape(scorecard.disposition().label()) + "\","
+                + "\"rationale\":\"" + escape(scorecard.rationale()) + "\""
+                + "}")
+            .collect(Collectors.joining(",", "[", "]"));
+    }
+
+    private static String scorecardDispositionSummary(List<ScenarioAssessmentScorer.ScenarioScorecard> scorecards) {
+        Map<String, Long> counts = scorecards.stream()
+            .collect(Collectors.groupingBy(
+                scorecard -> scorecard.disposition().label(),
+                LinkedHashMap::new,
+                Collectors.counting()
+            ));
+        return counts.entrySet().stream()
+            .map(entry -> entry.getKey() + "=" + entry.getValue())
+            .collect(Collectors.joining(", "));
+    }
+
+    private static String scorecardKey(String executionStrategy, String policyProfile) {
+        return executionStrategy + "|" + policyProfile;
     }
 
     private static String comparisonTakeaway(DashboardBenchmarkSummary naive, DashboardBenchmarkSummary adaptive) {

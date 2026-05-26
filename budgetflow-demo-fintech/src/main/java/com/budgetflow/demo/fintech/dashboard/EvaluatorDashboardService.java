@@ -18,6 +18,7 @@ import com.budgetflow.demo.fintech.benchmark.DashboardBenchmarkSummary;
 import com.budgetflow.demo.fintech.benchmark.DashboardComparisonHarness;
 import com.budgetflow.demo.fintech.benchmark.DashboardScenarioPack;
 import com.budgetflow.demo.fintech.benchmark.PressureScenarios;
+import com.budgetflow.demo.fintech.benchmark.ScenarioAssessmentScorer;
 import org.springframework.stereotype.Service;
 
 import java.net.URLEncoder;
@@ -704,6 +705,9 @@ public class EvaluatorDashboardService {
                 compareDatasetsParam,
                 walkthroughStep
             ))
+            .append("</div>")
+            .append("<div class='tip'><strong>Endpoint intent guidance:</strong> ")
+            .append(endpointIntentGuidance(selectedScenario))
             .append("</div>");
 
         html.append("<h2>Scenario storyline synthesis</h2>")
@@ -940,7 +944,11 @@ public class EvaluatorDashboardService {
             .append("<p class='muted'>Includes naive_parallel and selected adaptive profile set: ")
             .append(escape(compareProfilesParam))
             .append(". Deltas are directional and should be interpreted with scenario context.</p>")
+            .append("<div class='tip'><strong>Evidence export:</strong> ")
+            .append(evidenceExportLinks(pack, selectedScenario, compareProfilesParam))
+            .append("</div>")
             .append(profileIntentLegend())
+            .append(scorecardSection(comparisonSummaries))
             .append(profileComparisonSummarySection(comparisonSummaries, balancedAdaptive, requestBudgetMs))
             .append("<table><thead><tr>")
             .append("<th>Strategy</th>")
@@ -983,6 +991,67 @@ public class EvaluatorDashboardService {
 
         html.append("</body></html>");
         return html.toString();
+    }
+
+    private String evidenceExportLinks(
+        DashboardScenarioPack pack,
+        DashboardBenchmarkScenario selectedScenario,
+        String compareProfilesParam
+    ) {
+        String base = "/dashboard/evaluator/evidence?pack="
+            + url(pack.name())
+            + "&scenario="
+            + url(selectedScenario.name())
+            + "&compareProfiles="
+            + url(compareProfilesParam);
+        String jsonLink = base + "&format=json";
+        String markdownLink = base + "&format=markdown";
+        return "<a href='" + jsonLink + "'>download JSON scorecards</a>"
+            + " · "
+            + "<a href='" + markdownLink + "'>download Markdown evidence</a>";
+    }
+
+    private String scorecardSection(List<DashboardBenchmarkSummary> comparisonSummaries) {
+        List<ScenarioAssessmentScorer.ScenarioScorecard> scorecards =
+            ScenarioAssessmentScorer.scorecards(comparisonSummaries);
+        if (scorecards.isEmpty()) {
+            return "";
+        }
+        StringBuilder html = new StringBuilder();
+        html.append("<div class='trace-summary' style='margin-bottom:10px'>")
+            .append("<strong>Scenario scorecards (intent alignment)</strong>")
+            .append("<div class='mini' style='margin-top:4px'>")
+            .append("Lightweight checks from scenario intent + observed planner diagnostics: mandatory preservation, optional alignment, fallback alignment, and overall assessment.")
+            .append("</div>")
+            .append("<table style='margin-top:8px'><thead><tr>")
+            .append("<th>Strategy</th><th>Policy</th><th>Mandatory preserved</th><th>Optional aligned</th>")
+            .append("<th>Fallback aligned</th><th>Intent matched</th><th>Assessment</th>")
+            .append("</tr></thead><tbody>");
+        for (ScenarioAssessmentScorer.ScenarioScorecard scorecard : scorecards) {
+            html.append("<tr>")
+                .append("<td>").append(escape(scorecard.executionStrategy())).append("</td>")
+                .append("<td>").append(escape(scorecard.policyProfile())).append("</td>")
+                .append("<td>").append(scorecard.mandatoryWorkPreserved() ? "yes" : "no").append("</td>")
+                .append("<td>").append(scorecard.optionalAlignment() ? "yes" : "no").append("</td>")
+                .append("<td>").append(scorecard.fallbackAlignment() ? "yes" : "no").append("</td>")
+                .append("<td>").append(scorecard.intentMatched() ? "yes" : "no").append("</td>")
+                .append("<td><strong>").append(escape(scorecard.disposition().label())).append("</strong></td>")
+                .append("</tr>");
+        }
+        html.append("</tbody></table></div>");
+        return html.toString();
+    }
+
+    private String endpointIntentGuidance(DashboardBenchmarkScenario scenario) {
+        if ("agent".equals(scenario.packName()) || scenario.name().startsWith("agent_")) {
+            return "Customer-facing assistant: start with <code>balanced</code>, move to <code>continuity</code> if optional context coverage matters."
+                + " Real-time endpoint: prefer <code>latency_first</code> when strict headroom is required and optional omissions are acceptable."
+                + " Background enrichment: use <code>continuity</code> when partial enrichment is still useful; use <code>efficiency</code> if queue latency dominates."
+                + " There is no universal winner — profile choice depends on endpoint intent.";
+        }
+        return "Customer-facing assistant endpoints usually start with <code>balanced</code>."
+            + " Shift toward <code>continuity</code> for richer optional coverage or toward <code>efficiency</code>/<code>latency_first</code> for tighter real-time headroom constraints."
+            + " Compare by endpoint goals, not one global score.";
     }
 
     private Map<String, String> parseReasonFields(String reason) {

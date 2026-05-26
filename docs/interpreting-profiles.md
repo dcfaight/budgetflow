@@ -61,6 +61,7 @@ A single scenario cannot prove that one profile is superior. Profiles are design
 1. Run the same scenario under multiple profiles: `--pack=agent --policies=balanced,continuity,efficiency,latency_first`.
 2. Inspect the "Profile comparison summary" table for side-by-side counts and headroom.
 3. Check `whyDiffersFromBalanced` in JSON output for a compact explanation of each profile's decision.
+3. Check `scorecards[*]` in JSON/Markdown evidence for mandatory preservation, optional/fallback intent alignment, and final assessment classification.
 4. Confirm the profile's behavior matches your endpoint's priority (coverage vs headroom vs balance).
 5. Do not pick the profile with the most executed tasks or least degradation by default.
 
@@ -86,6 +87,18 @@ Each row is one adaptive profile for the same scenario. Columns:
 - **degraded?**: whether the planner judged the response degraded at the scenario level.
 - **headroom**: request budget minus projected work. Higher headroom is the latency_first design goal.
 - **why it differs from balanced**: a concise explanation derived from the actual execution metadata.
+
+### Reading scenario scorecards
+
+Scorecards are lightweight intent checks derived from scenario metadata plus observed diagnostics/trace behavior:
+
+- **mandatory preserved** — mandatory work stayed intact.
+- **optional aligned** — optional degrade/omit behavior matched the scenario goal.
+- **fallback aligned** — fallback/degraded-path usage matched expectations.
+- **intent matched** — all checks aligned for that result.
+- **assessment** — `expected`, `acceptable`, `cautionary`, or `mismatched`.
+
+Use scorecards as interpretation structure, not as a universal numeric score.
 
 ### Reading the decision trace reasons
 
@@ -122,6 +135,23 @@ behavior and usually need no further review.
 A result from `agent_coordination_degraded_cascade` is a **boundary case** — not a production-typical scenario.
 A cascade of fallbacks under severe joint budget + pressure is the expected and correct outcome there.
 Interpret it as proof that the planner is deterministic and traceable under extreme conditions, not as evidence of systemic failure.
+
+---
+
+## Endpoint-intent mapping quick reference
+
+Use profile selection criteria that match the endpoint class:
+
+- **Customer-facing assistant**
+  - Usually start `balanced`.
+  - Move to `continuity` when optional context continuity matters.
+- **Real-time endpoint**
+  - Prefer `latency_first` (or `efficiency`) when strict headroom and consistent response time are primary.
+- **Background enrichment**
+  - Prefer `continuity` if partial enrichment remains useful.
+  - Prefer `efficiency` if throughput/queue headroom dominates.
+
+This mapping should guide interpretation: a profile that omits more optional work can still be the *correct* result for real-time endpoints.
 
 ---
 
