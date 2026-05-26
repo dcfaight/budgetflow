@@ -3,7 +3,10 @@
 This guide is for responsible, quick evaluation of BudgetFlow as an adaptive execution prototype.
 
 For milestone context, start with [milestone-public-prototype.md](milestone-public-prototype.md).  
-For likely next directions, see [status-roadmap.md](status-roadmap.md).
+For likely next directions, see [status-roadmap.md](status-roadmap.md).  
+For CI/reviewer automation and the baseline review loop, see [baseline-management.md](baseline-management.md).  
+For a navigable map of all scenarios, see [scenario-catalog.md](scenario-catalog.md).  
+For mapping endpoint types to profiles, see [adoption-guide.md](adoption-guide.md).
 
 ## Scope and maturity
 
@@ -200,6 +203,13 @@ Use the evaluation pack as a lightweight before/after review loop:
    - `degradation_style=...` tells you whether to expect convergence, pruning, profile tradeoff, or cascade behavior
    - `coordination=...` helps distinguish single-endpoint scenarios from agent coordination flows
 
+**CI path:** The `eval-report` workflow runs `runAgentEvalReport` automatically on every push and PR
+to `develop` and uploads the artifacts.  For the full baseline maintenance workflow, see
+[baseline-management.md](baseline-management.md).
+
+For a navigable map of all scenarios (grouped by endpoint intent, pressure mode, and degradation style),
+see [scenario-catalog.md](scenario-catalog.md).
+
 ### Interpreting delta severity responsibly
 
 - **Increased omission/degradation is concerning** when it appears in `balanced`, causes new degraded states, or downgrades scorecard assessment (`expected/acceptable` → `cautionary/mismatched`).
@@ -241,8 +251,12 @@ Choose profile by endpoint goals, not single-scenario wins.
 - **Customer-facing assistant:** start with `balanced`; move to `continuity` when preserving optional context/fidelity is more important than strict headroom.
 - **Real-time endpoint:** prefer `latency_first` (or `efficiency`) when predictable headroom and fast response are the primary goals, and optional omissions are acceptable.
 - **Background enrichment:** `continuity` is useful when partial enrichment still provides value; `efficiency` is useful when batch latency or queue pressure dominates.
+- **Continuity-sensitive workflow:** prefer `continuity`; use `importantWithFallback(...)` for steps that feed downstream steps.
+- **Budget-sensitive high-frequency endpoint:** prefer `latency_first`; provide `fallbackLatencyHint` and `approximateLatencyHint` for all optional tasks.
 
-There is no universal profile winner. A “better” outcome is one that matches endpoint intent and expected tradeoffs for that endpoint class.
+There is no universal profile winner. A "better" outcome is one that matches endpoint intent and expected tradeoffs for that endpoint class.
+
+For detailed endpoint-type guidance, partitioning advice, and an adoption checklist, see [adoption-guide.md](adoption-guide.md).
 
 **Common interpretation pitfalls to avoid:**
 
