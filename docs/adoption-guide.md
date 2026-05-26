@@ -5,6 +5,7 @@ It is intended for engineers evaluating whether and how to adopt BudgetFlow for 
 service or endpoint class.
 
 For framework quickstart see [quickstart.md](quickstart.md).
+For the canonical runnable showcase flow see [showcase-reference-path.md](showcase-reference-path.md).
 For profile configuration see [planner-customization.md](planner-customization.md).
 For evaluation runbook see [evaluate.md](evaluate.md).
 For complete end-to-end playbooks, see [reference-journeys.md](reference-journeys.md).

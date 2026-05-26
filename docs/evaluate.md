@@ -3,6 +3,7 @@
 This guide is for responsible, quick evaluation of BudgetFlow as an adaptive execution prototype.
 
 For milestone context, start with [milestone-public-prototype.md](milestone-public-prototype.md).  
+For the quickest runnable concept→evidence story, start with [showcase-reference-path.md](showcase-reference-path.md).  
 For likely next directions, see [status-roadmap.md](status-roadmap.md).  
 For CI/reviewer automation and the baseline review loop, see [baseline-management.md](baseline-management.md).  
 For a navigable map of all scenarios, see [scenario-catalog.md](scenario-catalog.md).  

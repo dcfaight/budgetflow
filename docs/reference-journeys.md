@@ -1,6 +1,8 @@
 # BudgetFlow reference journeys (design → evaluation → review)
 
 Use this guide when you want an opinionated, end-to-end path instead of piecing guidance together across multiple docs.
+If you first need one short runnable concept→evidence walkthrough, start with
+[showcase-reference-path.md](showcase-reference-path.md).
 
 For core classification rules, see [adoption-guide.md](adoption-guide.md).  
 For full evaluator mechanics, see [evaluate.md](evaluate.md).  
