@@ -183,6 +183,24 @@ public final class PressureScenarios {
         );
     }
 
+    public static DashboardBenchmarkScenario agentProfileComparison() {
+        return scenario(
+            "agent",
+            "agent_profile_comparison",
+            "Agent profile comparison / moderate pressure",
+            "The same agent coordination turn run under balanced, continuity, efficiency, and latency_first to surface deliberate profile tradeoffs side-by-side.",
+            "Profile selection evidence: shows how profile intent translates to measurable differences in optional coverage, fallback usage, and budget headroom.",
+            "Lower optional coverage is not a failure here. latency_first omits optional work by design to protect headroom. continuity preserves more coverage by preferring fallback paths. Compare profiles by their endpoint-goal alignment, not by which profile executes the most tasks.",
+            "Cross-team profile review for agent coordination endpoints where latency SLAs and coverage requirements differ by product surface.",
+            "Compare executed/fallback/approx/omitted counts and headroom across all four profiles. Verify that latency_first and efficiency omit more optional work than balanced, and that continuity uses more fallback/approx paths."
+                + " Read the 'Profile comparison summary' table for a concise side-by-side view.",
+            "moderate_budget",
+            "moderate_pressure",
+            Duration.ofMillis(180),
+            MODERATE_PRESSURE
+        );
+    }
+
     public static DashboardBenchmarkScenario agentCoordinationHealthy() {
         return scenario(
             "agent",
@@ -207,9 +225,9 @@ public final class PressureScenarios {
             "Agent coordination / degraded-cascade",
             "Severe joint budget + pressure constraint causes all important coordination steps to fall back simultaneously, demonstrating a full degradation cascade.",
             "Cascade-failure boundary case: validates that joint stress drives deterministic, traceable cascade degradation across multiple important steps.",
-            "This is a boundary case, not a typical production condition. Inspect trace reasons to verify the cascade is deliberate and explainable, not accidental.",
+            "This is a boundary case, not a typical production condition. A cascade result here is the correct and expected outcome — not a failure. Inspect trace reasons to verify each degradation is deliberate and explainable. The mandatory plan step should still execute normally.",
             "Agent assistant turn under a traffic spike with degraded sub-agent infrastructure.",
-            "All important fetch and consolidate steps should fall back to degraded paths; optional step omitted; mandatory plan step still executes.",
+            "All important fetch and consolidate steps should fall back to degraded paths; optional step omitted; mandatory plan step still executes. The cascade is expected behavior for this severity of joint constraint.",
             "constrained_budget",
             "elevated_pressure",
             Duration.ofMillis(70),
@@ -297,13 +315,14 @@ public final class PressureScenarios {
     public static DashboardScenarioPack agentPack() {
         return new DashboardScenarioPack(
             "agent",
-            "Agent-oriented boundary cases: coordination, degraded-cascade, and profile comparison under joint stress.",
-            "evaluating agent-step orchestration semantics, coordination fallback behavior, and latency_first vs balanced profile deltas",
-            "./gradlew :budgetflow-demo-fintech:runDashboardComparison --args=\"--pack=agent --policies=balanced,latency_first\"",
+            "Agent-oriented boundary cases: coordination, degraded-cascade, profile comparison, and four-way profile inspection under moderate pressure.",
+            "evaluating agent-step orchestration semantics, coordination fallback behavior, and profile tradeoffs (balanced vs continuity vs efficiency vs latency_first)",
+            "./gradlew :budgetflow-demo-fintech:runDashboardComparison --args=\"--pack=agent --policies=balanced,continuity,efficiency,latency_first\"",
             List.of(
                 agentCoordinationHealthy(),
                 agentCoordinationDegradedCascade(),
-                moderateBudgetElevatedPressure()
+                moderateBudgetElevatedPressure(),
+                agentProfileComparison()
             )
         );
     }

@@ -940,9 +940,14 @@ public class EvaluatorDashboardService {
             .append("<p class='muted'>Includes naive_parallel and selected adaptive profile set: ")
             .append(escape(compareProfilesParam))
             .append(". Deltas are directional and should be interpreted with scenario context.</p>")
+            .append(profileIntentLegend())
+            .append(profileComparisonSummarySection(comparisonSummaries, balancedAdaptive, requestBudgetMs))
             .append("<table><thead><tr>")
-            .append("<th>Strategy</th><th>Profile</th><th>Executed</th><th>Degraded</th>")
-            .append("<th>Budget fit</th><th>Delta vs balanced</th><th>Compact visual diff</th><th>Interpret</th>")
+            .append("<th>Strategy</th>")
+            .append("<th title='Profile name; hover for intent in the legend above'>Profile</th>")
+            .append("<th>Executed</th><th>Degraded</th>")
+            .append("<th>Budget fit</th><th>Delta vs balanced</th><th>Compact visual diff</th>")
+            .append("<th title='Interpretation note, including whether omissions are by design'>Interpret</th>")
             .append("<th>Omitted</th><th>Fallback</th><th>Approximate</th><th>Why</th>")
             .append("</tr></thead><tbody>");
         for (DashboardBenchmarkSummary summary : comparisonSummaries.stream()
@@ -1508,6 +1513,43 @@ public class EvaluatorDashboardService {
         if (balancedAdaptive == null || PlannerPolicyProfile.BALANCED.configName().equals(summary.policyProfile())) {
             return "Balanced baseline for directional comparison.";
         }
+        String profile = summary.policyProfile();
+        int omitDelta = summary.omittedTasks().size() - balancedAdaptive.omittedTasks().size();
+        int fbDelta = summary.fallbackTasks().size() - balancedAdaptive.fallbackTasks().size();
+        int approxDelta = summary.approximatedTasks().size() - balancedAdaptive.approximatedTasks().size();
+        if (PlannerPolicyProfile.LATENCY_FIRST.configName().equals(profile)) {
+            if (omitDelta > 0) {
+                return "latency_first omitted "
+                    + omitDelta
+                    + " more optional task(s) than balanced — this is intentional and expected. "
+                    + "latency_first proactively omits optional work to maximise remaining budget headroom. "
+                    + "Lower optional coverage here is not a failure; it is the intended tradeoff.";
+            }
+            return "latency_first is active: optional work is omitted at a lower threshold than balanced. "
+                + "Similar result here may mean optional work already fit; verify headroom in the budget-fit column.";
+        }
+        if (PlannerPolicyProfile.CONTINUITY.configName().equals(profile)) {
+            if (fbDelta > 0 || approxDelta > 0) {
+                return "continuity preferred degraded paths over omission ("
+                    + (fbDelta + approxDelta)
+                    + " extra fb/approx vs balanced). This is expected continuity behavior: "
+                    + "more coverage at the cost of slightly more projected work.";
+            }
+            if (omitDelta < 0) {
+                return "continuity recovered optional coverage vs balanced (fewer omissions). "
+                    + "Expected when continuity's fallback preference finds a workable degraded path.";
+            }
+            return "Similar coverage to balanced; continuity preference active but not needed at this constraint level.";
+        }
+        if (PlannerPolicyProfile.EFFICIENCY.configName().equals(profile)) {
+            if (omitDelta > 0) {
+                return "efficiency omitted "
+                    + omitDelta
+                    + " more optional task(s) than balanced to protect latency headroom. "
+                    + "Expected: efficiency favors headroom over optional fidelity.";
+            }
+            return "Similar plan to balanced; efficiency omission threshold not reached in this scenario.";
+        }
         int degradeDelta = (summary.omittedTasks().size() + summary.fallbackTasks().size() + summary.approximatedTasks().size())
             - (balancedAdaptive.omittedTasks().size() + balancedAdaptive.fallbackTasks().size() + balancedAdaptive.approximatedTasks().size());
         if (degradeDelta > 0) {
@@ -1517,6 +1559,105 @@ public class EvaluatorDashboardService {
             return "Less adaptation than balanced; verify budget headroom still looks safe.";
         }
         return "Similar adaptation to balanced; focus on work/coverage deltas.";
+    }
+
+    private String profileIntentLegend() {
+        return "<div class='tip'><strong>Profile intent legend</strong> — choose by endpoint goal, not by which profile executes the most tasks:"
+            + "<div class='row' style='margin-top:8px'>"
+            + profileLegendCard("balanced", "Conservative default. Degrades then omits under stress. Best starting point for most services.")
+            + profileLegendCard("continuity", "Preserves optional response coverage via fallback/approx paths before omitting. Best when partial output is better than none.")
+            + profileLegendCard("efficiency", "Omits optional work earlier to protect latency headroom. Best when SLA headroom matters more than full coverage.")
+            + profileLegendCard("latency_first",
+                "Aggressively omits optional work at a low ratio threshold. No degraded paths for optional steps. "
+                + "Best for real-time or high-frequency agent turns. "
+                + "<strong>Lower optional coverage is not a failure — it is the design goal.</strong>")
+            + "</div>"
+            + "<div class='mini' style='margin-top:6px'>Compare profiles by endpoint goals, not by one scenario in isolation. "
+            + "See <a href='#'>docs/interpreting-profiles.md</a> for responsible interpretation guidance.</div>"
+            + "</div>";
+    }
+
+    private String profileLegendCard(String profileName, String intentText) {
+        return "<div class='card' style='min-width:200px'>"
+            + "<strong><code>" + escape(profileName) + "</code></strong>"
+            + "<div class='mini' style='margin-top:4px'>" + intentText + "</div>"
+            + "</div>";
+    }
+
+    private String profileComparisonSummarySection(
+        List<DashboardBenchmarkSummary> comparisonSummaries,
+        DashboardBenchmarkSummary balancedAdaptive,
+        long requestBudgetMs
+    ) {
+        List<DashboardBenchmarkSummary> adaptiveVariants = comparisonSummaries.stream()
+            .filter(s -> STRATEGY_ADAPTIVE.equals(s.executionStrategy()))
+            .sorted(Comparator.comparing(DashboardBenchmarkSummary::policyProfile))
+            .toList();
+        if (adaptiveVariants.size() < 2) {
+            return "";
+        }
+        StringBuilder html = new StringBuilder();
+        html.append("<div class='trace-summary' style='margin-bottom:10px'>")
+            .append("<strong>Compact profile comparison (this scenario)</strong>")
+            .append("<div class='mini' style='margin-top:4px'>Side-by-side counts per profile. ")
+            .append("Lower optional counts for latency_first/efficiency are intentional, not failures.</div>")
+            .append("<table style='margin-top:8px'><thead><tr>")
+            .append("<th>Profile</th><th>Executed</th><th>Fallback</th><th>Approx</th><th>Omitted</th>")
+            .append("<th>Degraded?</th><th>Headroom</th><th>Why it differs from balanced</th>")
+            .append("</tr></thead><tbody>");
+        for (DashboardBenchmarkSummary s : adaptiveVariants) {
+            long headroomMs = requestBudgetMs - s.projectedWork().toMillis();
+            html.append("<tr>")
+                .append("<td><strong><code>").append(escape(s.policyProfile())).append("</code></strong></td>")
+                .append("<td>").append(s.totalTasksExecuted()).append("</td>")
+                .append("<td>").append(s.fallbackTasks().size()).append("</td>")
+                .append("<td>").append(s.approximatedTasks().size()).append("</td>")
+                .append("<td>").append(s.omittedTasks().size()).append("</td>")
+                .append("<td>").append(s.degraded()
+                    ? "<span class='badge badge-mid'>yes</span>"
+                    : "<span class='badge badge-ok'>no</span>").append("</td>")
+                .append("<td>").append(headroomMs).append("ms</td>")
+                .append("<td class='mini'>").append(escape(profileDiffExplanationForHtml(s, balancedAdaptive))).append("</td>")
+                .append("</tr>");
+        }
+        html.append("</tbody></table></div>");
+        return html.toString();
+    }
+
+    private String profileDiffExplanationForHtml(DashboardBenchmarkSummary variant, DashboardBenchmarkSummary balanced) {
+        if (balanced == null || PlannerPolicyProfile.BALANCED.configName().equals(variant.policyProfile())) {
+            return "baseline";
+        }
+        long workDelta = variant.projectedWork().toMillis() - balanced.projectedWork().toMillis();
+        int omitDelta = variant.omittedTasks().size() - balanced.omittedTasks().size();
+        int fbDelta = variant.fallbackTasks().size() - balanced.fallbackTasks().size();
+        int approxDelta = variant.approximatedTasks().size() - balanced.approximatedTasks().size();
+        String profile = variant.policyProfile();
+        if (PlannerPolicyProfile.LATENCY_FIRST.configName().equals(profile)) {
+            if (omitDelta > 0) {
+                return "Omits optional work proactively to protect headroom (+" + omitDelta + " omit vs balanced). By design.";
+            }
+            return "Optional omit threshold active; similar result because constraints did not trigger it.";
+        }
+        if (PlannerPolicyProfile.CONTINUITY.configName().equals(profile)) {
+            if (fbDelta > 0 || approxDelta > 0) {
+                return "Prefers degraded paths over omission (+" + (fbDelta + approxDelta) + " fb/approx vs balanced).";
+            }
+            if (omitDelta < 0) {
+                return "Fewer omissions than balanced; fallback paths taken where balanced omits.";
+            }
+            return "Similar to balanced; continuity preference not triggered at this constraint level.";
+        }
+        if (PlannerPolicyProfile.EFFICIENCY.configName().equals(profile)) {
+            if (omitDelta > 0) {
+                return "Omits earlier to protect headroom (+" + omitDelta + " omit vs balanced).";
+            }
+            if (workDelta < 0) {
+                return "Leaner projected work (" + workDelta + "ms vs balanced).";
+            }
+            return "Similar to balanced; efficiency threshold not triggered here.";
+        }
+        return workDelta != 0 ? (workDelta > 0 ? "+" : "") + workDelta + "ms vs balanced" : "equivalent plan";
     }
 
     private String importanceLane(String title, List<DecisionTraceEntry> trace, Importance importance) {
