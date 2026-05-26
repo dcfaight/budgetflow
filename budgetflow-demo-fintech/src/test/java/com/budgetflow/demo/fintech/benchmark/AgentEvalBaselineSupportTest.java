@@ -61,12 +61,13 @@ class AgentEvalBaselineSupportTest {
             String json = AgentEvalBaselineSupport.formatDeltaJson(comparison);
 
             assertTrue(markdown.contains("# BudgetFlow evidence delta"));
+            assertTrue(markdown.contains("## Top changes (inspect first)"));
             assertTrue(markdown.contains("agent_coordination_healthy"));
             assertTrue(markdown.contains("| budgetflow_adaptive | balanced |"));
-            assertTrue(markdown.contains("regression"));
+            assertTrue(markdown.contains("regression-risk"));
             assertTrue(json.contains("\"changedScenarioCount\""));
-            assertTrue(json.contains("\"kind\" : \"regression\"")
-                || json.contains("\"kind\":\"regression\""));
+            assertTrue(json.contains("\"severity\" : \"regression-risk\"")
+                || json.contains("\"severity\":\"regression-risk\""));
 
             Path outDir = Files.createTempDirectory("agent-eval-baseline-test");
             Path baselineDir = AgentEvalBaselineSupport.saveBaseline(

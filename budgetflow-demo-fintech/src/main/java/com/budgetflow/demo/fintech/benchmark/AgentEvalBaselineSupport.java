@@ -24,6 +24,12 @@ final class AgentEvalBaselineSupport {
         "cautionary", 2,
         "mismatched", 3
     );
+    private static final Map<String, Integer> SEVERITY_RANK = Map.of(
+        "expected", 0,
+        "informative", 1,
+        "cautionary", 2,
+        "regression-risk", 3
+    );
 
     private AgentEvalBaselineSupport() {
     }
@@ -193,10 +199,10 @@ final class AgentEvalBaselineSupport {
 
     static Comparison compare(String baselineLabel, Snapshot baseline, Snapshot current) {
         List<ScenarioDelta> scenarioDeltas = new ArrayList<>();
-        int regressions = 0;
-        int improvements = 0;
-        int expectedShifts = 0;
-        int reviewChanges = 0;
+        int regressionRiskCount = 0;
+        int cautionaryCount = 0;
+        int informativeCount = 0;
+        int expectedCount = 0;
         int changedScorecards = 0;
 
         Map<String, ScenarioSnapshot> baselineScenarios = baseline.scenarios().stream()
@@ -211,25 +217,29 @@ final class AgentEvalBaselineSupport {
             List<StrategyDelta> strategyDeltas = compareStrategies(baselineScenario, currentScenario);
             List<ScorecardDelta> scorecardDeltas = compareScorecards(baselineScenario, currentScenario);
             List<ProfileInterpretationDelta> interpretationDeltas = compareInterpretations(baselineScenario, currentScenario);
-            List<Highlight> highlights = buildHighlights(strategyDeltas, scorecardDeltas);
+            List<Highlight> highlights = buildHighlights(currentScenario, strategyDeltas, scorecardDeltas, interpretationDeltas);
 
             if (strategyDeltas.isEmpty() && scorecardDeltas.isEmpty() && interpretationDeltas.isEmpty()) {
                 continue;
             }
 
             for (Highlight highlight : highlights) {
-                switch (highlight.kind()) {
-                    case "regression" -> regressions++;
-                    case "improvement" -> improvements++;
-                    case "expected_shift" -> expectedShifts++;
-                    default -> reviewChanges++;
+                switch (highlight.severity()) {
+                    case "regression-risk" -> regressionRiskCount++;
+                    case "cautionary" -> cautionaryCount++;
+                    case "informative" -> informativeCount++;
+                    default -> expectedCount++;
                 }
             }
             changedScorecards += scorecardDeltas.size();
+            String severity = scenarioSeverity(highlights);
             scenarioDeltas.add(new ScenarioDelta(
                 currentScenario.name(),
                 currentScenario.displayName(),
                 currentScenario.taxonomy(),
+                severity,
+                scenarioPrioritySummary(currentScenario, severity, highlights),
+                scenarioReviewHotspots(currentScenario, highlights),
                 strategyDeltas,
                 scorecardDeltas,
                 interpretationDeltas,
@@ -237,18 +247,25 @@ final class AgentEvalBaselineSupport {
             ));
         }
 
+        List<ScenarioDelta> sorted = scenarioDeltas.stream()
+            .sorted(Comparator
+                .comparingInt((ScenarioDelta delta) -> -severityRank(delta.severity()))
+                .thenComparingInt(delta -> -delta.highlights().size())
+                .thenComparing(ScenarioDelta::name))
+            .toList();
+
         return new Comparison(
             baselineLabel,
             baseline.summary(),
             current.summary(),
-            scenarioDeltas,
+            sorted,
             new DeltaSummary(
-                scenarioDeltas.size(),
+                sorted.size(),
                 changedScorecards,
-                regressions,
-                improvements,
-                expectedShifts,
-                reviewChanges
+                regressionRiskCount,
+                cautionaryCount,
+                informativeCount,
+                expectedCount
             )
         );
     }
@@ -257,7 +274,7 @@ final class AgentEvalBaselineSupport {
         StringBuilder builder = new StringBuilder();
         builder.append("# BudgetFlow evidence delta").append(System.lineSeparator()).append(System.lineSeparator());
         builder.append("- Baseline: `").append(comparison.baselineLabel()).append("`").append(System.lineSeparator());
-        builder.append("- Reviewer note: inspect regressions first, then expected profile-specific shifts, then neutral review changes.")
+        builder.append("- Reviewer note: inspect `regression-risk` first, then `cautionary`, then `informative`; keep `expected` as validation evidence.")
             .append(System.lineSeparator()).append(System.lineSeparator());
         builder.append("## Summary delta").append(System.lineSeparator()).append(System.lineSeparator());
         builder.append("- Adaptive degraded runs: ")
@@ -284,27 +301,39 @@ final class AgentEvalBaselineSupport {
             .append(System.lineSeparator());
         builder.append("- Changed scenarios: ").append(comparison.deltaSummary().changedScenarioCount())
             .append(" | changed scorecards: ").append(comparison.deltaSummary().changedScorecardCount())
-            .append(" | regressions: ").append(comparison.deltaSummary().regressions())
-            .append(" | improvements: ").append(comparison.deltaSummary().improvements())
-            .append(" | expected shifts: ").append(comparison.deltaSummary().expectedShifts())
-            .append(" | review changes: ").append(comparison.deltaSummary().reviewChanges())
+            .append(" | regression-risk: ").append(comparison.deltaSummary().regressionRiskCount())
+            .append(" | cautionary: ").append(comparison.deltaSummary().cautionaryCount())
+            .append(" | informative: ").append(comparison.deltaSummary().informativeCount())
+            .append(" | expected: ").append(comparison.deltaSummary().expectedCount())
             .append(System.lineSeparator());
+        appendTopChanges(builder, comparison);
+        appendHotspots(builder, comparison);
 
         for (ScenarioDelta scenario : comparison.scenarioDeltas()) {
             builder.append(System.lineSeparator())
                 .append("## ").append(scenario.displayName())
                 .append(" (`").append(scenario.name()).append("`)").append(System.lineSeparator()).append(System.lineSeparator());
+            builder.append("- Priority: `").append(scenario.severity()).append("` — ")
+                .append(scenario.prioritySummary()).append(System.lineSeparator());
             builder.append("- Taxonomy: ").append(scenario.taxonomy().summary()).append(System.lineSeparator());
-            for (Highlight highlight : scenario.highlights()) {
-                builder.append("- ").append(highlight.kind()).append(": ").append(highlight.message()).append(System.lineSeparator());
+            builder.append("- Hotspots: ").append(String.join("; ", scenario.reviewHotspots())).append(System.lineSeparator());
+            for (Highlight highlight : orderedHighlights(scenario.highlights())) {
+                builder.append("- [").append(highlight.severity()).append("] ")
+                    .append(highlight.category()).append(" (")
+                    .append(highlight.executionStrategy()).append("/")
+                    .append(highlight.policyProfile()).append("): ")
+                    .append(highlight.message()).append(" — ")
+                    .append(highlight.reviewFocus()).append(System.lineSeparator());
             }
             if (!scenario.strategyDeltas().isEmpty()) {
                 builder.append(System.lineSeparator())
-                    .append("| Strategy | Policy | Δexec | Δfb | Δapprox | Δomit | Degraded | Work | Kind |\n")
-                    .append("|---|---|---:|---:|---:|---:|---|---|---|\n");
-                for (StrategyDelta delta : scenario.strategyDeltas()) {
+                    .append("| Strategy | Policy | Severity | Category | Δexec | Δfb | Δapprox | Δomit | Degraded | Work | Review focus |\n")
+                    .append("|---|---|---|---|---:|---:|---:|---:|---|---|---|\n");
+                for (StrategyDelta delta : orderedStrategyDeltas(scenario.strategyDeltas())) {
                     builder.append("| ").append(delta.executionStrategy())
                         .append(" | ").append(delta.policyProfile())
+                        .append(" | ").append(delta.severity())
+                        .append(" | ").append(delta.triageCategory())
                         .append(" | ").append(signed(delta.executedTaskDelta()))
                         .append(" | ").append(signed(delta.fallbackDelta()))
                         .append(" | ").append(signed(delta.approximatedDelta()))
@@ -312,7 +341,7 @@ final class AgentEvalBaselineSupport {
                         .append(" | ").append(delta.baselineDegraded()).append(" → ").append(delta.currentDegraded())
                         .append(" | ").append(delta.baselineProjectedWorkMs()).append("ms → ")
                         .append(delta.currentProjectedWorkMs()).append("ms")
-                        .append(" | ").append(delta.kind())
+                        .append(" | ").append(delta.reviewFocus())
                         .append(" |").append(System.lineSeparator());
                 }
             }
@@ -378,6 +407,17 @@ final class AgentEvalBaselineSupport {
                 && baseline.degraded() == current.degraded()) {
                 continue;
             }
+            DeltaTriage triage = classifyChange(
+                current.executionStrategy(),
+                current.policyProfile(),
+                executedDelta,
+                fallbackDelta,
+                approximatedDelta,
+                omittedDelta,
+                baseline.degraded(),
+                current.degraded(),
+                workDelta
+            );
             deltas.add(new StrategyDelta(
                 current.executionStrategy(),
                 current.policyProfile(),
@@ -389,17 +429,10 @@ final class AgentEvalBaselineSupport {
                 current.degraded(),
                 baseline.projectedWorkMs(),
                 current.projectedWorkMs(),
-                classifyChange(
-                    current.executionStrategy(),
-                    current.policyProfile(),
-                    executedDelta,
-                    fallbackDelta,
-                    approximatedDelta,
-                    omittedDelta,
-                    baseline.degraded(),
-                    current.degraded(),
-                    workDelta
-                )
+                triage.severity(),
+                triage.category(),
+                triage.likelyExplanation(),
+                triage.reviewFocus()
             ));
         }
         return deltas;
@@ -459,21 +492,41 @@ final class AgentEvalBaselineSupport {
         return deltas;
     }
 
-    private static List<Highlight> buildHighlights(List<StrategyDelta> strategyDeltas, List<ScorecardDelta> scorecardDeltas) {
+    private static List<Highlight> buildHighlights(
+        ScenarioSnapshot scenario,
+        List<StrategyDelta> strategyDeltas,
+        List<ScorecardDelta> scorecardDeltas,
+        List<ProfileInterpretationDelta> interpretationDeltas
+    ) {
         List<Highlight> highlights = new ArrayList<>();
         for (ScorecardDelta delta : scorecardDeltas) {
-            String kind = assessmentRank(delta.currentAssessment()) > assessmentRank(delta.baselineAssessment())
-                ? "regression"
-                : "improvement";
+            boolean worsened = assessmentRank(delta.currentAssessment()) > assessmentRank(delta.baselineAssessment());
+            String severity = worsened
+                ? ("cautionary".equals(delta.currentAssessment()) || "mismatched".equals(delta.currentAssessment())
+                    ? "regression-risk"
+                    : "cautionary")
+                : "informative";
             highlights.add(new Highlight(
-                kind,
+                severity,
+                worsened ? "likely_regression" : "notable_recovery",
+                delta.executionStrategy(),
+                delta.policyProfile(),
+                worsened
+                    ? "Scorecard disposition worsened versus baseline."
+                    : "Scorecard disposition improved versus baseline.",
+                "Inspect scorecard rationale and planner trace for this strategy/profile.",
                 delta.executionStrategy() + "/" + delta.policyProfile()
                     + " assessment " + delta.baselineAssessment() + " → " + delta.currentAssessment()
             ));
         }
         for (StrategyDelta delta : strategyDeltas) {
             highlights.add(new Highlight(
-                delta.kind(),
+                delta.severity(),
+                delta.triageCategory(),
+                delta.executionStrategy(),
+                delta.policyProfile(),
+                delta.likelyExplanation(),
+                delta.reviewFocus(),
                 delta.executionStrategy() + "/" + delta.policyProfile()
                     + " Δexec=" + signed(delta.executedTaskDelta())
                     + ", Δfb=" + signed(delta.fallbackDelta())
@@ -483,10 +536,32 @@ final class AgentEvalBaselineSupport {
                     + ", degraded=" + delta.baselineDegraded() + " → " + delta.currentDegraded()
             ));
         }
-        return highlights.stream().distinct().toList();
+        for (ProfileInterpretationDelta delta : interpretationDeltas) {
+            String severity = delta.currentInterpretation().contains("inspect trace for cause")
+                ? "cautionary"
+                : "informative";
+            highlights.add(new Highlight(
+                severity,
+                "profile-intent difference",
+                "budgetflow_adaptive",
+                delta.policyProfile(),
+                "Profile-vs-balanced interpretation changed versus baseline.",
+                "Confirm this interpretation shift still matches endpoint intent.",
+                "interpretation " + delta.policyProfile() + ": " + delta.baselineInterpretation()
+                    + " → " + delta.currentInterpretation()
+            ));
+        }
+        return highlights.stream()
+            .distinct()
+            .sorted(Comparator
+                .comparingInt((Highlight highlight) -> -severityRank(highlight.severity()))
+                .thenComparing(Highlight::executionStrategy)
+                .thenComparing(Highlight::policyProfile)
+                .thenComparing(Highlight::message))
+            .toList();
     }
 
-    private static String classifyChange(
+    private static DeltaTriage classifyChange(
         String executionStrategy,
         String policyProfile,
         int executedDelta,
@@ -498,30 +573,84 @@ final class AgentEvalBaselineSupport {
         long workDelta
     ) {
         if (!baselineDegraded && currentDegraded) {
-            return "regression";
+            return new DeltaTriage(
+                "regression-risk",
+                "likely_regression",
+                "Scenario now degrades where baseline did not.",
+                "Check why degradation was introduced and whether mandatory/important work shifted."
+            );
         }
         if (baselineDegraded && !currentDegraded) {
-            return "improvement";
+            return new DeltaTriage(
+                "informative",
+                "notable_improvement",
+                "Scenario no longer degrades versus baseline.",
+                "Validate this is a real quality gain, not hidden scenario drift."
+            );
         }
         if (assessmentSensitiveRegression(executionStrategy, policyProfile, executedDelta, omittedDelta)) {
-            return "regression";
+            return new DeltaTriage(
+                "regression-risk",
+                "likely_regression",
+                "Balanced/default expectations now execute less work or omit more.",
+                "Inspect planner reasons and verify mandatory/important coverage remains intact."
+            );
         }
         if (executedDelta > 0 || omittedDelta < 0) {
-            return "improvement";
+            return new DeltaTriage(
+                "informative",
+                "coverage_change",
+                "Current run keeps more work than baseline.",
+                "Confirm added work aligns with endpoint intent and budget headroom."
+            );
         }
         if ("latency_first".equals(policyProfile) && omittedDelta > 0 && workDelta <= 0) {
-            return "expected_shift";
+            return new DeltaTriage(
+                "expected",
+                "profile-intent difference",
+                "latency_first omitted more optional work while protecting headroom.",
+                "Usually expected; only inspect if mandatory/important behavior changed."
+            );
         }
         if ("continuity".equals(policyProfile) && fallbackDelta + approximatedDelta > 0 && omittedDelta <= 0) {
-            return "expected_shift";
+            return new DeltaTriage(
+                "expected",
+                "profile-intent difference",
+                "continuity favored degraded optional paths over omission.",
+                "Validate that this preserved response continuity as intended."
+            );
         }
         if ("efficiency".equals(policyProfile) && (omittedDelta > 0 || workDelta < 0)) {
-            return "expected_shift";
+            return new DeltaTriage(
+                "expected",
+                "profile-intent difference",
+                "efficiency shifted toward lower optional work and/or leaner projected cost.",
+                "Confirm this tradeoff matches endpoint latency/headroom goals."
+            );
+        }
+        if (omittedDelta > 0) {
+            return new DeltaTriage(
+                "cautionary",
+                "optional coverage drop",
+                "Optional work dropped versus baseline outside strong profile-intent evidence.",
+                "Check if this is acceptable scenario drift or an early regression signal."
+            );
         }
         if (fallbackDelta != 0 || approximatedDelta != 0 || workDelta != 0) {
-            return "review";
+            String severity = Math.abs(workDelta) >= 80 ? "cautionary" : "informative";
+            return new DeltaTriage(
+                severity,
+                "scenario drift",
+                "Fallback/approximation/work shape changed without explicit profile-intent signal.",
+                "Review trace and taxonomy context to separate benign drift from risk."
+            );
         }
-        return "review";
+        return new DeltaTriage(
+            "informative",
+            "notable variation",
+            "Planner behavior changed in a small but reviewable way.",
+            "Quickly confirm no intent mismatch and move on."
+        );
     }
 
     private static boolean assessmentSensitiveRegression(
@@ -543,6 +672,127 @@ final class AgentEvalBaselineSupport {
 
     private static int assessmentRank(String assessment) {
         return ASSESSMENT_RANK.getOrDefault(assessment, 100);
+    }
+
+    private static int severityRank(String severity) {
+        return SEVERITY_RANK.getOrDefault(severity, 0);
+    }
+
+    private static String scenarioSeverity(List<Highlight> highlights) {
+        return highlights.stream()
+            .map(Highlight::severity)
+            .max(Comparator.comparingInt(AgentEvalBaselineSupport::severityRank))
+            .orElse("expected");
+    }
+
+    private static String scenarioPrioritySummary(
+        ScenarioSnapshot scenario,
+        String severity,
+        List<Highlight> highlights
+    ) {
+        long profileIntentDifferences = highlights.stream()
+            .filter(highlight -> "profile-intent difference".equals(highlight.category()))
+            .count();
+        if ("regression-risk".equals(severity)) {
+            return "Baseline-vs-current changes include likely regressions; inspect this scenario first.";
+        }
+        if ("cautionary".equals(severity)) {
+            return "Notable drift detected; verify intent match before merging.";
+        }
+        if (profileIntentDifferences > 0) {
+            return "Mostly profile-intent differences; review for endpoint alignment.";
+        }
+        return "Primarily informative deltas; quick validation is usually sufficient.";
+    }
+
+    private static List<String> scenarioReviewHotspots(ScenarioSnapshot scenario, List<Highlight> highlights) {
+        List<String> hotspots = new ArrayList<>();
+        hotspots.add("endpoint=" + scenario.taxonomy().endpointIntent());
+        hotspots.add("pressure_mode=" + scenario.taxonomy().pressureMode());
+        if (highlights.stream().anyMatch(highlight -> "balanced".equals(highlight.policyProfile()))) {
+            hotspots.add("balanced profile changes");
+        }
+        List<String> changedProfiles = highlights.stream()
+            .map(Highlight::policyProfile)
+            .filter(profile -> !"-".equals(profile))
+            .distinct()
+            .toList();
+        if (changedProfiles.size() > 1) {
+            hotspots.add("multi-profile divergence");
+        }
+        if (highlights.stream().anyMatch(highlight -> "scenario drift".equals(highlight.category()))) {
+            hotspots.add("scenario drift vs baseline");
+        }
+        return hotspots;
+    }
+
+    private static List<Highlight> orderedHighlights(List<Highlight> highlights) {
+        return highlights.stream()
+            .sorted(Comparator
+                .comparingInt((Highlight highlight) -> -severityRank(highlight.severity()))
+                .thenComparing(Highlight::category)
+                .thenComparing(Highlight::executionStrategy)
+                .thenComparing(Highlight::policyProfile))
+            .toList();
+    }
+
+    private static List<StrategyDelta> orderedStrategyDeltas(List<StrategyDelta> deltas) {
+        return deltas.stream()
+            .sorted(Comparator
+                .comparingInt((StrategyDelta delta) -> -severityRank(delta.severity()))
+                .thenComparing(StrategyDelta::executionStrategy)
+                .thenComparing(StrategyDelta::policyProfile))
+            .toList();
+    }
+
+    private static void appendTopChanges(StringBuilder builder, Comparison comparison) {
+        List<TopChange> topChanges = comparison.scenarioDeltas().stream()
+            .flatMap(scenario -> orderedHighlights(scenario.highlights()).stream()
+                .map(highlight -> new TopChange(
+                    scenario.name(),
+                    scenario.displayName(),
+                    scenario.taxonomy(),
+                    highlight
+                )))
+            .sorted(Comparator
+                .comparingInt((TopChange change) -> -severityRank(change.highlight().severity()))
+                .thenComparing(change -> change.scenarioName())
+                .thenComparing(change -> change.highlight().executionStrategy())
+                .thenComparing(change -> change.highlight().policyProfile()))
+            .limit(8)
+            .toList();
+        if (topChanges.isEmpty()) {
+            return;
+        }
+        builder.append(System.lineSeparator())
+            .append("## Top changes (inspect first)").append(System.lineSeparator()).append(System.lineSeparator());
+        for (TopChange topChange : topChanges) {
+            builder.append("- [").append(topChange.highlight().severity()).append("] ")
+                .append(topChange.scenarioDisplayName()).append(" (`").append(topChange.scenarioName()).append("`)")
+                .append(" — ").append(topChange.highlight().executionStrategy()).append("/")
+                .append(topChange.highlight().policyProfile()).append(": ")
+                .append(topChange.highlight().message())
+                .append(" (focus: ").append(topChange.highlight().reviewFocus()).append(")")
+                .append(System.lineSeparator());
+        }
+    }
+
+    private static void appendHotspots(StringBuilder builder, Comparison comparison) {
+        List<ScenarioDelta> hotspots = comparison.scenarioDeltas().stream()
+            .filter(scenario -> severityRank(scenario.severity()) >= severityRank("cautionary"))
+            .limit(5)
+            .toList();
+        if (hotspots.isEmpty()) {
+            return;
+        }
+        builder.append(System.lineSeparator())
+            .append("## Hotspots").append(System.lineSeparator()).append(System.lineSeparator());
+        for (ScenarioDelta hotspot : hotspots) {
+            builder.append("- ").append(hotspot.displayName()).append(" (`").append(hotspot.name()).append("`)")
+                .append(" — ").append(hotspot.severity())
+                .append(" | ").append(String.join("; ", hotspot.reviewHotspots()))
+                .append(System.lineSeparator());
+        }
     }
 
     private static DashboardBenchmarkSummary summaryForStrategy(
@@ -722,10 +972,10 @@ final class AgentEvalBaselineSupport {
     record DeltaSummary(
         int changedScenarioCount,
         int changedScorecardCount,
-        int regressions,
-        int improvements,
-        int expectedShifts,
-        int reviewChanges
+        int regressionRiskCount,
+        int cautionaryCount,
+        int informativeCount,
+        int expectedCount
     ) {
     }
 
@@ -733,6 +983,9 @@ final class AgentEvalBaselineSupport {
         String name,
         String displayName,
         DashboardBenchmarkScenario.ScenarioTaxonomy taxonomy,
+        String severity,
+        String prioritySummary,
+        List<String> reviewHotspots,
         List<StrategyDelta> strategyDeltas,
         List<ScorecardDelta> scorecardDeltas,
         List<ProfileInterpretationDelta> profileInterpretationDeltas,
@@ -751,7 +1004,10 @@ final class AgentEvalBaselineSupport {
         boolean currentDegraded,
         long baselineProjectedWorkMs,
         long currentProjectedWorkMs,
-        String kind
+        String severity,
+        String triageCategory,
+        String likelyExplanation,
+        String reviewFocus
     ) {
     }
 
@@ -772,8 +1028,29 @@ final class AgentEvalBaselineSupport {
     }
 
     record Highlight(
-        String kind,
+        String severity,
+        String category,
+        String executionStrategy,
+        String policyProfile,
+        String likelyExplanation,
+        String reviewFocus,
         String message
+    ) {
+    }
+
+    private record DeltaTriage(
+        String severity,
+        String category,
+        String likelyExplanation,
+        String reviewFocus
+    ) {
+    }
+
+    private record TopChange(
+        String scenarioName,
+        String scenarioDisplayName,
+        DashboardBenchmarkScenario.ScenarioTaxonomy taxonomy,
+        Highlight highlight
     ) {
     }
 }

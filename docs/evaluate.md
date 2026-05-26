@@ -151,8 +151,8 @@ That comparison writes stable delta artifacts beside the current report:
 
 | File | Contents |
 |------|----------|
-| `agent-eval-delta.json` | Structured baseline-vs-current deltas for scorecards, profile interpretations, and outcome counts |
-| `agent-eval-delta.md` | Compact reviewer packet highlighting regressions, improvements, expected shifts, and review-worthy changes |
+| `agent-eval-delta.json` | Structured baseline-vs-current deltas with severity (`expected`, `informative`, `cautionary`, `regression-risk`) and review-focus hints |
+| `agent-eval-delta.md` | Compact reviewer packet with top changes first, hotspot callouts, and severity-oriented review guidance |
 
 Override the output directory:
 
@@ -185,7 +185,11 @@ Use the evaluation pack as a lightweight before/after review loop:
 2. **Run the current branch comparison**:
    `./gradlew :budgetflow-demo-fintech:runAgentEvalReport --args="--compare-to=mainline"`
 3. **Review `agent-eval-delta.md` first** for compact change highlights, then open `agent-eval-report.md` if you need full scenario context.
-4. **Treat regressions conservatively**: scorecard downgrades, new degraded states, or more omission in `balanced` usually deserve investigation.
+4. **Use severity to prioritize**:
+   - `regression-risk`: inspect first (new degradation, scorecard worsening, or balanced/default omission increases)
+   - `cautionary`: inspect soon (possible scenario drift, optional-coverage drops outside clear profile intent)
+   - `informative`: notable but often acceptable (plan shape shifted; validate intent)
+   - `expected`: profile-intent-consistent differences; keep as evidence but do not overreact
 5. **Treat expected profile-specific changes as review items, not automatic failures**:
    - `latency_first`: lower optional coverage can be intentional when headroom improves.
    - `continuity`: more fallback/approximate work can be intentional when omissions stay controlled.
@@ -195,6 +199,16 @@ Use the evaluation pack as a lightweight before/after review loop:
    - `pressure_mode=...` tells you whether the scenario is a control, budget-only, dominant-signal, mixed-constraint, or boundary case
    - `degradation_style=...` tells you whether to expect convergence, pruning, profile tradeoff, or cascade behavior
    - `coordination=...` helps distinguish single-endpoint scenarios from agent coordination flows
+
+### Interpreting delta severity responsibly
+
+- **Increased omission/degradation is concerning** when it appears in `balanced`, causes new degraded states, or downgrades scorecard assessment (`expected/acceptable` → `cautionary/mismatched`).
+- **Lower optional coverage can be acceptable** when it is profile-intent aligned (`latency_first`/`efficiency`) and mandatory/important behavior remains preserved.
+- **Profile-specific behavior changes are not failures by default**: treat them as intent checks (does this still match endpoint goals?) rather than global regressions.
+- **Distinguish expected intent from likely regressions** by combining severity with taxonomy and scorecard rationale:
+  - expected + profile-intent difference => usually intentional
+  - cautionary/regression-risk + balanced/default drift => investigate as possible regression
+- **Review order for PRs**: `Top changes` section first, then `Hotspots`, then scenario tables for root-cause detail.
 
 ### Shareable evidence exports
 
