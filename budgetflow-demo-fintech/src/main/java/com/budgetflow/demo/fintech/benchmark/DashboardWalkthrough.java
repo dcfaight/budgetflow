@@ -42,6 +42,12 @@ public final class DashboardWalkthrough {
                Why: %s.
                Observe: scenario narratives, scorecards, comparisonTakeaway, endpoint-intent tradeoff signals, and confidenceSummary before drawing conclusions.
 
+            5b) Save a baseline snapshot, then compare later runs
+               ./gradlew :budgetflow-demo-fintech:runAgentEvalReport --args="--save-baseline=mainline"
+               ./gradlew :budgetflow-demo-fintech:runAgentEvalReport --args="--compare-to=mainline"
+               Why: preserve a known-good evidence packet, then review scorecard and profile deltas instead of relying on ad hoc diffing.
+               Observe: agent-eval-delta.md for regressions, improvements, expected profile-specific shifts, and taxonomy-guided review scope.
+
             6) If you want to customize planner behavior, stay incremental
                - Start with budgetflow.planner.profile=balanced|continuity|efficiency
                - Only drop to OptionalTaskModeSelector when the built-in profiles are not enough

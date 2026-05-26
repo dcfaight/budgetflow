@@ -53,6 +53,7 @@ public final class DashboardBenchmarkFormatter {
             builder.append("Interpretation: ").append(scenario.interpretationGuidance()).append(System.lineSeparator());
             builder.append("Pattern: ").append(scenario.realWorldPattern()).append(System.lineSeparator());
             builder.append("Observe: ").append(scenario.whatToObserve()).append(System.lineSeparator());
+            builder.append("Taxonomy: ").append(scenario.taxonomy().summary()).append(System.lineSeparator());
             builder.append("Budget profile: ").append(scenario.budgetProfile())
                 .append(" | Pressure profile: ").append(scenario.pressureProfile()).append(System.lineSeparator());
             builder.append("Request budget: ").append(scenario.requestBudget().toMillis()).append("ms")
@@ -186,6 +187,7 @@ public final class DashboardBenchmarkFormatter {
                 .append("\"interpretationGuidance\":\"").append(escape(scenario.interpretationGuidance())).append("\",")
                 .append("\"realWorldPattern\":\"").append(escape(scenario.realWorldPattern())).append("\",")
                 .append("\"whatToObserve\":\"").append(escape(scenario.whatToObserve())).append("\",")
+                .append("\"taxonomy\":").append(taxonomyJson(scenario.taxonomy())).append(",")
                 .append("\"budgetProfile\":\"").append(escape(scenario.budgetProfile())).append("\",")
                 .append("\"pressureProfile\":\"").append(escape(scenario.pressureProfile())).append("\",")
                 .append("\"requestBudgetMs\":").append(scenario.requestBudget().toMillis()).append(",")
@@ -252,6 +254,7 @@ public final class DashboardBenchmarkFormatter {
             builder.append("- Focus: ").append(scenario.evaluationFocus()).append(System.lineSeparator());
             builder.append("- Observe: ").append(scenario.whatToObserve()).append(System.lineSeparator());
             builder.append("- Interpretation: ").append(scenario.interpretationGuidance()).append(System.lineSeparator());
+            builder.append("- Taxonomy: ").append(scenario.taxonomy().summary()).append(System.lineSeparator());
             builder.append("- Budget: ").append(scenario.requestBudget().toMillis()).append("ms")
                 .append(" | Pressure: ").append(scenario.pressureSummary()).append(System.lineSeparator()).append(System.lineSeparator());
             builder.append("| Strategy | Policy | Executed | Degraded | Work | Omitted | Fallback | Approx |\n");
@@ -399,6 +402,16 @@ public final class DashboardBenchmarkFormatter {
             + "\"fallbackTasks\":" + jsonArray(summary.fallbackTasks()) + ","
             + "\"approximatedTasks\":" + jsonArray(summary.approximatedTasks()) + ","
             + "\"degradationReasons\":" + jsonArray(summary.degradationReasons())
+            + "}";
+    }
+
+    private static String taxonomyJson(DashboardBenchmarkScenario.ScenarioTaxonomy taxonomy) {
+        return "{"
+            + "\"endpointIntent\":\"" + escape(taxonomy.endpointIntent()) + "\","
+            + "\"pressureMode\":\"" + escape(taxonomy.pressureMode()) + "\","
+            + "\"degradationStyle\":\"" + escape(taxonomy.degradationStyle()) + "\","
+            + "\"coordinationPattern\":\"" + escape(taxonomy.coordinationPattern()) + "\","
+            + "\"scenarioType\":\"" + escape(taxonomy.scenarioType()) + "\""
             + "}";
     }
 

@@ -31,7 +31,7 @@ If you are exploring the repository for the first time, use this sequence:
 8. **Agent orchestration direction:** [docs/agent-orchestration.md](docs/agent-orchestration.md)
 9. **Agent demo slice:** `./gradlew :budgetflow-demo-fintech:runAgentTurnDemo` — minimal proof that `AgentWorkSpec` fits the existing model (retrieve → verify → enrich → follow-up actions, healthy + constrained + pressure-spike scenarios)
 10. **Agent boundary-case scenarios:** `./gradlew :budgetflow-demo-fintech:runAgentCoordinationDemo` — coordination (plan → two parallel fetches → consolidate → polish), degraded-cascade, and balanced vs latency_first profile comparison
-11. **Reproducible agent evaluation report:** `./gradlew :budgetflow-demo-fintech:runAgentEvalReport` — generates stable `agent-eval-report.json` and `agent-eval-report.md` in `build/eval-reports/` with all four profiles in one command; diff across PRs with `git diff build/eval-reports/`
+11. **Reproducible agent evaluation report:** `./gradlew :budgetflow-demo-fintech:runAgentEvalReport` — generates stable `agent-eval-report.json` and `agent-eval-report.md` in `build/eval-reports/` with all four profiles in one command; save a baseline with `--save-baseline=<name>` and compare later with `--compare-to=<name>`
 
 ## Why this matters in the first minute
 

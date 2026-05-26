@@ -132,6 +132,28 @@ This generates two files with stable names to `budgetflow-demo-fintech/build/eva
 | `agent-eval-report.json` | Structured evidence: scorecards, profile comparisons, confidence summary |
 | `agent-eval-report.md` | Compact review packet: scenario narratives, scorecard tables, interpretation section |
 
+Save a reusable baseline snapshot for later PR review:
+
+```bash
+./gradlew :budgetflow-demo-fintech:runAgentEvalReport --args="--save-baseline=mainline"
+```
+
+This stores a lightweight baseline snapshot plus copied review artifacts under
+`budgetflow-demo-fintech/build/eval-reports/baselines/mainline/`.
+
+Compare the current run against that saved baseline:
+
+```bash
+./gradlew :budgetflow-demo-fintech:runAgentEvalReport --args="--compare-to=mainline"
+```
+
+That comparison writes stable delta artifacts beside the current report:
+
+| File | Contents |
+|------|----------|
+| `agent-eval-delta.json` | Structured baseline-vs-current deltas for scorecards, profile interpretations, and outcome counts |
+| `agent-eval-delta.md` | Compact reviewer packet highlighting regressions, improvements, expected shifts, and review-worthy changes |
+
 Override the output directory:
 
 ```bash
@@ -153,6 +175,26 @@ git diff build/eval-reports/agent-eval-report.json
 
 The JSON report includes `scorecards`, `profileComparisonSummary`, and `confidenceSummary` fields.
 Both formats are intentionally compact — readable in a review thread or design document.
+
+### Reviewer workflow for PRs
+
+Use the evaluation pack as a lightweight before/after review loop:
+
+1. **Create a known-good baseline** on the branch or commit you trust:
+   `./gradlew :budgetflow-demo-fintech:runAgentEvalReport --args="--save-baseline=mainline"`
+2. **Run the current branch comparison**:
+   `./gradlew :budgetflow-demo-fintech:runAgentEvalReport --args="--compare-to=mainline"`
+3. **Review `agent-eval-delta.md` first** for compact change highlights, then open `agent-eval-report.md` if you need full scenario context.
+4. **Treat regressions conservatively**: scorecard downgrades, new degraded states, or more omission in `balanced` usually deserve investigation.
+5. **Treat expected profile-specific changes as review items, not automatic failures**:
+   - `latency_first`: lower optional coverage can be intentional when headroom improves.
+   - `continuity`: more fallback/approximate work can be intentional when omissions stay controlled.
+   - `efficiency`: earlier omission or lower projected work can be intentional when latency headroom is the goal.
+6. **Use taxonomy to choose what to inspect**:
+   - `endpoint=...` tells you whether you are reviewing dashboard behavior or agent coordination behavior
+   - `pressure_mode=...` tells you whether the scenario is a control, budget-only, dominant-signal, mixed-constraint, or boundary case
+   - `degradation_style=...` tells you whether to expect convergence, pruning, profile tradeoff, or cascade behavior
+   - `coordination=...` helps distinguish single-endpoint scenarios from agent coordination flows
 
 ### Shareable evidence exports
 
