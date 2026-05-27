@@ -46,9 +46,9 @@ For the full "intent → partitioning → profile → expected behavior → evid
 ### Canonical guide map
 
 - **Runnable showcase path:** [docs/showcase-reference-path.md](docs/showcase-reference-path.md)
-- **End-to-end endpoint playbooks:** [docs/reference-journeys.md](docs/reference-journeys.md)
+- **End-to-end endpoint playbooks:** [docs/reference-journeys.md](docs/reference-journeys.md) (includes endpoint-shape mapping + review cheat sheet)
 - **Evaluator mechanics + reviewer loop:** [docs/evaluate.md](docs/evaluate.md)
-- **Adoption rubric and wiring:** [docs/adoption-guide.md](docs/adoption-guide.md)
+- **Adoption rubric and wiring:** [docs/adoption-guide.md](docs/adoption-guide.md) (includes profile decision support + readiness self-check)
 - **Scenario taxonomy:** [docs/scenario-catalog.md](docs/scenario-catalog.md)
 - **Baseline governance:** [docs/baseline-management.md](docs/baseline-management.md)
 - **Framework API usage:** [docs/quickstart.md](docs/quickstart.md), [docs/usage.md](docs/usage.md)
