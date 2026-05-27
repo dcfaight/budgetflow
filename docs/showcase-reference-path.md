@@ -63,6 +63,18 @@ Use this framing while presenting the run:
 
 ---
 
+## Compact case-study framing (public-facing walkthrough)
+
+Use this short storyline when you need to explain outcomes to external evaluators quickly.
+
+- **Problem shape:** commuter-facing dashboard endpoint sees bursty mixed constraints (budget pressure + downstream pressure).
+- **Design choice:** keep account correctness `MANDATORY`, make continuity-heavy reward context `IMPORTANT` with fallback, keep recommendation polish `OPTIONAL`.
+- **Expected adaptive behavior:** under spike conditions, optional polish degrades/omits first while core dashboard correctness stays stable.
+- **Evidence generated:** `agent-eval-report.md` for full run story; `agent-eval-delta.md` for before/after severity and hotspots.
+- **How to judge "good":** mandatory remains preserved, profile-intent behavior is explainable in trace reasons, and no unexplained balanced-profile `regression-risk` deltas appear.
+
+---
+
 ## Polished reviewer packet example (baseline → delta severity)
 
 Use this compact interpretation pattern when reviewing `agent-eval-delta.md`:

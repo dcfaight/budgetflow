@@ -40,9 +40,38 @@ Use this anti-shallow check before finalizing classifications:
 - If a task is marked `IMPORTANT`, define a concrete fallback output and latency hint.
 - If a task is marked `OPTIONAL`, describe expected degraded UX when omitted.
 
+### Defensible partitioning signals (what to classify where)
+
+| Decision question | Usually classify as | Why |
+|---|---|---|
+| "If this disappears, is the response wrong/unsafe/non-compliant?" | `MANDATORY` | This is the non-negotiable correctness boundary |
+| "If this degrades, does the endpoint still deliver the core answer?" | `IMPORTANT` | Preserve continuity with a cheaper substitute |
+| "Is this primarily enrichment/polish/explainer detail?" | `OPTIONAL` | Valuable, but should be pressure-absorbing |
+
+### Misclassification warning signs
+
+- **Too much `MANDATORY`:** constrained scenarios fail hard or lose graceful degradation room.
+- **`IMPORTANT` without fallback semantics:** scorecards trend `cautionary` because continuity intent cannot be satisfied.
+- **`OPTIONAL` hiding contract logic:** omitted optional work causes user-visible correctness complaints.
+- **Repeated "unexpected omission" comments in review:** work likely belongs in `IMPORTANT` with a concrete fallback.
+
 ---
 
-## 2) Choose a reference journey (recommended starting point)
+## 2) Profile-first decision support (choose intentionally)
+
+Start from endpoint intent, then validate with `adoption` + `policy`/`agent` evidence.
+
+| If your endpoint/workflow is... | Start profile | Why this is a strong first choice | First validation signal to check |
+|---|---|---|---|
+| Customer-facing and continuity-sensitive | `balanced` (then compare `continuity`) | Preserves conservative defaults while you confirm continuity needs with evidence | Optional work should degrade before omission in mixed-constraint scenarios |
+| Latency-sensitive request path where optional enrichment can drop | `latency_first` (or `efficiency`) | Protects headroom by intentionally omitting optional work earlier | Headroom improves while mandatory/important behavior stays stable |
+| Background-oriented and budget/throughput sensitive | `continuity` (then compare `efficiency`) | Keeps partial output continuity as pressure rises | Fallback usage rises before omission spikes on important work |
+
+If you cannot explain why a non-`balanced` profile is better for endpoint intent, stay on `balanced` until evaluation evidence says otherwise.
+
+---
+
+## 3) Choose a reference journey (recommended starting point)
 
 Use the canonical end-to-end playbooks in [reference-journeys.md](reference-journeys.md).
 They provide concise, checklist-driven flows from endpoint design through evaluation, review,
@@ -56,7 +85,7 @@ and baseline refresh decisions.
 
 ---
 
-## 3) Compact walkthrough (journey → partitioning → profile → evidence)
+## 4) Compact walkthrough (journey → partitioning → profile → evidence)
 
 Use this lightweight flow for a new endpoint:
 
@@ -75,7 +104,21 @@ Use this lightweight flow for a new endpoint:
 
 ---
 
-## 4) Observability and evaluation wiring in real services
+## 5) Readiness self-check (before rollout or baseline refresh)
+
+Use this as a lightweight "are we ready?" rubric:
+
+- [ ] **Classification clarity:** every task has a clear `MANDATORY`/`IMPORTANT`/`OPTIONAL` justification
+- [ ] **Profile intent clarity:** we can state why this endpoint prefers `balanced`/`continuity`/`efficiency`/`latency_first`
+- [ ] **Evidence literacy:** reviewers know to inspect `agent-eval-delta.md` (`Top changes` → `Hotspots`) before broad conclusions
+- [ ] **Baseline governance:** we have a documented plan for when to hold vs refresh baseline snapshots
+- [ ] **Expectation guardrails:** team understands that profile-intent behavior (for example `latency_first` optional omission) is not an automatic regression
+
+If two or more boxes are unchecked, run another evaluation/review loop before treating current behavior as adoption-ready.
+
+---
+
+## 6) Observability and evaluation wiring in real services
 
 BudgetFlow adoption is strongest when execution behavior is directly inspectable.
 
@@ -172,7 +215,7 @@ deltas should not be treated the same. Prioritize investigation by severity and 
 
 ---
 
-## Lightweight adoption checklist
+## 7) Lightweight adoption checklist
 
 - [ ] Identified which tasks are mandatory, important, and optional for my endpoint
 - [ ] Provided `fallbackLatencyHint` for important tasks and optional tasks with cheap fallback paths

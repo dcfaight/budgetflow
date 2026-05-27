@@ -12,11 +12,11 @@ For baseline refresh governance, see [baseline-management.md](baseline-managemen
 
 ## Journey chooser (start here)
 
-| If your endpoint looks like... | Start with this journey | Default profile |
-|---|---|---|
-| User-facing assistant response where continuity and quality both matter | [Journey A — Customer-facing assistant](#journey-a--customer-facing-assistant) | `balanced` |
-| Tight latency, high-frequency request path where headroom protection is critical | [Journey B — Real-time API path](#journey-b--real-time-api-path) | `latency_first` |
-| Async/batch enrichment where partial output is still valuable | [Journey C — Background enrichment workflow](#journey-c--background-enrichment-workflow) | `continuity` |
+| If your endpoint looks like... | Start with this journey | Initial profile | Partitioning posture | Evidence signal to prioritize |
+|---|---|---|---|---|
+| User-facing assistant response where continuity and quality both matter | [Journey A — Customer-facing assistant](#journey-a--customer-facing-assistant) | `balanced` | Keep `MANDATORY` narrow; push continuity-heavy context to `IMPORTANT` with fallback | Mixed-constraint scorecards + trace reasons should show fallback-before-omission |
+| Tight latency, high-frequency request path where headroom protection is critical | [Journey B — Real-time API path](#journey-b--real-time-api-path) | `latency_first` | Keep `MANDATORY` contract-critical only; treat enrichments as mostly `OPTIONAL` | Optional omission rises intentionally while mandatory stays stable and headroom improves |
+| Async/batch enrichment where partial output is still valuable | [Journey C — Background enrichment workflow](#journey-c--background-enrichment-workflow) | `continuity` | Preserve commit-safe core as `MANDATORY`; continuity-critical enrichment as `IMPORTANT` | Fallback usage should rise before omission spikes in queue/budget pressure scenarios |
 
 ---
 
@@ -168,3 +168,13 @@ When reviewing a PR that claims intent-aligned adaptive behavior:
 4. Refresh baseline only after explicit intent sign-off.
 
 This keeps reviews focused on meaningful behavior changes instead of raw execution-count noise.
+
+### 60-second review interpretation cheat sheet
+
+| What you see in evidence | Usually means | Reviewer action |
+|---|---|---|
+| `regression-risk` in `balanced`/default scenarios | Likely behavior drift, not just profile intent | Investigate first; do not refresh baseline yet |
+| Higher optional omission in `latency_first`/`efficiency` only | Often expected headroom-protection tradeoff | Confirm endpoint intent still matches this profile behavior |
+| `cautionary` hotspot in mixed-constraint scenarios | Possible partitioning mismatch or weak fallback plan | Check task classification and fallback latency hints |
+| Scorecards remain `expected`/`acceptable` and mandatory is preserved | Behavior likely intent-aligned | Keep as review evidence; no automatic rollback |
+| Profile intent changed in PR notes without explicit reviewer sign-off | Governance risk, not necessarily code regression | Require explicit intent confirmation before baseline refresh |
