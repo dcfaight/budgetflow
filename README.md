@@ -11,6 +11,11 @@ BudgetFlow is a polished prototype for adaptive orchestration under latency budg
 
 > **Prototype status:** polished and evaluator-ready for realistic Spring Boot demos; not production-hardened, benchmark-certified, or API-stable as a platform claim.
 
+> **Milestone scope (May 2026):**
+> - reusable request-scoped orchestration framework modules (`core`, `autoconfigure`, `starter`)
+> - a reference fintech evaluator workload with walkthrough, comparison packs, and reviewer evidence artifacts
+> - adoption-focused docs for endpoint intent, work partitioning, planner profile selection, and baseline/delta review
+
 > **Milestone narrative (May 2026):** see [docs/milestone-public-prototype.md](docs/milestone-public-prototype.md) for what this milestone represents and why it matters.
 >
 > **Next-step roadmap:** see [docs/status-roadmap.md](docs/status-roadmap.md) for realistic near-term exploration priorities.
@@ -23,7 +28,7 @@ Use one path first, then go deeper only where needed.
 
 | If you are... | Start here |
 |---|---|
-| **Evaluator** (need one runnable proof + evidence) | [docs/showcase-reference-path.md](docs/showcase-reference-path.md) |
+| **Evaluator** (need one runnable proof + evidence) | [docs/showcase-reference-path.md](docs/showcase-reference-path.md) *(recommended first stop for most new readers)* |
 | **Adopter** (mapping a real endpoint) | [docs/adoption-guide.md](docs/adoption-guide.md) + [docs/reference-journeys.md](docs/reference-journeys.md) |
 | **Reviewer** (triaging behavior change risk) | [docs/evaluate.md#reviewer-workflow-for-prs](docs/evaluate.md#reviewer-workflow-for-prs) + [docs/baseline-management.md](docs/baseline-management.md) |
 | **Curious reader** (framework/API first) | [docs/quickstart.md](docs/quickstart.md) + [docs/architecture.md](docs/architecture.md) |
@@ -45,14 +50,13 @@ For the full "intent → partitioning → profile → expected behavior → evid
 
 ### Canonical guide map
 
-- **Runnable showcase path:** [docs/showcase-reference-path.md](docs/showcase-reference-path.md)
-- **End-to-end endpoint playbooks:** [docs/reference-journeys.md](docs/reference-journeys.md) (includes endpoint-shape mapping + review cheat sheet)
-- **Evaluator mechanics + reviewer loop:** [docs/evaluate.md](docs/evaluate.md)
-- **Adoption rubric and wiring:** [docs/adoption-guide.md](docs/adoption-guide.md) (includes profile decision support + readiness self-check)
-- **Scenario taxonomy:** [docs/scenario-catalog.md](docs/scenario-catalog.md)
-- **Baseline governance:** [docs/baseline-management.md](docs/baseline-management.md)
-- **Framework API usage:** [docs/quickstart.md](docs/quickstart.md), [docs/usage.md](docs/usage.md)
-- **Planner defaults/customization boundaries:** [docs/planner-customization.md](docs/planner-customization.md)
+- **Canonical first runnable path:** [docs/showcase-reference-path.md](docs/showcase-reference-path.md)
+- **Canonical endpoint playbooks (what to read next):** [docs/reference-journeys.md](docs/reference-journeys.md)
+- **Canonical evaluator + reviewer evidence loop:** [docs/evaluate.md](docs/evaluate.md), [docs/baseline-management.md](docs/baseline-management.md)
+- **Adoption guidance (endpoint intent + work partitioning + planner profile choice):** [docs/adoption-guide.md](docs/adoption-guide.md)
+- **Scenario taxonomy reference:** [docs/scenario-catalog.md](docs/scenario-catalog.md)
+- **Framework integration path:** [docs/quickstart.md](docs/quickstart.md), [docs/usage.md](docs/usage.md)
+- **Planner profile boundaries/customization:** [docs/planner-customization.md](docs/planner-customization.md), [docs/interpreting-profiles.md](docs/interpreting-profiles.md)
 
 ## Why this matters in the first minute
 
@@ -137,21 +141,14 @@ For most Spring Boot services, depending only on the starter is enough.
               -> AdaptiveRequestResult (values + diagnostics + decision trace)
 ```
 
-## Why
+## Why BudgetFlow (vs simpler alternatives)
 
-Most APIs treat all downstream work as equally important.
+BudgetFlow targets the middle ground between two common extremes:
 
-Under latency pressure, the usual outcomes are:
-- hard timeouts,
-- cascading failures,
-- or hidden, ad hoc degradation.
+- **Hardcoded if/else or endpoint flags:** simple initially, but hard to keep consistent across endpoints as pressure cases grow.
+- **"Always do everything" handling:** straightforward in healthy conditions, but tends to hide ad hoc degradation or timeout failure paths under stress.
 
-In practice, many responses contain a mix of:
-- **mandatory** work that must complete,
-- **important** work that can fall back,
-- **optional** work that can be approximated or omitted.
-
-BudgetFlow explores what happens when that distinction becomes a first-class execution model.
+BudgetFlow keeps the tradeoff explicit by making endpoint intent, work partitioning (`MANDATORY`/`IMPORTANT`/`OPTIONAL`), planner profile choice, and evidence review part of one repeatable flow.
 
 ## Core ideas
 
@@ -296,7 +293,7 @@ The lower-level `TaskSpec<T>` / `RequestExecutionResult` model remains available
 - optional degraded-path latency hints so fallback/approximate execution can participate in planning more realistically
 - lightweight optional-task strategy extension via `OptionalTaskModeSelector` (default behavior remains deterministic)
 - mixed-constraint optional-path preference signals (`degrade_pref`) so moderate stress can preserve response fidelity while severe stress still prioritizes cheaper paths
-- named planner policy profiles (`balanced`/`default`, `continuity`, `efficiency`) with deterministic semantics and balanced default behavior
+- named planner profiles (`balanced`/`default`, `continuity`, `efficiency`, `latency_first`) with deterministic semantics and balanced default behavior
 - Spring Boot planner profile selection via `budgetflow.planner.profile` (legacy alias: `budgetflow.planner.policy-profile`)
 - typed task result access via `TaskKey<T>` and `AdaptiveRequestResult`
 - optional `AgentWorkSpec<T>` adapter for agent/tool/subtask vocabulary while reusing existing planner/executor semantics
@@ -529,12 +526,13 @@ Available scenario packs:
 - `extended` — adds tight-budget/path-aware, generous-budget/elevated-pressure, DB-bound, and downstream-spike scenarios; best for broader local exploration
 - `adoption` — compact, reusable end-to-end evaluator storyline (control -> commuter mixed spike -> DB-bound bottleneck); best for realistic first-pass adoption confidence checks
 - `realism` — emphasizes richer pressure narratives while staying deterministic and explainable, including a clean budget-only path-aware scenario; best for recognizable scenario sharing and JSON export
-- `policy` — profile-comparison scenarios that make planner policy differences easier to inspect; best for deliberate planner-profile selection
+- `policy` — profile-comparison scenarios that make planner differences easier to inspect; best for deliberate planner-profile selection
 
-Available adaptive policy profiles:
+Available planner profiles:
 - `balanced` — default middle-ground policy (recommended starting point)
 - `continuity` — prefers degraded execution paths over omission when possible
 - `efficiency` — omits optional work sooner under stress to preserve latency headroom
+- `latency_first` — proactively omits optional work at lower thresholds to protect headroom for mandatory/important work
 
 ### Scenario matrix
 
@@ -547,7 +545,7 @@ Available adaptive policy profiles:
 | `generous_budget_elevated_pressure` | extended | Pressure-only stress: even with budget headroom, elevated runtime pressure can trigger graceful degradation. |
 | `tight_budget_moderate_db_pressure` | extended, realism, policy | Dominant DB pressure path: demonstrates policy behavior when one pressure dimension (DB) is the main bottleneck. |
 | `moderate_budget_downstream_spike` | extended, realism | Downstream dependency instability: shows degradation decisions when downstream pressure dominates. |
-| `moderate_budget_elevated_pressure` | policy | Policy-profile comparison focus: same pressure + budget setup used to contrast balanced, continuity, and efficiency behavior. |
+| `moderate_budget_elevated_pressure` | policy | Planner-profile comparison focus: same pressure + budget setup used to contrast balanced, continuity, and efficiency behavior. |
 | `commuter_spike_mixed_pressure` | adoption | Recognizable multi-signal traffic burst: validates deterministic mixed-constraint behavior where degraded paths should be preferred before omission when they still fit budget. |
 
 The optional JSON and Markdown evidence exports are intentionally lightweight and stable enough for demo automation, review threads, and snapshot-style tests; they are not intended as a full benchmarking/reporting platform.

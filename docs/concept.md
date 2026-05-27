@@ -12,7 +12,7 @@ A request-level latency budget can drive deterministic planning decisions so:
 ## Current scope
 
 - request-scoped grouped planning (`AdaptiveRequest`/`AdaptiveRequestResult`)
-- deterministic optional-task policy profiles (`balanced`, `continuity`, `efficiency`)
+- deterministic optional-task planner profiles (`balanced`, `continuity`, `efficiency`, `latency_first`)
 - mixed-constraint planning with path-aware latency hints (fallback/approximate)
 - runtime pressure integration hooks (`RuntimeSignalPressureProvider`, `ExecutionLifecycleListener`)
 - transparent reason semantics (`mixed`, `degrade_pref`, `fit`, `savings`, `latency_ratio`)
@@ -30,3 +30,9 @@ A request-level latency budget can drive deterministic planning decisions so:
 2. `./gradlew :budgetflow-demo-fintech:runDashboardComparison --args="--pack=default"`
 3. `./gradlew :budgetflow-demo-fintech:runDashboardComparison --args="--pack=adoption"`
 4. `./gradlew :budgetflow-demo-fintech:runDashboardComparison --args="--pack=policy --policies=balanced,continuity,efficiency"`
+
+## What to read next
+
+- New readers: [showcase-reference-path.md](showcase-reference-path.md)
+- Endpoint adoption path: [adoption-guide.md](adoption-guide.md), [reference-journeys.md](reference-journeys.md)
+- Reviewer evidence loop: [evaluate.md](evaluate.md), [baseline-management.md](baseline-management.md)
