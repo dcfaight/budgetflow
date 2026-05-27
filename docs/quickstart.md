@@ -155,7 +155,7 @@ Then run the side-by-side scenario comparison:
 ./gradlew :budgetflow-demo-fintech:runDashboardComparison --args="--pack=default --json --out=/tmp/budgetflow-report.json"
 ```
 
-`budgetflow.planner.profile` is the recommended property name. `budgetflow.planner.policy-profile` remains supported for compatibility.
+`budgetflow.planner.profile` is the recommended property name. It accepts `default`/`balanced`, `continuity`, `efficiency`, or `latency_first`. `budgetflow.planner.policy-profile` remains supported as a legacy alias.
 
 For a complete evaluator workflow (including what to observe and how to interpret profile tradeoffs), continue with:
 `docs/evaluate.md`.

@@ -243,7 +243,7 @@ BudgetFlow remains a prototype, but now includes lightweight integration points 
 - `RuntimeSignalPressureProvider` for plugging in live pressure signal suppliers (executor, DB, downstream).
 - `CompositeSystemPressureProvider` for combining multiple pressure sources conservatively (max per dimension).
 - `ExecutionLifecycleListener` for optional lifecycle callbacks before/after policy evaluation and after request execution.
-- named planner policy profiles (`balanced`, `continuity`, `efficiency`) for optional-task policy variation while keeping behavior deterministic.
+- named planner profiles (`balanced`, `continuity`, `efficiency`, `latency_first`) for optional-task policy variation while keeping behavior deterministic.
 - `OptionalTaskModeSelector` for custom optional-task policy variation when profiles are not enough.
 
 These hooks are intentionally lightweight and optional:
@@ -262,10 +262,11 @@ Built-in profiles:
 - `balanced` / `default` (recommended default): middle-ground behavior for most teams
 - `continuity`: favors degraded optional execution paths before omission
 - `efficiency`: omits optional work earlier under stress to protect latency headroom
+- `latency_first`: proactively omits optional work at lower thresholds to preserve headroom for mandatory/important work
 
 Recommended escalation path:
 1. stay on `balanced`
-2. compare `continuity` and `efficiency`
+2. compare `continuity` / `efficiency` / `latency_first` based on endpoint intent
 3. only then add a custom `OptionalTaskModeSelector`
 
 Example policy variation wiring:
@@ -306,7 +307,7 @@ budgetflow:
     downstream-pressure: 0.48
 ```
 
-`budgetflow.planner.profile` accepts `default`/`balanced`, `continuity`, or `efficiency`.  
+`budgetflow.planner.profile` accepts `default`/`balanced`, `continuity`, `efficiency`, or `latency_first`.  
 `budgetflow.planner.policy-profile` remains available as a legacy alias.
 
 When `ExecutionLifecycleListener` beans are present, starter auto-configuration now wires them into the default `AdaptiveExecutor`.

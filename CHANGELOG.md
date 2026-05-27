@@ -14,6 +14,9 @@ All notable prototype-facing changes are documented here.
 - Tight-budget/low-pressure scenario for validating path-aware budget rescue without runtime-pressure noise.
 
 ### Changed
+- README and key docs now use a tighter canonical navigation path (showcase path → reference journeys/evaluation) with clearer "what to read next" transitions.
+- Core terminology was aligned across key docs (planner profile naming, work partitioning wording, and reviewer evidence packet framing) to reduce near-duplicate wording drift.
+- README now includes a concise "Why BudgetFlow (vs simpler alternatives)" section plus milestone-scope framing for faster repository positioning.
 - Planner internals now separate planning-signal analysis, optional-task policy selection, and reason formatting more explicitly while preserving deterministic trace output.
 - Planner reason output now includes explicit decision-layer markers (`layer=...`) to make runtime decision layering easier to interpret in trace/report output.
 - Planner optional-task strategy depth:

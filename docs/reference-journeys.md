@@ -24,7 +24,7 @@ For baseline refresh governance, see [baseline-management.md](baseline-managemen
 
 **Endpoint intent:** keep responses safe and coherent while preserving as much contextual quality as budgets allow.
 
-**Workload partitioning (starting point):**
+**Work partitioning (starting point):**
 - **Mandatory:** safety policy checks, core response framing, minimum retrieval for factual grounding
 - **Important:** conversation memory retrieval with cached-summary fallback
 - **Optional:** personalization enrichments, speculative tool calls, polish layers
@@ -70,7 +70,7 @@ For baseline refresh governance, see [baseline-management.md](baseline-managemen
 
 **Endpoint intent:** preserve predictable latency headroom for request-critical output under bursty pressure.
 
-**Workload partitioning (starting point):**
+**Work partitioning (starting point):**
 - **Mandatory:** response-critical checks/data required for correctness
 - **Important:** only when fallback is deterministic and very cheap
 - **Optional:** enrichments, diagnostics, secondary annotations
@@ -116,7 +116,7 @@ For baseline refresh governance, see [baseline-management.md](baseline-managemen
 
 **Endpoint intent:** keep pipeline throughput and valid partial outputs during queue/budget pressure.
 
-**Workload partitioning (starting point):**
+**Work partitioning (starting point):**
 - **Mandatory:** identity integrity, commit-safe minimum output
 - **Important:** primary enrichment with cached/reduced fallback
 - **Optional:** secondary annotations, speculative signal enrichment
