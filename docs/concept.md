@@ -34,5 +34,6 @@ A request-level latency budget can drive deterministic planning decisions so:
 ## What to read next
 
 - New readers: [showcase-reference-path.md](showcase-reference-path.md)
+- Fit and framing (when to use, when not to use, what benefits most): [README.md#why-budgetflow-vs-simpler-alternatives](../README.md#why-budgetflow-vs-simpler-alternatives)
 - Endpoint adoption path: [adoption-guide.md](adoption-guide.md), [reference-journeys.md](reference-journeys.md)
 - Reviewer evidence loop: [evaluate.md](evaluate.md), [baseline-management.md](baseline-management.md)
