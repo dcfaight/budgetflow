@@ -167,6 +167,21 @@ That comparison writes stable delta artifacts beside the current report:
 | `agent-eval-delta.json` | Structured baseline-vs-current deltas with severity (`expected`, `informative`, `cautionary`, `regression-risk`) and review-focus hints |
 | `agent-eval-delta.md` | Compact reviewer packet with top changes first, hotspot callouts, and severity-oriented review guidance |
 
+Compare multiple packs in one compact progression packet:
+
+```bash
+./gradlew :budgetflow-demo-fintech:runAgentEvalReport --args="--compare-packs=default,adoption,agent"
+```
+
+That writes:
+
+| File | Contents |
+|------|----------|
+| `agent-eval-pack-compare.json` | Structured cross-pack summaries, pairwise pack deltas, recurring hotspot categories, trend summary |
+| `agent-eval-pack-compare.md` | Reviewer-friendly packet with pack summary table, top cross-pack changes, recurring hotspots, and compact trend interpretation notes |
+
+Use `--compare-packs=` order intentionally: order is treated as the progression path (`pack1 -> pack2 -> pack3`) for trend interpretation.
+
 Override the output directory:
 
 ```bash
@@ -188,6 +203,10 @@ git diff build/eval-reports/agent-eval-report.json
 
 The JSON report includes `scorecards`, `profileComparisonSummary`, and `confidenceSummary` fields.
 Both formats are intentionally compact — readable in a review thread or design document.
+
+The cross-pack JSON report includes `packSummaries`, `pairDeltas`, `recurringHotspots`, and `trendSummary`.
+The cross-pack Markdown report is optimized for triage order:
+`Pack summary` → `Pairwise pack deltas` → `Recurring hotspots` → `Trend interpretation`.
 
 ### Reviewer workflow for PRs
 
@@ -231,6 +250,29 @@ When a PR states endpoint intent, use the matching checklist in
 
 For all three, keep the same packet order: `agent-eval-delta.md` (`Top changes` → `Hotspots`) first, then `agent-eval-report.md` only where deeper scenario context is needed.
 
+### Grounded service-style integration proof: endpoint evolution across packs
+
+Use this compact path when reviewing a service endpoint that starts simple and then gains stress/coordination demands:
+
+1. **Baseline endpoint behavior (`default`)** — confirm control and budget-only semantics.
+2. **Realistic traffic evolution (`adoption`)** — confirm mixed-pressure behavior and explicit degradation reasons.
+3. **Coordination/profile stress (`agent`)** — confirm profile-intent tradeoffs for coordination-style turns.
+
+Run one command:
+
+```bash
+./gradlew :budgetflow-demo-fintech:runAgentEvalReport --args="--compare-packs=default,adoption,agent"
+```
+
+Then review `agent-eval-pack-compare.md` in this order:
+
+- **Pack summary**: check if balanced omission/degradation risk grows as endpoint complexity rises.
+- **Pairwise pack deltas**: inspect `default -> adoption` and `adoption -> agent` for top changes and aligned-scenario severity.
+- **Recurring hotspots**: identify categories that repeat across transitions (higher confidence signal than one-off drift).
+- **Trend interpretation**: use as compact triage hints, then confirm with scenario-level evidence in `agent-eval-report.md` or `agent-eval-delta.md`.
+
+This gives one realistic, service-style proof that multi-pack comparison adds value beyond single baseline-vs-current deltas.
+
 ### Interpreting delta severity responsibly
 
 - **Increased omission/degradation is concerning** when it appears in `balanced`, causes new degraded states, or downgrades scorecard assessment (`expected/acceptable` → `cautionary/mismatched`).
@@ -240,6 +282,13 @@ For all three, keep the same packet order: `agent-eval-delta.md` (`Top changes` 
   - expected + profile-intent difference => usually intentional
   - cautionary/regression-risk + balanced/default drift => investigate as possible regression
 - **Review order for PRs**: `Top changes` section first, then `Hotspots`, then scenario tables for root-cause detail.
+
+### Interpreting cross-pack trends responsibly
+
+- Treat trend labels as **heuristics**, not pass/fail gates.
+- Repeated hotspot categories across transitions are stronger signals than one transition alone.
+- If trend says "regressing", confirm whether the change is expected for endpoint intent/profile intent before escalating.
+- Compare like-for-like where possible (same profile scope and similar scenario intent) to avoid over-interpreting pack composition differences.
 
 ### Shareable evidence exports
 

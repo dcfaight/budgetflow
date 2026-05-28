@@ -16,6 +16,8 @@ final class AgentEvalBaselineSupport {
     static final String SNAPSHOT_FILE_NAME = "agent-eval-snapshot.json";
     static final String DELTA_JSON_FILE_NAME = "agent-eval-delta.json";
     static final String DELTA_MD_FILE_NAME = "agent-eval-delta.md";
+    static final String PACK_COMPARE_JSON_FILE_NAME = "agent-eval-pack-compare.json";
+    static final String PACK_COMPARE_MD_FILE_NAME = "agent-eval-pack-compare.md";
 
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper().findAndRegisterModules();
     private static final Map<String, Integer> ASSESSMENT_RANK = Map.of(
@@ -377,6 +379,174 @@ final class AgentEvalBaselineSupport {
             return OBJECT_MAPPER.writerWithDefaultPrettyPrinter().writeValueAsString(comparison);
         } catch (IOException ioException) {
             throw new IllegalStateException("Failed to format comparison delta JSON", ioException);
+        }
+    }
+
+    static CrossPackComparison comparePacks(
+        List<String> requestedPackOrder,
+        Map<String, Snapshot> snapshotsByPack
+    ) {
+        List<String> packOrder = requestedPackOrder.stream()
+            .filter(snapshotsByPack::containsKey)
+            .distinct()
+            .toList();
+        if (packOrder.isEmpty()) {
+            throw new IllegalArgumentException("At least one pack snapshot is required for cross-pack comparison.");
+        }
+
+        List<PackSummary> packSummaries = packOrder.stream()
+            .map(packName -> summarizePack(snapshotsByPack.get(packName)))
+            .toList();
+        List<PackPairDelta> pairDeltas = new ArrayList<>();
+        for (int index = 1; index < packOrder.size(); index++) {
+            Snapshot baseline = snapshotsByPack.get(packOrder.get(index - 1));
+            Snapshot current = snapshotsByPack.get(packOrder.get(index));
+            Comparison alignedScenarioComparison = compare(baseline.packName(), baseline, current);
+            PairSummaryDelta summaryDelta = comparePackSummary(summarizePack(baseline), summarizePack(current));
+            List<TopChange> topChanges = alignedScenarioComparison.scenarioDeltas().stream()
+                .flatMap(scenario -> orderedHighlights(scenario.highlights()).stream()
+                    .map(highlight -> new TopChange(
+                        scenario.name(),
+                        scenario.displayName(),
+                        scenario.taxonomy(),
+                        highlight
+                    )))
+                .sorted(Comparator
+                    .comparingInt((TopChange change) -> -severityRank(change.highlight().severity()))
+                    .thenComparing(change -> change.scenarioName())
+                    .thenComparing(change -> change.highlight().executionStrategy())
+                    .thenComparing(change -> change.highlight().policyProfile()))
+                .limit(6)
+                .toList();
+            pairDeltas.add(new PackPairDelta(
+                baseline.packName(),
+                current.packName(),
+                summaryDelta,
+                alignedScenarioComparison,
+                topChanges
+            ));
+        }
+
+        List<RecurringHotspot> recurringHotspots = recurringHotspots(pairDeltas);
+        TrendSummary trendSummary = buildTrendSummary(packSummaries, pairDeltas, recurringHotspots);
+        return new CrossPackComparison(packOrder, packSummaries, pairDeltas, recurringHotspots, trendSummary);
+    }
+
+    static String formatCrossPackMarkdown(CrossPackComparison comparison) {
+        StringBuilder builder = new StringBuilder();
+        builder.append("# BudgetFlow cross-pack evidence").append(System.lineSeparator()).append(System.lineSeparator());
+        builder.append("- Pack order: `").append(String.join(" → ", comparison.packOrder())).append("`")
+            .append(System.lineSeparator());
+        builder.append("- Reviewer note: treat trend labels as heuristic guidance; verify with scenario tables before concluding regressions.")
+            .append(System.lineSeparator()).append(System.lineSeparator());
+
+        builder.append("## Pack summary").append(System.lineSeparator()).append(System.lineSeparator());
+        builder.append("| Pack | Scenarios | Adaptive degraded | Balanced degraded | Balanced omit total | Avg balanced headroom | Cautionary+mismatched |\n");
+        builder.append("|---|---:|---:|---:|---:|---:|---:|\n");
+        for (PackSummary summary : comparison.packSummaries()) {
+            int cautionaryPlusMismatched = summary.scorecardDispositions().getOrDefault("cautionary", 0)
+                + summary.scorecardDispositions().getOrDefault("mismatched", 0);
+            builder.append("| ").append(summary.packName())
+                .append(" | ").append(summary.scenarioCount())
+                .append(" | ").append(summary.adaptiveDegradedCount())
+                .append(" | ").append(summary.balancedDegradedCount())
+                .append(" | ").append(summary.balancedOmittedTaskTotal())
+                .append(" | ").append(summary.averageBalancedHeadroomMs()).append("ms")
+                .append(" | ").append(cautionaryPlusMismatched)
+                .append(" |").append(System.lineSeparator());
+        }
+
+        builder.append(System.lineSeparator())
+            .append("## Pairwise pack deltas").append(System.lineSeparator()).append(System.lineSeparator());
+        for (PackPairDelta delta : comparison.pairDeltas()) {
+            builder.append("### ").append(delta.baselinePack()).append(" → ").append(delta.currentPack())
+                .append(System.lineSeparator()).append(System.lineSeparator());
+            builder.append("- Adaptive degraded count: ")
+                .append(deltaText(
+                    delta.summaryDelta().baselineAdaptiveDegradedCount(),
+                    delta.summaryDelta().currentAdaptiveDegradedCount()
+                ))
+                .append(" (`").append(delta.summaryDelta().adaptiveDegradedTrend()).append("`)")
+                .append(System.lineSeparator());
+            builder.append("- Balanced omission total: ")
+                .append(deltaText(
+                    delta.summaryDelta().baselineBalancedOmittedTaskTotal(),
+                    delta.summaryDelta().currentBalancedOmittedTaskTotal()
+                ))
+                .append(" (`").append(delta.summaryDelta().balancedOmissionTrend()).append("`)")
+                .append(System.lineSeparator());
+            builder.append("- Balanced average headroom: ")
+                .append(delta.summaryDelta().baselineAverageBalancedHeadroomMs()).append("ms → ")
+                .append(delta.summaryDelta().currentAverageBalancedHeadroomMs()).append("ms")
+                .append(" (").append(signed((int) (delta.summaryDelta().currentAverageBalancedHeadroomMs()
+                - delta.summaryDelta().baselineAverageBalancedHeadroomMs()))).append("ms)")
+                .append(" (`").append(delta.summaryDelta().headroomTrend()).append("`)")
+                .append(System.lineSeparator());
+            builder.append("- Cautionary+mismatched scorecards: ")
+                .append(deltaText(
+                    delta.summaryDelta().baselineCautionaryOrMismatchedCount(),
+                    delta.summaryDelta().currentCautionaryOrMismatchedCount()
+                ))
+                .append(" (`").append(delta.summaryDelta().riskTrend()).append("`)")
+                .append(System.lineSeparator());
+            builder.append("- Aligned scenarios changed: ")
+                .append(delta.alignedScenarioComparison().deltaSummary().changedScenarioCount())
+                .append(" | regression-risk highlights: ")
+                .append(delta.alignedScenarioComparison().deltaSummary().regressionRiskCount())
+                .append(System.lineSeparator());
+            if (!delta.topChanges().isEmpty()) {
+                builder.append("- Top cross-pack changes:").append(System.lineSeparator());
+                for (TopChange topChange : delta.topChanges()) {
+                    builder.append("  - [").append(topChange.highlight().severity()).append("] ")
+                        .append(topChange.scenarioDisplayName())
+                        .append(" (`").append(topChange.scenarioName()).append("`) ")
+                        .append(topChange.highlight().executionStrategy()).append("/")
+                        .append(topChange.highlight().policyProfile()).append(": ")
+                        .append(topChange.highlight().message())
+                        .append(System.lineSeparator());
+                }
+            }
+            builder.append(System.lineSeparator());
+        }
+
+        if (!comparison.recurringHotspots().isEmpty()) {
+            builder.append("## Recurring hotspots").append(System.lineSeparator()).append(System.lineSeparator());
+            for (RecurringHotspot hotspot : comparison.recurringHotspots()) {
+                builder.append("- ").append(hotspot.category())
+                    .append(" occurred ").append(hotspot.occurrences()).append(" times")
+                    .append(" across ").append(String.join(", ", hotspot.packTransitions()))
+                    .append(" (`top severity: ").append(hotspot.topSeverity()).append("`)")
+                    .append(System.lineSeparator());
+            }
+            builder.append(System.lineSeparator());
+        }
+
+        builder.append("## Trend interpretation").append(System.lineSeparator()).append(System.lineSeparator());
+        builder.append("- Adaptive degraded trend: ").append(comparison.trendSummary().adaptiveDegradedTrend())
+            .append(System.lineSeparator());
+        builder.append("- Balanced omission trend: ").append(comparison.trendSummary().balancedOmissionTrend())
+            .append(System.lineSeparator());
+        builder.append("- Balanced headroom trend: ").append(comparison.trendSummary().headroomTrend())
+            .append(System.lineSeparator());
+        builder.append("- Cautionary/mismatched trend: ").append(comparison.trendSummary().riskTrend())
+            .append(System.lineSeparator());
+        if (!comparison.trendSummary().scenarioTrendNotes().isEmpty()) {
+            builder.append("- Scenario trend notes: ")
+                .append(String.join("; ", comparison.trendSummary().scenarioTrendNotes()))
+                .append(System.lineSeparator());
+        }
+        if (!comparison.trendSummary().reviewHints().isEmpty()) {
+            builder.append("- Review hints: ").append(String.join("; ", comparison.trendSummary().reviewHints()))
+                .append(System.lineSeparator());
+        }
+        return builder.toString();
+    }
+
+    static String formatCrossPackJson(CrossPackComparison comparison) {
+        try {
+            return OBJECT_MAPPER.writerWithDefaultPrettyPrinter().writeValueAsString(comparison);
+        } catch (IOException ioException) {
+            throw new IllegalStateException("Failed to format cross-pack comparison JSON", ioException);
         }
     }
 
@@ -860,6 +1030,191 @@ final class AgentEvalBaselineSupport {
         return baselineValue + " → " + currentValue + " (" + signed(currentValue - baselineValue) + ")";
     }
 
+    private static PackSummary summarizePack(Snapshot snapshot) {
+        int balancedDegradedCount = 0;
+        int balancedOmittedTaskTotal = 0;
+        long balancedHeadroomTotalMs = 0;
+        int balancedHeadroomSamples = 0;
+        for (ScenarioSnapshot scenario : snapshot.scenarios()) {
+            StrategySnapshot balanced = scenario.strategies().stream()
+                .filter(strategy -> "budgetflow_adaptive".equals(strategy.executionStrategy()))
+                .filter(strategy -> "balanced".equals(strategy.policyProfile()))
+                .findFirst()
+                .orElse(null);
+            if (balanced != null) {
+                if (balanced.degraded()) {
+                    balancedDegradedCount++;
+                }
+                balancedOmittedTaskTotal += balanced.omittedTasks().size();
+            }
+            ProfileComparisonSnapshot balancedComparison = scenario.profileComparisons().stream()
+                .filter(comparison -> "balanced".equals(comparison.policyProfile()))
+                .findFirst()
+                .orElse(null);
+            if (balancedComparison != null) {
+                balancedHeadroomTotalMs += balancedComparison.headroomMs();
+                balancedHeadroomSamples++;
+            }
+        }
+        long averageBalancedHeadroomMs = balancedHeadroomSamples == 0
+            ? 0
+            : Math.round((double) balancedHeadroomTotalMs / balancedHeadroomSamples);
+        return new PackSummary(
+            snapshot.packName(),
+            snapshot.packDescription(),
+            snapshot.scenarios().size(),
+            snapshot.summary().adaptiveDegradedCount(),
+            balancedDegradedCount,
+            balancedOmittedTaskTotal,
+            averageBalancedHeadroomMs,
+            snapshot.summary().adaptivePlanChangeCount(),
+            snapshot.summary().profileComparisonScenarioCount(),
+            snapshot.summary().scorecardDispositions()
+        );
+    }
+
+    private static PairSummaryDelta comparePackSummary(PackSummary baseline, PackSummary current) {
+        int baselineRisk = baseline.scorecardDispositions().getOrDefault("cautionary", 0)
+            + baseline.scorecardDispositions().getOrDefault("mismatched", 0);
+        int currentRisk = current.scorecardDispositions().getOrDefault("cautionary", 0)
+            + current.scorecardDispositions().getOrDefault("mismatched", 0);
+        return new PairSummaryDelta(
+            baseline.packName(),
+            current.packName(),
+            baseline.adaptiveDegradedCount(),
+            current.adaptiveDegradedCount(),
+            trendLowerIsBetter(current.adaptiveDegradedCount() - baseline.adaptiveDegradedCount()),
+            baseline.balancedOmittedTaskTotal(),
+            current.balancedOmittedTaskTotal(),
+            trendLowerIsBetter(current.balancedOmittedTaskTotal() - baseline.balancedOmittedTaskTotal()),
+            baseline.averageBalancedHeadroomMs(),
+            current.averageBalancedHeadroomMs(),
+            trendHigherIsBetter(current.averageBalancedHeadroomMs() - baseline.averageBalancedHeadroomMs()),
+            baselineRisk,
+            currentRisk,
+            trendLowerIsBetter(currentRisk - baselineRisk)
+        );
+    }
+
+    private static List<RecurringHotspot> recurringHotspots(List<PackPairDelta> pairDeltas) {
+        Map<String, HotspotAccumulator> accumulators = new LinkedHashMap<>();
+        for (PackPairDelta pairDelta : pairDeltas) {
+            String transition = pairDelta.baselinePack() + "→" + pairDelta.currentPack();
+            for (ScenarioDelta scenarioDelta : pairDelta.alignedScenarioComparison().scenarioDeltas()) {
+                for (Highlight highlight : scenarioDelta.highlights()) {
+                    HotspotAccumulator accumulator = accumulators.computeIfAbsent(
+                        highlight.category(),
+                        ignored -> new HotspotAccumulator()
+                    );
+                    accumulator.occurrences++;
+                    accumulator.packTransitions.add(transition);
+                    if (severityRank(highlight.severity()) > severityRank(accumulator.topSeverity)) {
+                        accumulator.topSeverity = highlight.severity();
+                    }
+                }
+            }
+        }
+        return accumulators.entrySet().stream()
+            .filter(entry -> entry.getValue().occurrences >= 2)
+            .map(entry -> new RecurringHotspot(
+                entry.getKey(),
+                entry.getValue().occurrences,
+                entry.getValue().topSeverity,
+                entry.getValue().packTransitions
+            ))
+            .sorted(Comparator
+                .comparingInt((RecurringHotspot hotspot) -> -hotspot.occurrences())
+                .thenComparing(hotspot -> -severityRank(hotspot.topSeverity()))
+                .thenComparing(RecurringHotspot::category))
+            .toList();
+    }
+
+    private static TrendSummary buildTrendSummary(
+        List<PackSummary> packSummaries,
+        List<PackPairDelta> pairDeltas,
+        List<RecurringHotspot> recurringHotspots
+    ) {
+        PackSummary first = packSummaries.get(0);
+        PackSummary last = packSummaries.get(packSummaries.size() - 1);
+        int firstRisk = first.scorecardDispositions().getOrDefault("cautionary", 0)
+            + first.scorecardDispositions().getOrDefault("mismatched", 0);
+        int lastRisk = last.scorecardDispositions().getOrDefault("cautionary", 0)
+            + last.scorecardDispositions().getOrDefault("mismatched", 0);
+
+        List<String> scenarioTrendNotes = scenarioTrendNotes(pairDeltas);
+        List<String> reviewHints = new ArrayList<>();
+        if (trendLowerIsBetter(last.adaptiveDegradedCount() - first.adaptiveDegradedCount()).startsWith("regressing")) {
+            reviewHints.add("Adaptive degraded count rose across the selected pack order.");
+        }
+        if (trendLowerIsBetter(last.balancedOmittedTaskTotal() - first.balancedOmittedTaskTotal()).startsWith("regressing")) {
+            reviewHints.add("Balanced-profile omission rose; inspect endpoint intent and pressure assumptions.");
+        }
+        if (!recurringHotspots.isEmpty()) {
+            reviewHints.add("Recurring hotspot categories indicate repeated risk themes, not one-off drift.");
+        }
+        if (reviewHints.isEmpty()) {
+            reviewHints.add("No broad regression pattern detected across these pack transitions.");
+        }
+
+        return new TrendSummary(
+            trendLowerIsBetter(last.adaptiveDegradedCount() - first.adaptiveDegradedCount()),
+            trendLowerIsBetter(last.balancedOmittedTaskTotal() - first.balancedOmittedTaskTotal()),
+            trendHigherIsBetter(last.averageBalancedHeadroomMs() - first.averageBalancedHeadroomMs()),
+            trendLowerIsBetter(lastRisk - firstRisk),
+            scenarioTrendNotes,
+            reviewHints
+        );
+    }
+
+    private static List<String> scenarioTrendNotes(List<PackPairDelta> pairDeltas) {
+        Map<String, List<String>> severitiesByScenario = new LinkedHashMap<>();
+        for (PackPairDelta pairDelta : pairDeltas) {
+            for (ScenarioDelta scenarioDelta : pairDelta.alignedScenarioComparison().scenarioDeltas()) {
+                severitiesByScenario.computeIfAbsent(scenarioDelta.name(), ignored -> new ArrayList<>())
+                    .add(scenarioDelta.severity());
+            }
+        }
+        return severitiesByScenario.entrySet().stream()
+            .filter(entry -> entry.getValue().size() >= 2)
+            .map(entry -> {
+                List<String> severities = entry.getValue();
+                int start = severityRank(severities.get(0));
+                int end = severityRank(severities.get(severities.size() - 1));
+                String direction;
+                if (end > start) {
+                    direction = "regressing";
+                } else if (end < start) {
+                    direction = "improving";
+                } else {
+                    direction = "stable";
+                }
+                return entry.getKey() + "=" + direction + " (" + severities.get(0) + " → "
+                    + severities.get(severities.size() - 1) + ")";
+            })
+            .limit(6)
+            .toList();
+    }
+
+    private static String trendLowerIsBetter(long delta) {
+        if (delta < 0) {
+            return "improving (lower is better)";
+        }
+        if (delta > 0) {
+            return "regressing (higher than reference)";
+        }
+        return "stable";
+    }
+
+    private static String trendHigherIsBetter(long delta) {
+        if (delta > 0) {
+            return "improving (higher is better)";
+        }
+        if (delta < 0) {
+            return "regressing (lower than reference)";
+        }
+        return "stable";
+    }
+
     private static String dispositionDeltaText(Map<String, Integer> baseline, Map<String, Integer> current) {
         List<String> keys = new ArrayList<>();
         keys.addAll(baseline.keySet());
@@ -872,6 +1227,12 @@ final class AgentEvalBaselineSupport {
 
     private static String signed(int value) {
         return value > 0 ? "+" + value : String.valueOf(value);
+    }
+
+    private static final class HotspotAccumulator {
+        private int occurrences = 0;
+        private String topSeverity = "expected";
+        private final List<String> packTransitions = new ArrayList<>();
     }
 
     private static void writeString(Path path, String content) {
@@ -969,6 +1330,74 @@ final class AgentEvalBaselineSupport {
     ) {
     }
 
+    record CrossPackComparison(
+        List<String> packOrder,
+        List<PackSummary> packSummaries,
+        List<PackPairDelta> pairDeltas,
+        List<RecurringHotspot> recurringHotspots,
+        TrendSummary trendSummary
+    ) {
+    }
+
+    record PackSummary(
+        String packName,
+        String packDescription,
+        int scenarioCount,
+        int adaptiveDegradedCount,
+        int balancedDegradedCount,
+        int balancedOmittedTaskTotal,
+        long averageBalancedHeadroomMs,
+        int adaptivePlanChangeCount,
+        int profileComparisonScenarioCount,
+        Map<String, Integer> scorecardDispositions
+    ) {
+    }
+
+    record PackPairDelta(
+        String baselinePack,
+        String currentPack,
+        PairSummaryDelta summaryDelta,
+        Comparison alignedScenarioComparison,
+        List<TopChange> topChanges
+    ) {
+    }
+
+    record PairSummaryDelta(
+        String baselinePack,
+        String currentPack,
+        int baselineAdaptiveDegradedCount,
+        int currentAdaptiveDegradedCount,
+        String adaptiveDegradedTrend,
+        int baselineBalancedOmittedTaskTotal,
+        int currentBalancedOmittedTaskTotal,
+        String balancedOmissionTrend,
+        long baselineAverageBalancedHeadroomMs,
+        long currentAverageBalancedHeadroomMs,
+        String headroomTrend,
+        int baselineCautionaryOrMismatchedCount,
+        int currentCautionaryOrMismatchedCount,
+        String riskTrend
+    ) {
+    }
+
+    record RecurringHotspot(
+        String category,
+        int occurrences,
+        String topSeverity,
+        List<String> packTransitions
+    ) {
+    }
+
+    record TrendSummary(
+        String adaptiveDegradedTrend,
+        String balancedOmissionTrend,
+        String headroomTrend,
+        String riskTrend,
+        List<String> scenarioTrendNotes,
+        List<String> reviewHints
+    ) {
+    }
+
     record DeltaSummary(
         int changedScenarioCount,
         int changedScorecardCount,
@@ -1046,7 +1475,7 @@ final class AgentEvalBaselineSupport {
     ) {
     }
 
-    private record TopChange(
+    record TopChange(
         String scenarioName,
         String scenarioDisplayName,
         DashboardBenchmarkScenario.ScenarioTaxonomy taxonomy,

@@ -55,6 +55,14 @@ Need a pack-focused evidence packet while keeping canonical agent artifacts stab
 
 This writes stable pack-scoped files (for example `adoption-eval-report.{md,json}`) beside the canonical `agent-eval-report.*` outputs.
 
+Need a compact cross-pack comparison/trend packet?
+
+```bash
+./gradlew :budgetflow-demo-fintech:runAgentEvalReport --args="--compare-packs=default,adoption,agent"
+```
+
+This writes `agent-eval-pack-compare.{md,json}` with pairwise pack deltas, recurring hotspots, and lightweight trend interpretation notes.
+
 For the full "intent → partitioning → profile → expected behavior → evidence/review" flow, use [docs/showcase-reference-path.md](docs/showcase-reference-path.md).
 
 ### Canonical guide map
@@ -124,8 +132,13 @@ For the local reviewer loop (baseline save + compare):
 # On the feature branch, compare against that baseline
 ./gradlew :budgetflow-demo-fintech:runAgentEvalReport --args="--compare-to=mainline"
 
+# Optional: compare progression across multiple packs in one packet
+./gradlew :budgetflow-demo-fintech:runAgentEvalReport --args="--compare-packs=default,adoption,agent"
+
 # Review the compact delta packet
 open budgetflow-demo-fintech/build/eval-reports/agent-eval-delta.md
+# Review cross-pack progression signals
+open budgetflow-demo-fintech/build/eval-reports/agent-eval-pack-compare.md
 ```
 
 See [docs/evaluate.md#reviewer-workflow-for-prs](docs/evaluate.md#reviewer-workflow-for-prs),
