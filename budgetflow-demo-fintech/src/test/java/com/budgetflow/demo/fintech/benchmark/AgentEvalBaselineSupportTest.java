@@ -98,6 +98,40 @@ class AgentEvalBaselineSupportTest {
         assertEquals(explicit, AgentEvalBaselineSupport.resolveSnapshotPath(outDir, explicit.getParent().toString()));
     }
 
+    @Test
+    void crossPackComparisonProducesTrendAndHotspotSections() {
+        try (DashboardComparisonHarness harness = new DashboardComparisonHarness(new NoDelaySimulationSupport())) {
+            DashboardScenarioPack defaultPack = PressureScenarios.defaultPack();
+            DashboardScenarioPack extendedPack = PressureScenarios.extendedPack();
+
+            AgentEvalBaselineSupport.Snapshot defaultSnapshot = AgentEvalBaselineSupport.snapshot(
+                defaultPack,
+                harness.run(defaultPack.scenarios(), List.of(PlannerPolicyProfile.BALANCED))
+            );
+            AgentEvalBaselineSupport.Snapshot extendedSnapshot = AgentEvalBaselineSupport.snapshot(
+                extendedPack,
+                harness.run(extendedPack.scenarios(), List.of(PlannerPolicyProfile.BALANCED))
+            );
+
+            AgentEvalBaselineSupport.CrossPackComparison comparison = AgentEvalBaselineSupport.comparePacks(
+                List.of("default", "extended"),
+                java.util.Map.of(
+                    "default", defaultSnapshot,
+                    "extended", extendedSnapshot
+                )
+            );
+
+            String markdown = AgentEvalBaselineSupport.formatCrossPackMarkdown(comparison);
+            String json = AgentEvalBaselineSupport.formatCrossPackJson(comparison);
+
+            assertTrue(markdown.contains("# BudgetFlow cross-pack evidence"));
+            assertTrue(markdown.contains("## Pairwise pack deltas"));
+            assertTrue(markdown.contains("## Trend interpretation"));
+            assertTrue(json.contains("\"packOrder\""));
+            assertTrue(json.contains("\"trendSummary\""));
+        }
+    }
+
     private static final class NoDelaySimulationSupport extends SimulationSupport {
         @Override
         public void delay(long millis) {

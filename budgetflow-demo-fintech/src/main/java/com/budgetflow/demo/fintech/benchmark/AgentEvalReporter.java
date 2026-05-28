@@ -6,7 +6,9 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Arrays;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 /**
@@ -16,7 +18,8 @@ import java.util.stream.Collectors;
  * (balanced, continuity, efficiency, latency_first) by default and writes predictable JSON and
  * Markdown output to {@code build/eval-reports/} (or a custom directory via {@code --out=}).
  * The report can also target other scenario packs via {@code --pack=} and optional
- * profile overrides via {@code --policies=}.
+ * profile overrides via {@code --policies=}. Cross-pack progression packets can be generated via
+ * {@code --compare-packs=<pack1,pack2,...>}.
  *
  * <p>Output files have stable names so they are easy to diff across runs and PRs:
  * <ul>
@@ -25,6 +28,7 @@ import java.util.stream.Collectors;
  *   <li>{@code agent-eval-report.md} — compact Markdown review packet including scenario
  *       narratives, scorecards, and an interpretation section</li>
  *   <li>{@code <pack>-eval-report.*} for non-agent packs (for example {@code adoption-eval-report.md})</li>
+ *   <li>{@code agent-eval-pack-compare.*} for optional cross-pack progression/trend summaries</li>
  * </ul>
  *
  * <p>Run via Gradle:
@@ -55,7 +59,7 @@ public final class AgentEvalReporter {
         ReporterOptions options = ReporterOptions.parse(args);
         Path outDir = options.outDir();
         DashboardScenarioPack pack = PressureScenarios.packNamed(options.packName());
-        List<PlannerPolicyProfile> policyProfiles = options.policyProfiles();
+        List<PlannerPolicyProfile> policyProfiles = options.policyProfilesForPack(options.packName());
         String reportBaseName = options.packName().equals("agent")
             ? "agent-eval-report"
             : options.packName() + "-eval-report";
@@ -97,6 +101,24 @@ public final class AgentEvalReporter {
                 writeArtifact(deltaMdPath, AgentEvalBaselineSupport.formatDeltaMarkdown(comparison));
             }
 
+            Path packCompareJsonPath = null;
+            Path packCompareMdPath = null;
+            if (!options.comparePacks().isEmpty()) {
+                Map<String, AgentEvalBaselineSupport.Snapshot> snapshotsByPack = new LinkedHashMap<>();
+                for (String packName : options.comparePacks()) {
+                    DashboardScenarioPack comparePack = PressureScenarios.packNamed(packName);
+                    List<PlannerPolicyProfile> compareProfiles = options.policyProfilesForPack(packName);
+                    List<DashboardBenchmarkSummary> compareSummaries = harness.run(comparePack.scenarios(), compareProfiles);
+                    snapshotsByPack.put(packName, AgentEvalBaselineSupport.snapshot(comparePack, compareSummaries));
+                }
+                AgentEvalBaselineSupport.CrossPackComparison crossPackComparison =
+                    AgentEvalBaselineSupport.comparePacks(options.comparePacks(), snapshotsByPack);
+                packCompareJsonPath = outDir.resolve(AgentEvalBaselineSupport.PACK_COMPARE_JSON_FILE_NAME);
+                packCompareMdPath = outDir.resolve(AgentEvalBaselineSupport.PACK_COMPARE_MD_FILE_NAME);
+                writeArtifact(packCompareJsonPath, AgentEvalBaselineSupport.formatCrossPackJson(crossPackComparison));
+                writeArtifact(packCompareMdPath, AgentEvalBaselineSupport.formatCrossPackMarkdown(crossPackComparison));
+            }
+
             System.out.println("Agent evaluation pack complete.");
             System.out.println("  Pack    : " + pack.name() + " — " + pack.description());
             System.out.println("  Profiles: " + policyProfiles.stream()
@@ -111,10 +133,17 @@ public final class AgentEvalReporter {
                 System.out.println("  Delta   : " + deltaJsonPath.toAbsolutePath());
                 System.out.println("  Review  : " + deltaMdPath.toAbsolutePath());
             }
+            if (packCompareJsonPath != null && packCompareMdPath != null) {
+                System.out.println("  Packs   : " + packCompareJsonPath.toAbsolutePath());
+                System.out.println("  Trends  : " + packCompareMdPath.toAbsolutePath());
+            }
             System.out.println();
             System.out.println("Diff across runs: git diff build/eval-reports/agent-eval-report.{json,md}");
             if (options.compareTo() != null) {
                 System.out.println("Compare baseline: open " + deltaMdPath.toAbsolutePath());
+            }
+            if (!options.comparePacks().isEmpty()) {
+                System.out.println("Compare packs   : open " + packCompareMdPath.toAbsolutePath());
             }
             if (options.saveBaselineName() != null) {
                 System.out.println("Saved baseline : " + baselineDir.toAbsolutePath());
@@ -138,9 +167,10 @@ public final class AgentEvalReporter {
     private record ReporterOptions(
         Path outDir,
         String packName,
-        List<PlannerPolicyProfile> policyProfiles,
+        String rawPolicies,
         String saveBaselineName,
-        String compareTo
+        String compareTo,
+        List<String> comparePacks
     ) {
         private static ReporterOptions parse(String[] args) {
             Path outDir = Path.of(DEFAULT_OUT_DIR);
@@ -148,6 +178,7 @@ public final class AgentEvalReporter {
             String rawPolicies = null;
             String saveBaselineName = null;
             String compareTo = null;
+            List<String> comparePacks = List.of();
             for (String arg : args) {
                 if (arg.startsWith("--out=")) {
                     String raw = arg.substring("--out=".length());
@@ -176,15 +207,31 @@ public final class AgentEvalReporter {
                 if (arg.startsWith("--compare-to=")) {
                     String raw = arg.substring("--compare-to=".length()).trim();
                     compareTo = raw.isBlank() ? null : raw;
+                    continue;
+                }
+                if (arg.startsWith("--compare-packs=")) {
+                    String raw = arg.substring("--compare-packs=".length()).trim();
+                    if (!raw.isBlank()) {
+                        comparePacks = Arrays.stream(raw.split(","))
+                            .map(String::trim)
+                            .filter(value -> !value.isBlank())
+                            .distinct()
+                            .toList();
+                    }
                 }
             }
             return new ReporterOptions(
                 outDir,
                 packName,
-                resolvePolicyProfiles(packName, rawPolicies),
+                rawPolicies,
                 saveBaselineName,
-                compareTo
+                compareTo,
+                comparePacks
             );
+        }
+
+        private List<PlannerPolicyProfile> policyProfilesForPack(String resolvedPackName) {
+            return resolvePolicyProfiles(resolvedPackName, rawPolicies);
         }
 
         private static List<PlannerPolicyProfile> resolvePolicyProfiles(String packName, String rawPolicies) {

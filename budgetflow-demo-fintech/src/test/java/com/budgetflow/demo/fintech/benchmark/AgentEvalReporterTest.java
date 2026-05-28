@@ -50,4 +50,21 @@ class AgentEvalReporterTest {
         assertTrue(json.contains("\"policyProfile\":\"balanced\""));
         assertTrue(json.contains("\"policyProfile\":\"efficiency\""));
     }
+
+    @Test
+    void comparePacksWritesCrossPackComparisonArtifacts() throws IOException {
+        Path outputDir = Files.createTempDirectory(Path.of("/tmp"), "budgetflow-agent-eval-cross-pack-");
+
+        AgentEvalReporter.main(new String[] {
+            "--compare-packs=default,adoption,agent",
+            "--out=" + outputDir
+        });
+
+        Path jsonPath = outputDir.resolve(AgentEvalBaselineSupport.PACK_COMPARE_JSON_FILE_NAME);
+        Path mdPath = outputDir.resolve(AgentEvalBaselineSupport.PACK_COMPARE_MD_FILE_NAME);
+        assertTrue(Files.exists(jsonPath));
+        assertTrue(Files.exists(mdPath));
+        assertTrue(Files.readString(jsonPath).contains("\"packOrder\""));
+        assertTrue(Files.readString(mdPath).contains("## Trend interpretation"));
+    }
 }
