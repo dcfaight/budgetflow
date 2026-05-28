@@ -136,6 +136,15 @@ This generates two files with stable names to `budgetflow-demo-fintech/build/eva
 | `agent-eval-report.json` | Structured evidence: scorecards, profile comparisons, confidence summary |
 | `agent-eval-report.md` | Compact review packet: scenario narratives, scorecard tables, interpretation section |
 
+To generate the same style of review packet for a different pack:
+
+```bash
+./gradlew :budgetflow-demo-fintech:runAgentEvalReport --args="--pack=adoption"
+./gradlew :budgetflow-demo-fintech:runAgentEvalReport --args="--pack=policy --policies=balanced,continuity,efficiency"
+```
+
+Non-agent pack runs use stable pack-scoped names (for example `adoption-eval-report.{json,md}`) so canonical `agent-eval-report.*` artifacts remain unchanged for CI/reviewer flows.
+
 Save a reusable baseline snapshot for later PR review:
 
 ```bash

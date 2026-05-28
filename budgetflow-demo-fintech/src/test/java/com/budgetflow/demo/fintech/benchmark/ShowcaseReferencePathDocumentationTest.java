@@ -28,6 +28,29 @@ class ShowcaseReferencePathDocumentationTest {
         assertTrue(readme.contains("docs/showcase-reference-path.md"));
     }
 
+    @Test
+    void canonicalShowcaseEvidenceEntryPointsRemainRunnable() throws IOException {
+        Path outputDir = Files.createTempDirectory(Path.of("/tmp"), "budgetflow-showcase-path-test-");
+        Path comparisonOutput = outputDir.resolve("showcase-adoption.md");
+
+        DashboardWalkthrough.main(new String[0]);
+        DashboardComparisonHarness.main(new String[] {
+            "--pack=adoption",
+            "--markdown",
+            "--out=" + comparisonOutput
+        });
+        AgentEvalReporter.main(new String[] {"--out=" + outputDir});
+
+        assertTrue(Files.exists(comparisonOutput));
+        String comparisonMarkdown = Files.readString(comparisonOutput);
+        assertTrue(comparisonMarkdown.contains("# BudgetFlow comparison evidence"));
+
+        Path agentReport = outputDir.resolve("agent-eval-report.md");
+        assertTrue(Files.exists(agentReport));
+        String agentMarkdown = Files.readString(agentReport);
+        assertTrue(agentMarkdown.contains("## Review interpretation"));
+    }
+
     private Path resolveRepoFile(String relativePath) {
         List<Path> candidates = List.of(
             Path.of(relativePath),
