@@ -72,7 +72,7 @@ For the full "intent → partitioning → profile → expected behavior → evid
 - **What is fintech-demo-specific:** `budgetflow-demo-fintech`, its dashboard domain model, datasets, evaluator UI, comparison harness, and scenario narratives.
 - **What problem the framework solves:** it helps services preserve the most valuable work when not everything can fit, instead of treating every downstream call as equally important until timeout.
 - **Why the evaluator exists:** it is the concrete reference workload used to inspect planner behavior, validate explainability, and share scenario evidence without claiming the fintech demo is the product.
-- **Future direction:** the same orchestration model can extend to multi-agent systems where agents, tools, and subtasks compete for latency and budget headroom. `AgentWorkSpec` is a thin vocabulary adapter toward that direction — it compiles directly to `TaskSpec` and uses the same planner with no second orchestration engine. A minimal agent turn demo (`runAgentTurnDemo`) shows retrieve → verify → enrich → follow-up work adapting under budget and pressure constraints. `AgentCoordinationDemo` (`runAgentCoordinationDemo`) adds boundary cases: multi-step coordination with parallel sub-agent steps, a degraded-cascade failure path, and a balanced vs latency_first profile comparison. The `latency_first` planner profile is now available for endpoints where protecting budget headroom for mandatory work is the priority. See [docs/agent-orchestration.md](docs/agent-orchestration.md) and [docs/planner-customization.md](docs/planner-customization.md).
+- **Future direction:** the same orchestration model can extend to multi-agent systems where agents, tools, and subtasks compete for latency and budget headroom. `AgentWorkSpec` is a thin vocabulary adapter toward that direction; `runAgentTurnDemo` and `runAgentCoordinationDemo` demonstrate agent-turn and multi-step coordination patterns. See [docs/agent-orchestration.md](docs/agent-orchestration.md) and [docs/planner-customization.md](docs/planner-customization.md).
 
 ## Quickstart first (5 minutes)
 
@@ -143,12 +143,35 @@ For most Spring Boot services, depending only on the starter is enough.
 
 ## Why BudgetFlow (vs simpler alternatives)
 
-BudgetFlow targets the middle ground between two common extremes:
+BudgetFlow targets the middle ground between two common approaches:
 
-- **Hardcoded if/else or endpoint flags:** simple initially, but hard to keep consistent across endpoints as pressure cases grow.
-- **"Always do everything" handling:** straightforward in healthy conditions, but tends to hide ad hoc degradation or timeout failure paths under stress.
+- **Hardcoded if/else or endpoint flags:** simple initially, but hard to keep consistent as pressure cases grow across endpoints. Degradation logic tends to scatter, and the reasoning behind each decision disappears into code comments or implicit timeout behavior.
+- **"Always do everything" handling:** straightforward in healthy conditions, but hides ad hoc degradation or timeout failure paths under stress. When something is slow, the system either times out uniformly or silently drops work with no record of why.
+- **Endpoint-specific feature flags:** useful for coarse on/off control, but do not model partial degradation, fallback path ordering, or budget-driven omission sequencing.
+- **Fixed fallback branching:** can work for a single endpoint, but duplicates degradation reasoning at each call site and makes cross-endpoint consistency harder to maintain.
 
 BudgetFlow keeps the tradeoff explicit by making endpoint intent, work partitioning (`MANDATORY`/`IMPORTANT`/`OPTIONAL`), planner profile choice, and evidence review part of one repeatable flow.
+
+### What systems benefit most
+
+BudgetFlow is a strong fit when:
+
+- **The request path includes multiple downstream calls with different priority:** you need some work to degrade gracefully under pressure rather than all timing out uniformly.
+- **Optional enrichment has real value but can be dropped:** responses have a core result plus contextual additions (recommendations, personalization, secondary data) that users appreciate but do not require for the response to be useful.
+- **A degraded-but-useful response is better than a late or failed one:** dashboards, assistant responses, and background enrichment pipelines are typical examples.
+- **Degradation behavior should be auditable:** the decision trace and eval artifacts make adaptive choices reviewable, which matters when verifying that behavior changes under pressure are intentional.
+- **Multiple endpoints share a similar tradeoff shape:** the same partitioning and profile logic applies consistently without per-site if/else.
+
+### When not to use BudgetFlow
+
+BudgetFlow adds structure that is not worth the overhead in simpler cases:
+
+- **Simple handlers with little optional work:** if your endpoint does one or two things and neither can meaningfully degrade, there is no tradeoff to model. Explicit conditionals are clearer and sufficient.
+- **Endpoints without meaningful fallback options:** if everything is truly mandatory and there is no cheaper alternative path, the adaptive model adds complexity without benefit.
+- **Flows where adaptive degradation is not needed:** batch jobs that should fully complete or fail, simple CRUD endpoints, or flows where all work is equally critical do not benefit from importance-tier partitioning.
+- **Cases where simpler explicit logic is clearer:** if you can describe the degradation policy in a few lines of readable code and you do not need decision audit trails, do not add a framework.
+
+The goal is not to use BudgetFlow everywhere — it is to use it where explicit adaptive degradation is a real design concern and the structure earns its place.
 
 ## Core ideas
 
@@ -171,7 +194,7 @@ A task may be planned to:
 ### Request-scoped planning
 Related tasks are planned together under one shared request budget.
 
-### Path-aware planning (what changed)
+### Path-aware planning
 Path-aware planning means each task can expose cheaper execution paths (fallback/approximate) with explicit latency hints, and the planner uses those path costs while budgeting the rest of the request.
 
 | Planning model | Budget view |

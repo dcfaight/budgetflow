@@ -48,7 +48,7 @@ Dataset-pack structure and schema notes are documented in
 `budgetflow-demo-fintech/src/main/resources/demo-data/README.md`.
 
 Use it to browse scenarios, switch profiles, inspect request-level outcomes, and review planner trace reasoning in a visual prototype surface.
-The page now provides first-time “Start here” guidance plus walkthrough-mode progression, narrative phase panels, recommended next comparisons, profile recommendation callouts, compact analytics cards, multi-scenario storyline synthesis, and deeper planner explainability sections.
+The evaluator UI includes first-time "Start here" guidance, walkthrough-mode progression, narrative phase panels, recommended next comparisons, profile recommendation callouts, compact analytics cards, multi-scenario storyline synthesis, and deeper planner explainability sections.
 It also includes an **Agent-step view (compact explainability)** panel that renders the same decision trace in an agent-style step format for quick degrade/omit scanning.
 
 Observe:

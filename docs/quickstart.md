@@ -144,7 +144,7 @@ For a lightweight visual evaluator view (prototype), open:
 http://localhost:8080/dashboard/evaluator
 ```
 
-The evaluator page includes walkthrough-mode steps, narrative phase guidance, multi-scenario storyline synthesis, recommended next comparisons, compact analytics cards, and grouped planner/signal/path explainability cues for fast prototype interpretation.
+The evaluator page provides walkthrough-mode steps, narrative phase guidance, multi-scenario storyline synthesis, recommended next comparisons, compact analytics cards, and grouped planner/signal/path explainability cues for fast prototype interpretation.
 
 Then run the side-by-side scenario comparison:
 
