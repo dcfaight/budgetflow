@@ -41,7 +41,7 @@ tasks.register<JavaExec>("runAgentCoordinationDemo") {
 
 tasks.register<JavaExec>("runAgentEvalReport") {
     group = "application"
-    description = "Generates stable agent evaluation pack artifacts (JSON + Markdown) to build/eval-reports/. Runs all four profiles in one command."
+    description = "Generates stable evaluation artifacts (JSON + Markdown); defaults to the agent pack and supports --pack/--policies overrides."
     classpath = sourceSets["main"].runtimeClasspath
     mainClass.set("com.budgetflow.demo.fintech.benchmark.AgentEvalReporter")
 }

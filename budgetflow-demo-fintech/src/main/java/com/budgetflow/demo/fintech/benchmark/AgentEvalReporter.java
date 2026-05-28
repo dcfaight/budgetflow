@@ -5,14 +5,18 @@ import com.budgetflow.core.policy.PlannerPolicyProfile;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Arrays;
 import java.util.List;
+import java.util.stream.Collectors;
 
 /**
  * Generates stable review artifacts for the agent-oriented evaluation pack in one command.
  *
  * <p>Runs the named {@code agent} scenario pack with all four planner profiles
- * (balanced, continuity, efficiency, latency_first) and writes predictable JSON and
+ * (balanced, continuity, efficiency, latency_first) by default and writes predictable JSON and
  * Markdown output to {@code build/eval-reports/} (or a custom directory via {@code --out=}).
+ * The report can also target other scenario packs via {@code --pack=} and optional
+ * profile overrides via {@code --policies=}.
  *
  * <p>Output files have stable names so they are easy to diff across runs and PRs:
  * <ul>
@@ -20,6 +24,7 @@ import java.util.List;
  *       profile comparison summaries</li>
  *   <li>{@code agent-eval-report.md} — compact Markdown review packet including scenario
  *       narratives, scorecards, and an interpretation section</li>
+ *   <li>{@code <pack>-eval-report.*} for non-agent packs (for example {@code adoption-eval-report.md})</li>
  * </ul>
  *
  * <p>Run via Gradle:
@@ -49,13 +54,17 @@ public final class AgentEvalReporter {
     public static void main(String[] args) {
         ReporterOptions options = ReporterOptions.parse(args);
         Path outDir = options.outDir();
-        DashboardScenarioPack pack = PressureScenarios.agentPack();
+        DashboardScenarioPack pack = PressureScenarios.packNamed(options.packName());
+        List<PlannerPolicyProfile> policyProfiles = options.policyProfiles();
+        String reportBaseName = options.packName().equals("agent")
+            ? "agent-eval-report"
+            : options.packName() + "-eval-report";
 
         try (DashboardComparisonHarness harness = new DashboardComparisonHarness()) {
-            List<DashboardBenchmarkSummary> summaries = harness.run(pack.scenarios(), AGENT_EVAL_PROFILES);
+            List<DashboardBenchmarkSummary> summaries = harness.run(pack.scenarios(), policyProfiles);
 
-            Path jsonPath = outDir.resolve("agent-eval-report.json");
-            Path mdPath = outDir.resolve("agent-eval-report.md");
+            Path jsonPath = outDir.resolve(reportBaseName + ".json");
+            Path mdPath = outDir.resolve(reportBaseName + ".md");
             AgentEvalBaselineSupport.Snapshot snapshot = AgentEvalBaselineSupport.snapshot(pack, summaries);
             String reportJson = DashboardBenchmarkFormatter.formatJson(pack, summaries);
             String reportMarkdown = DashboardBenchmarkFormatter.formatMarkdown(pack, summaries);
@@ -90,7 +99,9 @@ public final class AgentEvalReporter {
 
             System.out.println("Agent evaluation pack complete.");
             System.out.println("  Pack    : " + pack.name() + " — " + pack.description());
-            System.out.println("  Profiles: balanced, continuity, efficiency, latency_first");
+            System.out.println("  Profiles: " + policyProfiles.stream()
+                .map(PlannerPolicyProfile::configName)
+                .collect(Collectors.joining(", ")));
             System.out.println("  JSON    : " + jsonPath.toAbsolutePath());
             System.out.println("  Markdown: " + mdPath.toAbsolutePath());
             if (baselineDir != null) {
@@ -126,11 +137,15 @@ public final class AgentEvalReporter {
 
     private record ReporterOptions(
         Path outDir,
+        String packName,
+        List<PlannerPolicyProfile> policyProfiles,
         String saveBaselineName,
         String compareTo
     ) {
         private static ReporterOptions parse(String[] args) {
             Path outDir = Path.of(DEFAULT_OUT_DIR);
+            String packName = "agent";
+            String rawPolicies = null;
             String saveBaselineName = null;
             String compareTo = null;
             for (String arg : args) {
@@ -139,6 +154,18 @@ public final class AgentEvalReporter {
                     if (!raw.isBlank()) {
                         outDir = Path.of(raw);
                     }
+                    continue;
+                }
+                if (arg.startsWith("--pack=")) {
+                    String raw = arg.substring("--pack=".length()).trim();
+                    if (!raw.isBlank()) {
+                        packName = raw;
+                    }
+                    continue;
+                }
+                if (arg.startsWith("--policies=")) {
+                    String raw = arg.substring("--policies=".length()).trim();
+                    rawPolicies = raw.isBlank() ? null : raw;
                     continue;
                 }
                 if (arg.startsWith("--save-baseline=")) {
@@ -151,7 +178,28 @@ public final class AgentEvalReporter {
                     compareTo = raw.isBlank() ? null : raw;
                 }
             }
-            return new ReporterOptions(outDir, saveBaselineName, compareTo);
+            return new ReporterOptions(
+                outDir,
+                packName,
+                resolvePolicyProfiles(packName, rawPolicies),
+                saveBaselineName,
+                compareTo
+            );
+        }
+
+        private static List<PlannerPolicyProfile> resolvePolicyProfiles(String packName, String rawPolicies) {
+            if (rawPolicies == null) {
+                if ("agent".equals(packName)) {
+                    return AGENT_EVAL_PROFILES;
+                }
+                return List.of(PlannerPolicyProfile.BALANCED);
+            }
+            return Arrays.stream(rawPolicies.split(","))
+                .map(String::trim)
+                .filter(value -> !value.isBlank())
+                .map(PlannerPolicyProfile::fromConfigName)
+                .distinct()
+                .toList();
         }
     }
 }

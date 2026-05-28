@@ -31,6 +31,12 @@ From repository root:
 ./gradlew :budgetflow-demo-fintech:runAgentEvalReport
 ```
 
+Optional focused follow-up when you want an adoption-only evidence packet:
+
+```bash
+./gradlew :budgetflow-demo-fintech:runAgentEvalReport --args="--pack=adoption"
+```
+
 Artifacts are written to:
 
 - `budgetflow-demo-fintech/build/eval-reports/agent-eval-report.md`

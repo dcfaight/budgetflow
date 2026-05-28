@@ -46,6 +46,15 @@ Then open:
 - `budgetflow-demo-fintech/build/eval-reports/agent-eval-report.md`
 - `budgetflow-demo-fintech/build/eval-reports/agent-eval-report.json`
 
+Need a pack-focused evidence packet while keeping canonical agent artifacts stable?
+
+```bash
+./gradlew :budgetflow-demo-fintech:runAgentEvalReport --args="--pack=adoption"
+./gradlew :budgetflow-demo-fintech:runAgentEvalReport --args="--pack=policy --policies=balanced,continuity,efficiency"
+```
+
+This writes stable pack-scoped files (for example `adoption-eval-report.{md,json}`) beside the canonical `agent-eval-report.*` outputs.
+
 For the full "intent → partitioning → profile → expected behavior → evidence/review" flow, use [docs/showcase-reference-path.md](docs/showcase-reference-path.md).
 
 ### Canonical guide map
